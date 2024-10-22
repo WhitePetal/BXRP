@@ -17,40 +17,54 @@ Shader "PostProcess"
             #pragma vertex vert
             #pragma fragment frag
 
-            #include "UnityCG.cginc"
+            #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
+            Texture2D _PostProcessInput;
+			float4 _PostProcessInput_TexelSize;
+			SamplerState sampler_PostProcessInput;
 
             struct v2f
             {
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
             };
 
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-
-            v2f vert (appdata v)
+            v2f vert (uint vertexID : SV_VERTEXID)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                UNITY_TRANSFER_FOG(o,o.vertex);
+
+				if(_ProjectionParams.x < 0.0)
+				{
+					o.vertex = float4(
+						vertexID <= 1 ? -1.0 : 3.0,
+						vertexID == 0 ? 3.0 : -1.0,
+						0.0, 1.0
+					);
+					o.uv = float2(
+						vertexID <= 1 ? 0.0 : 2.0,
+						vertexID == 0 ? 2.0 : 0.0
+					);
+					o.uv.y = 1.0 - o.uv.y;
+				}
+				else
+				{
+					o.vertex = float4(
+						vertexID <= 1 ? -1.0 : 3.0,
+						vertexID == 1 ? 3.0 : -1.0,
+						0.0, 1.0
+					);
+					o.uv = float2(
+						vertexID <= 1 ? 0.0 : 2.0,
+						vertexID == 1 ? 2.0 : 0.0
+					);
+				}
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 frag (v2f i) : SV_Target
             {
-                // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
-                // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
-                return col;
+				half4 color = _PostProcessInput.SampleLevel(sampler_PostProcessInput, i.uv, 0);
+				return color;
             }
             ENDHLSL
         }

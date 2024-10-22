@@ -31,7 +31,7 @@ MonoBehaviour:
   clusterLightShadowMapSize: 1024
   clusterLightShadowMapBits: 24
   drawShadows: 1
-  postProcessMaterial: {fileID: 0}
+  postProcessMaterial: {fileID: 2100000, guid: 1b0810ca95c784d9f8b779b7b083e65f, type: 2}
   gpuDrive: 0
   terrShadow: 0
   terrGrass: 0
@@ -42,5 +42,5 @@ MonoBehaviour:
   mipmapsMemoryBudge: 512
   lodBias: 1
   quality: 0
-  supportComputeShader: 0
+  supportComputeShader: 1
   fewMemory: 0

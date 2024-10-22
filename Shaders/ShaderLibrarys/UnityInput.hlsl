@@ -7,17 +7,21 @@ CBUFFER_START(UnityPerFrame)
     half4 unity_AmbientEquator;
     half4 unity_AmbientGround;
     half4 unity_IndirectSpecColorl;
+    float4 unity_FogParams;
+    half4 unity_FogColor;
 
+    float4x4 glstate_matrix_projection;
     float4x4 unity_MatrixV;
     float4x4 unity_MatrixInvV;
     float4x4 unity_MatrixVP;
-    float4x4 glstate_matrix_projection;
+    float4 unity_StereoScaleOffset;
     int unity_StereoEyeIndex;
 
     half4 unity_ShadowColor;
+    uint _TaaFrameIndex;
 CBUFFER_END
 
-CBUFFER_STAR(UnityPerCameraRare)
+CBUFFER_START(UnityPerCameraRare)
     float4 unity_CameraWorldClipPlanes[6];
 
     float4x4 unity_CameraProjection;
@@ -76,12 +80,25 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_LODFade;
     float4 unity_WorldTransformParams; // x is usually 1.0 or -1.0 for  odd-negative scale transforms
     float4 unity_RenderingLayer;
-CBUFFER_END
 
-CBUFFER_START(UnityLighting)
-    // part of Light because it can be used outside of shadow distance
-    half4 unity_OcclusionMaskSelector;
-    half4 unity_ProbesOcclusion;
+    half4 unity_LightData;
+    half4 unity_LightIndices[2];
+
+    float4 unity_ProbesOcclusion;
+
+    half4 unity_SpecCube0_HDR;
+    half4 unity_SpecCube1_HDR;
+
+    float4 unity_SpecCube0_BoxMax;
+    float4 unity_SpecCube0_BoxMin;
+    float4 unity_SpecCube0_ProbePosition;
+
+    float4 unity_SpecCube1_BoxMax;
+    float4 unity_SpecCube1_BoxMin;
+    float4 unity_SpecCube1_ProbePosition;
+
+    float4 unity_LightmapsST;
+    float4 unity_DynamicLightmapST;
 
     half4 unity_SHAr;
     half4 unity_SHAg;
@@ -90,34 +107,35 @@ CBUFFER_START(UnityLighting)
     half4 unity_SHBg;
     half4 unity_SHBb;
     half4 unity_SHC;
-CBUFFER_END
 
-CBUFFER_START(UnityProbeVolume)
+    // Renderer bounding box
+    float4 unity_RendererBounds_Min;
+    float4 unity_RendererBounds_Max;
+
+    // Velocity
+    float4x4 unity_MatrixPreviousM;
+    float4x4 unity_MatrixPreviousMI;
+    //X : Use last frame positions (right now skinned meshes are the only objects that use this
+    //Y : Force No Motion
+    //Z : Z bias value
+    //W : Camera only
+    float4 unity_MotionVectorsParams;
+
+    // Sprite.
+    float4 unity_SpriteColor;
+    //X : FlipX
+    //Y : FlipY
+    //Z : Reserved for future use.
+    //W : Reserved for future use.
+    float4 unity_SpriteProps;
+
     // x = Disabled(0)/Enable(1)
     // y = Computation are done in global space(0) or local space(1)
     // z = Texel size on U texture coordinate
     float4 unity_ProbeVolumeParams;
-
     float4x4 unity_ProbeVolumeWorldToObject;
     float3 unity_ProbeVolumeSizeInv;
     float3 unity_ProbeVolumeMin;
-CBUFFER_END
-
-CBUFFER_START(UnityReflectionProbes)
-    float4 unity_SpecCube0_BoxMax;
-    float4 unity_SpecCube0_BoxMin;
-    float4 unity_SpecCube0_ProbePosition;
-    half4 unity_SpecCube0_HDR;
-
-    float4 unity_SpecCube1_BoxMax;
-    float4 unity_SpecCube1_BoxMin;
-    float4 unity_SpecCube1_ProbePosition;
-    half4 unity_SpecCube1_HDR;
-CBUFFER_END
-
-CBUFFER_START(UnityLightMaps)
-    float4 unity_LightmapsST;
-    float4 unity_DynamicLightmapST;
 CBUFFER_END
 
 #endif

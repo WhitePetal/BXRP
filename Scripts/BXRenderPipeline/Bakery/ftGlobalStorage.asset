@@ -400,7 +400,10 @@ MonoBehaviour:
   assetList:
   - Assets/Bakery/examples/content/sponza/bush.FBX
   - Assets/Bakery/examples/content/floor_lamp.FBX
-  uvOverlapAssetList: 00000000ffffffff
+  - Assets/Scripts/BXRenderPipeline/Bakery/examples/content/logolight.FBX
+  - Assets/Scripts/BXRenderPipeline/Bakery/examples/content/floor_lamp.FBX
+  - Assets/Scripts/BXRenderPipeline/Bakery/examples/content/sponza/bush.FBX
+  uvOverlapAssetList: 00000000ffffffff000000000000000000000000
   xatlasWarningShown: 0
   foundCompatibleSetup: 0
   gpuName: 

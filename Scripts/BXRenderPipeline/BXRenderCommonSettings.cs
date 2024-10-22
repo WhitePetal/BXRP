@@ -24,7 +24,7 @@ namespace BXRenderPipeline
             DLSS
 		}
 
-        [Header("·Ö±æÂÊ")]
+        [Header("åˆ†è¾¨ç‡")]
         public float downSample = 1;
         public int minHeight = 1080;
         public int maxHeight = 1440;
@@ -32,10 +32,10 @@ namespace BXRenderPipeline
         public int msaa = 2;
         public AAType aaType;
 
-        [Header("Ö¡ÂÊ")]
+        [Header("å¸§ç‡")]
         public int targetFrameRate = 120;
 
-        [Header(("·½Ïò¹âÉèÖÃ"))]
+        [Header(("æ–¹å‘å…‰è®¾ç½®"))]
         public float maxShadowDistance = 20f;
         public int cascadeCount = 3;
         public int shadowMapSize = 2048;
@@ -47,18 +47,18 @@ namespace BXRenderPipeline
         [Range(0.1f, 1f)]
         public float cascadeFade = 0.1f;
 
-        [Header("Cluster¹âÓ°ÉèÖÃ")]
+        [Header("Clusterå…‰å½±è®¾ç½®")]
         public ComputeShader clusterLightCompute;
         public int clusterLightShadowMapSize = 1024;
         public int clusterLightShadowMapBits = 24;
 
-        [Header("ÒõÓ°¿ª¹Ø")]
+        [Header("é˜´å½±å¼€å…³")]
         public bool drawShadows = true;
 
-        [Header("ºó´¦Àí")]
+        [Header("åå¤„ç†")]
         public Material postProcessMaterial;
 
-        [Header("µØĞÎ")]
+        [Header("åœ°å½¢")]
         public bool gpuDrive;
         public bool terrShadow;
         public bool terrGrass;
