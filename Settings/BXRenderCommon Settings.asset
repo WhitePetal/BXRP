@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5432788ee13d6aa4eaec309f86d315ea, type: 3}
+  m_Name: BXRenderCommon Settings
+  m_EditorClassIdentifier: 
+  downSample: 1
+  minHeight: 1080
+  maxHeight: 1440
+  msaa: 2
+  aaType: 0
+  targetFrameRate: 120
+  maxShadowDistance: 20
+  cascadeCount: 3
+  shadowMapSize: 2048
+  shadowMapBits: 24
+  distanceFade: 0.1
+  cascadeRatio1: 0.1
+  cascadeRatio2: 0.25
+  cascadeRatio3: 0.5
+  cascadeFade: 0.1
+  clusterLightCompute: {fileID: 0}
+  clusterLightShadowMapSize: 1024
+  clusterLightShadowMapBits: 24
+  drawShadows: 1
+  postProcessMaterial: {fileID: 0}
+  gpuDrive: 0
+  terrShadow: 0
+  terrGrass: 0
+  grassDensity: 1
+  grassDstLOD: 0
+  shaderLOD: 3000
+  textureLOD: 0
+  mipmapsMemoryBudge: 512
+  lodBias: 1
+  quality: 0
+  supportComputeShader: 0
+  fewMemory: 0
