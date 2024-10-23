@@ -67,6 +67,7 @@ namespace BXRenderPipeline
             this.commonSettings = mainCameraRender.commonSettings;
             this.shadowedDirLightCount = 0;
             this.shadowedClusterLightCount = 0;
+            this.shadowedClusterLightTileCount = 0;
         }
 
         public Vector4 SaveDirectionalShadows(Light light, int visibleLightIndex)
@@ -215,7 +216,7 @@ namespace BXRenderPipeline
                         out Matrix4x4 viewMatrix, out Matrix4x4 projMatrix, out ShadowSplitData shadowSplitData);
                     shadowSplitData.shadowCascadeBlendCullingFactor = cullingFactor;
                     dirShadowSettings.splitData = shadowSplitData;
-                    // ���з���ⶼʹ��ͬһ���������壬���ֻ��Ҫ�洢��һ����Դ�ļ���
+                    // 所有方向光都使用同一个级联球体，因此只需要存储第一个光源的即可
                     if (i == 0)
                     {
                         SetCascadeData(cascadeIndex, shadowSplitData.cullingSphere, tileSize);
@@ -298,7 +299,7 @@ namespace BXRenderPipeline
             commandBuffer.BeginSample(BufferName);
             ExecuteCommandBuffer();
 
-            int tiles = shadowedClusterLightCount;
+            int tiles = shadowedClusterLightTileCount;
             int split = tiles <= 1 ? 1 : tiles <= 4 ? 2 : 4;
             int tileSize = shadowMapSize / split;
             for(int i = 0; i < shadowedClusterLightCount; ++i)
@@ -321,7 +322,7 @@ namespace BXRenderPipeline
         private void RenderPointShadow(int index, int split, int tileSize)
 		{
             ShadowedClusterLight light = shadowedClusterLights[index];
-            var shadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Orthographic);
+            var shadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Perspective);
             float texelSize = 2f / tileSize;
             float filterSize = texelSize * (1 + 1f); // 1 means PCF3x3
             float bias = light.normalBias * filterSize * 1.4142136f;
@@ -344,7 +345,7 @@ namespace BXRenderPipeline
                 SetClusterTileData(tileIndex, offset, tileScale, bias);
                 clusterShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
                 commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
-                commandBuffer.SetGlobalDepthBias(0f, light.slopeScaleBias);
+                commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
                 ExecuteCommandBuffer();
                 context.DrawShadows(ref shadowSettings);
                 commandBuffer.SetGlobalDepthBias(0f, 0f);

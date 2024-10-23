@@ -65,4 +65,43 @@ inline float4 ComputeScreenPos(float4 pos) {
     return o;
 }
 
+half3 ToneMapping_ACES(half3 color, half adapted_lum)
+{
+    const half A = half(2.51);
+    const half B = half(0.03);
+    const half C = half(2.43);
+    const half D = half(0.59);
+    const half E = half(0.14);
+
+    color *= adapted_lum;
+    return (color * (A * color + B)) / (color * (C * color + D) + E);
+}
+
+half3 ACES_To_Linear(half3 col)
+{
+    half3 res = half3(
+        dot(half3(half(1.7049), half(-0.62416), half(-0.0809141)), col),
+        dot(half3(half(-0.129553), half(1.13837), half(-0.00876801)), col),
+        dot(half3(half(-0.0241261), half(-0.124633), half(1.14882)), col)
+    );
+    return max(half(0.0001), res);
+}
+
+half3 ACES_To_sRGB(half3 col)
+{
+    return sqrt(ACES_To_Linear(col));
+}
+
+half3 ToneMapping_ACES_To_sRGB(half3 color, half adapted_lum)
+{
+    #if _ACES_C
+    // 下面这种得到的颜色更鲜艳，但不容易通过主贴图控制颜色效果
+        return ACES_To_sRGB(ToneMapping_ACES(color, adapted_lum));
+    #else
+        // return sqrt(ToneMapping_ACES_DS(color, adapted_lum));
+        // return sqrt(ACES_To_Linear(color * adapted_lum));  
+        return ACES_To_sRGB(color * adapted_lum);
+    #endif
+}
+
 #endif

@@ -1,0 +1,46 @@
+https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
+色温：决定现实常见光的颜色
+![alt text](image_kelvin_color.png)
+
+Radiant flux/power 辐射通量 光强度 瓦特(W)
+Luminous flux/power 光通量 人眼感知的光强度 流明(lm)
+Luminous intensity 光强度 单位体积角的光通量 坎德拉(cd) 传入Shader的光强
+Illuminance        照度 单位面积的光通量 勒克斯(lx)
+Luminance          亮度   单位体积角单位面积的光通量 尼特(nt)
+Exposure Value    相机曝光值
+
+辐射通量(Radiant power)(W)(Xe) 与 光通量(Luminous power)(lm)(Xv) 之间的转换：
+Xv = n * Xe
+其中 n 为 光视效能(luminous efficacy) 其公式为:
+$$ n = 683 * \frac{\int_{380}^{780}X_e(\lambda)V_e{\lambda}d\lambda}{\int_{380}^{780}X_e{\lambda}d\lambda} $$
+$V_e$ 是 人眼对不同波长光的灵敏度曲线 CIE photometric curve(CIE光度曲线)
+![alt text](image_CIE_Curve.png)
+Xv = 683 * Ve * Xe
+几种光源的 n 值:
+白织灯 2%~5%
+LED灯 0.66%-8.8%
+荧光灯 9%~15%
+太阳 15%~19%
+
+曝光(EV) 与 亮度(Luminance)(nt) 之间的转换关系:
+$$EV = log_2(\frac{L_{avg}S}{K})$$
+$L_{avg}$ 表示场景平均的亮度，S 是相机 ISO(感光度), K是相机校准常数
+我们通常把 ISO 固定为 100，K 取 12.5 此时得到的 EV称为 $EV_{100}$
+$$EV_{100} = log_2(\frac{100L_{avg}}{12.5})$$
+$$L  = \frac{2^{EV_{100}}12.5}{100} = 2^{EV_{100}-3}$$
+![alt text](image_EV100_Luminance.png)
+
+光通量(luminous power)(lm)($\Phi$) 与 光强度(luminous intensity)(cd)($I$) 之间的转换：
+对于点光源：
+$$\Phi = \int_SIdl = \int_0^{2\pi}\int_0^{\pi}Id\theta d\phi = 4\pi I$$
+对于聚光灯：
+$$\Phi = \int_SIdl = \int_0^{2\pi}\int_0^{\theta_{outer}}Id\theta d\phi = 2\pi(1-cos\frac{\theta_{outer}}{2}) I$$
+
+照度(Illuminance)(lx)($E$)在距离方向上会衰减，且存在与 光强度(Luminous intensity)(cd)($I$)的转换关系:
+$$E = \frac{I}{distance^2}$$
+
+可得 照度(Illuminance)(lx)($E$) 与 光通量(luminous power)(lm)($\Phi$) 的 转换关系:
+对于点光源:
+$$E = \frac{\Phi}{4\pi distance^2}$$
+对于聚光灯:
+$$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$

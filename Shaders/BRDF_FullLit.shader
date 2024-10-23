@@ -22,6 +22,7 @@ Shader "Test/BRDF_FullLit"
 
         Pass
         {
+            Tags { "LightMode"="BXForwardBase"}
             HLSLPROGRAM
             #pragma target 4.5
             #pragma vertex vert
@@ -117,10 +118,11 @@ Shader "Test/BRDF_FullLit"
                 half4 kds = GET_PROP(_KdsExpoureClampMinMax);
                 half3 diffuseLighting = half(0.0);
                 half3 specularLighting = half(0.0);
+                float3 pos_world = i.pos_world;
                 #ifdef DIRECTIONAL_LIGHT
                     for(int lightIndex = 0; lightIndex < _DirectionalLightCount; ++lightIndex)
                     {
-                        half atten = GetDirectionalShadow(0, i.vertex.xy, i.pos_world, n, GetShadowDistanceStrength(depthEye));
+                        half atten = GetDirectionalShadow(lightIndex, i.vertex.xy, pos_world, n, GetShadowDistanceStrength(depthEye));
                         half3 l = _DirectionalLightDirections[lightIndex].xyz;
                         half3 h = SafeNormalize(l + v);
                         half ldoth = max(half(0.0), dot(l, h));
@@ -130,14 +132,94 @@ Shader "Test/BRDF_FullLit"
                         half2 fgd = half2(PBR_F(ldoth), PBR_G(ndotl, ndotv, roughness) * PBR_D(roughness, ndoth));
                         half3 fresnel = specular + (half(1.0) - specular) * fgd.x;
                         half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * ndotl;
-                        diffuseLighting += (half(1.0) - fresnel) * albedo * lightStrength;
+                        diffuseLighting += (half(1.0) - fresnel) * lightStrength;
+                        specularLighting += fresnel * fgd.y * lightStrength;
+                    }
+                #endif
+                #ifdef CLUSTER_LIGHT
+                    int lightIndexStart;
+                    int clusterCount = GetClusterCount(i.vertex.xyz, pos_world, depthEye, lightIndexStart);
+                    for(int offset = 0; offset < clusterCount; ++offset)
+                    {
+                        int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
+                        float4 lightPos = _ClusterLightSpheres[lightIndex];
+                        half3 dir = half3(lightPos.xyz - pos_world);
+                        half dstSqr = dot(dir, dir);
+                        half rr = half(lightPos.w);
+                        half dstF = dstSqr * rr;
+                        half atten = max(half(0.0), half(1.0) - dstF * dstF) / (dstSqr + half(0.001));
+                        half4 spotAngle = _ClusterLightSpotAngles[lightIndex];
+                        half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
+                        half3 l = normalize(dir);
+                        half spotAtten = saturate(dot(l, lightFwd) * spotAngle.x + spotAngle.y);
+                        atten *= spotAtten * spotAtten;
+                        atten *= GetClusterShadow(lightIndex, lightFwd, pos_world, n);
+
+                        half3 h = SafeNormalize(l + v);
+                        half ldoth = max(half(0.0), dot(l, h));
+                        half ndotlm = max(half(0.0), dot(n, l)) + kds.y;
+                        half ndotl = smoothstep(kds.z, kds.w, min(ndotlm, atten));
+                        half ndoth = max(half(0.0), dot(n, h));
+                        half2 fgd = half2(PBR_F(ldoth), PBR_G(ndotl, ndotv, roughness) * PBR_D(roughness, ndoth));
+                        half3 fresnel = specular + (half(1.0) - specular) * fgd.x;
+                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * ndotl;
+                        diffuseLighting += (half(1.0) - fresnel) * lightStrength;
                         specularLighting += fresnel * fgd.y * lightStrength;
                     }
                 #endif
 
-                return half4(diffuseLighting + specularLighting, 1.0);
+                return half4(diffuseLighting * albedo + specularLighting, 1.0);
             }
             ENDHLSL
         }
+
+        Pass 
+        {
+			Tags {"RenderType"="Opaque" "Queue"="Geometry" "LightMode" = "ShadowCaster"}
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+
+            #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
+            #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
+            #include "Assets/Shaders/ShaderLibrarys/Shadows.hlsl"
+			
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            };
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            };
+
+
+            v2f vert (appdata v)
+            {
+                v2f o;
+                float3 pos_world = TransformObjectToWorld(v.vertex.xyz);
+                o.vertex = TransformWorldToHClip(pos_world);
+                if(_ShadowPancaking)
+                {
+                    #if UNITY_REVERSED_Z
+                        o.vertex.z =
+                        min(o.vertex.z, o.vertex.w * UNITY_NEAR_CLIP_VALUE);
+                    #else
+                        o.vertex.z =
+                            max(o.vertex.z, o.vertex.w * UNITY_NEAR_CLIP_VALUE);
+                    #endif
+                }
+                return o;
+            }
+
+            void frag (v2f i)
+            {
+                // return 0.0;
+            }
+			ENDHLSL
+		}
     }
 }

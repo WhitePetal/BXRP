@@ -49,7 +49,7 @@ namespace BXRenderPipeline
 			commonSettings.Init();
 
 			GraphicsSettings.useScriptableRenderPipelineBatching = useSRPBatching;
-			GraphicsSettings.lightsUseLinearIntensity = true;
+			GraphicsSettings.lightsUseLinearIntensity = false;
 			QualitySettings.antiAliasing = 1;
 
 			this.beforeRenderFeatures = beforeRenderFeatures;

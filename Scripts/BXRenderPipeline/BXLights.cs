@@ -8,11 +8,13 @@ namespace BXRenderPipeline
 {
     public class BXLights
     {
+        private Camera camera;
+        private BXRenderCommonSettings commonSettings;
         private ScriptableRenderContext context;
         private CullingResults cullingResults;
 
         public const int maxDirLightCount = 1;
-        public const int maxClusterLightCount = 16;
+        public const int maxClusterLightCount = 64;
 
         private const string BufferName = "Lights";
         private CommandBuffer commandBuffer = new CommandBuffer()
@@ -20,7 +22,10 @@ namespace BXRenderPipeline
             name = BufferName
         };
 
+        private int width, height;
+
         private BXShadows shadows = new BXShadows();
+        private BXClusterLightCullCompute clusterLightCullCompute = new BXClusterLightCullCompute();
 
         public int dirLightCount;
         public int clusterLightCount;
@@ -88,8 +93,12 @@ namespace BXRenderPipeline
 
         public void Setup(BXMainCameraRender mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
 		{
+            this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
             this.cullingResults = mainCameraRender.cullingResults;
+            this.commonSettings = mainCameraRender.commonSettings;
+            this.width = mainCameraRender.width;
+            this.height = mainCameraRender.height;
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
@@ -100,7 +109,7 @@ namespace BXRenderPipeline
 
         private void SetupDirectionalLight(int dirLightIndex, int visibleLightIndex, ref VisibleLight visibleLight)
 		{
-            dirLightColors[dirLightIndex] = visibleLight.finalColor.linear;
+            dirLightColors[dirLightIndex] = visibleLight.finalColor.gamma;
             dirLightDirections[dirLightIndex] = -visibleLight.localToWorldMatrix.GetColumn(2);
             dirShadowDatas[dirLightIndex] = shadows.SaveDirectionalShadows(visibleLight.light, visibleLightIndex);
             dirLights[dirLightIndex] = visibleLight;
@@ -118,7 +127,7 @@ namespace BXRenderPipeline
             clusterLightMinBounds[clusterLightIndex] = lightSphere - lightRange;
             clusterLightDirections[clusterLightIndex] = Vector4.zero;
             clusterLightSpotAngles[clusterLightIndex] = new Vector4(0f, 1f);
-            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.linear;
+            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
             clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
             clusterLights[clusterLightIndex] = visibleLight;
 		}
@@ -155,7 +164,7 @@ namespace BXRenderPipeline
             clusterLightMinBounds[clusterLightIndex] = minBound;
             clusterLightDirections[clusterLightIndex] = lightDir;
             clusterLightSpotAngles[clusterLightIndex] = new Vector4(angleRangeInv, -outerCos * angleRangeInv);
-            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.linear * 4 / (outerSin * outerSin);
+            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma * 4 / (outerSin * outerSin);
             clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
             clusterLights[clusterLightIndex] = visibleLight;
         }
@@ -187,6 +196,7 @@ namespace BXRenderPipeline
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightSpotAngles_ID, clusterLightSpotAngles);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightColors_ID, clusterLightColors);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterShadowDatas_ID, clusterShadowDatas);
+                clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
 			}
             else
             {
@@ -209,11 +219,15 @@ namespace BXRenderPipeline
         public void OnDispose()
 		{
             shadows.OnDispose();
+            clusterLightCullCompute.OnDispose();
             shadows = null;
+            clusterLightCullCompute = null;
 
             commandBuffer.Dispose();
             commandBuffer = null;
 
+            camera = null;
+            commonSettings = null;
             dirLightColors = null;
             dirLightDirections = null;
             dirShadowDatas = null;

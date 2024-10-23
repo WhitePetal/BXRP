@@ -4,7 +4,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Shadow/ShadowSamplingTent.hlsl"
 
 #define _DIRECTIONAL_PCF3 1
-#define _CLUSTER_PCF3 1
+#define _CLUSTER_PCF7 1
 
 #if defined(_DIRECTIONAL_PCF3)
 	#define DIRECTIONAL_FILTER_SAMPLES 4
@@ -43,6 +43,7 @@ SAMPLER(samplerunity_ShadowMask);
 
 CBUFFER_START(UnityShadows)
     // half4 _BXShadowsColor;
+    bool _ShadowPancaking;
     int _CascadeCount;
     float4x4 _DirectionalShadowMatrixs[MAX_DIRECTIONAL_SHADOW_COUNT * MAX_CASCADE_COUNT];
     float4 _CascadeCullingSpheres[MAX_CASCADE_COUNT];

@@ -19,15 +19,15 @@ MonoBehaviour:
   aaType: 0
   targetFrameRate: 120
   maxShadowDistance: 20
-  cascadeCount: 3
-  shadowMapSize: 2048
+  cascadeCount: 1
+  shadowMapSize: 1024
   shadowMapBits: 24
-  distanceFade: 0.1
-  cascadeRatio1: 0.1
-  cascadeRatio2: 0.25
+  distanceFade: 0.5
+  cascadeRatio1: 0.05
+  cascadeRatio2: 0.2
   cascadeRatio3: 0.5
-  cascadeFade: 0.1
-  clusterLightCompute: {fileID: 0}
+  cascadeFade: 0.5
+  clusterLightCompute: {fileID: 7200000, guid: 600204642eed34254966b742580d1a7e, type: 3}
   clusterLightShadowMapSize: 1024
   clusterLightShadowMapBits: 24
   drawShadows: 1

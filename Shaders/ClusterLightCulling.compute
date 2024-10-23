@@ -1,0 +1,108 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ClusterLightCulling
+
+RWStructuredBuffer<uint> _ClusterLightingIndices;
+RWStructuredBuffer<uint> _ClusterLightingDatas;
+
+#define MAX_CLUSTER_LIGHT_COUNT uint(64)
+#define CLUSTER_X_COUNT uint(8)
+#define CLUSTER_Y_COUNT uint(4)
+#define CLUSTER_X_COUNT_INV 1.0 / CLUSTER_X_COUNT
+#define CLUSTER_Y_COUNT_INV 1.0 / CLUSTER_Y_COUNT
+#define CLUSTER_XY_COUNT_INV float2(CLUSTER_X_COUNT_INV, CLUSTER_Y_COUNT_INV)
+uint _ClusterLightCount;
+float4 _ClusterLightMaxBounds[MAX_CLUSTER_LIGHT_COUNT];
+float4 _ClusterLightMinBounds[MAX_CLUSTER_LIGHT_COUNT];
+float4 _CameraPosition;
+float3 _CmaeraUpward;
+float3 _CameraForward;
+float3 _CameraRightword;
+float3 _TileLBStart;
+float3 _TileRBStart;
+float3 _TileLUStart;
+float3 _TileRVec;
+float4 _ClusterSize;
+float4 _ProjectionParams;
+
+groupshared uint clusterVisibleLightCount = 0;
+
+bool IntersectTileAndClusterLight(uint k, uint3 groupId, float3 boxMin, float3 boxMax)
+{
+    float zMin = _ProjectionParams.y * pow(_ClusterSize.z, k);
+    float zMax = zMin * _ClusterSize.z;
+
+    float4 frustume[6]; 
+
+    float2 tileUV0 = groupId.xy * CLUSTER_XY_COUNT_INV;
+    float2 tileUV1 = (groupId.xy + 1) * CLUSTER_XY_COUNT_INV;
+    float3 f0 = _CmaeraUpward;
+    float3 f1 = lerp(_TileLBStart, _TileRBStart, tileUV0.x);
+    float3 n = _CameraForward;
+    frustume[0] = float4(n, -dot(_CameraPosition.xyz + _CameraForward * zMin, n));
+
+    n = normalize(cross(f0, f1));
+    frustume[1] = float4(n, -dot(_CameraPosition.xyz, n));
+
+    f1 = lerp(_TileLBStart, _TileRBStart, tileUV1.x);
+    n = normalize(cross(f1, f0));
+    frustume[2] = float4(n, -dot(_CameraPosition.xyz, n));
+
+    float3 rightV = _TileRVec * tileUV0.x;
+
+    f0 = lerp(_TileLBStart, _TileLUStart, tileUV0.y);
+    f1 = f0 + rightV;
+    n = normalize(cross(f0, f1));
+    frustume[3] = float4(n, -dot(_CameraPosition.xyz, n));
+
+    f0 = lerp(_TileLBStart, _TileLUStart, tileUV1.y);
+    f1 = f0 + rightV;
+    n = normalize(cross(f1, f0));
+    frustume[4] = float4(n, -dot(_CameraPosition.xyz, n));
+
+    n = -_CameraForward;
+    frustume[5] = float4(n, -dot(_CameraPosition.xyz + _CameraForward * zMax, n));
+
+    bool result = true;
+    // [unroll(6)]
+    for(int face = 0; face < 6; ++face)
+    {
+        // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html AABB-平面相交
+        float4 plane = frustume[face];
+        float3 fn = plane.xyz;
+        float3 boxReal = fn > 0.0 ? boxMax : boxMin;
+        float d = plane.w;
+        float r = dot(fn, boxReal);
+        
+        if(r + d < 0) return false;
+        // result = result ? ((r + d) >= 0) : result;
+    }
+    return true;
+}
+
+[numthreads(8,8,1)]
+void ClusterLightCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID)
+{
+    uint k = groupId.z;
+    uint tileIndex = groupId.y * CLUSTER_X_COUNT + groupId.x;
+    uint clusterIndex = k * CLUSTER_X_COUNT * CLUSTER_Y_COUNT + tileIndex;
+    uint startIndex = clusterIndex * MAX_CLUSTER_LIGHT_COUNT;
+
+    if(groupIndex == 0)
+    {
+        clusterVisibleLightCount = 0;
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    if(groupIndex < _ClusterLightCount && IntersectTileAndClusterLight(k, groupId, _ClusterLightMinBounds[groupIndex].xyz, _ClusterLightMaxBounds[groupIndex].xyz))
+    {
+        uint clusterOffset;
+        InterlockedAdd(clusterVisibleLightCount, uint(1), clusterOffset);
+        _ClusterLightingIndices[startIndex + clusterOffset] = groupIndex;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if(groupIndex == 0)
+    {
+        _ClusterLightingDatas[clusterIndex] = clusterVisibleLightCount;
+    }
+}

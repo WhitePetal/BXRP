@@ -18,7 +18,7 @@ namespace BXRenderPipeline
         private const string commandBufferName = "BXCommondBufferRender";
 
 #if !UNITY_EDITOR
-        private string SampleName = commandBufferName£»
+        private string SampleName = commandBufferNameï¿½ï¿½
 #endif
 
         public CommandBuffer commandBuffer = new CommandBuffer
@@ -88,6 +88,7 @@ namespace BXRenderPipeline
             commandBuffer.BeginSample(SampleName);
             context.SetupCameraProperties(camera);
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
+
             GenerateGraphicsBuffe();
             DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures);
 #if UNITY_EDITOR

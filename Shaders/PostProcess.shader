@@ -64,6 +64,7 @@ Shader "PostProcess"
             half4 frag (v2f i) : SV_Target
             {
 				half4 color = _PostProcessInput.SampleLevel(sampler_PostProcessInput, i.uv, 0);
+                color.rgb = saturate(ToneMapping_ACES_To_sRGB(color.rgb, half(1.0)));
 				return color;
             }
             ENDHLSL
