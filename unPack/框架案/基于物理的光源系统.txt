@@ -1,4 +1,6 @@
 https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
+https://tigoe.github.io/LightProjects/color-spaces-color-temp.html
+https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
 色温：决定现实常见光的颜色
 ![alt text](image_kelvin_color.png)
 
@@ -44,3 +46,5 @@ $$E = \frac{I}{distance^2}$$
 $$E = \frac{\Phi}{4\pi distance^2}$$
 对于聚光灯:
 $$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$
+
+$f(x) = \frac{1}{\theta\sqrt{2\pi}}*e^{-\frac{(x-u)^2}{2\theta^2}}$
