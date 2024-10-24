@@ -152,7 +152,8 @@ Shader "Test/BRDF_FullLit"
                         half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
                         half3 l = normalize(dir);
                         half spotAtten = saturate(dot(l, lightFwd) * spotAngle.x + spotAngle.y);
-                        atten *= spotAtten * spotAtten;
+                        // atten *= spotAtten * spotAtten;
+                        atten = 1.0 / (dstSqr + half(0.0001));
                         atten *= GetClusterShadow(lightIndex, lightFwd, pos_world, n);
 
                         half3 h = SafeNormalize(l + v);
