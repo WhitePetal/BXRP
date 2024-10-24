@@ -54,6 +54,7 @@ half Fr_DisneyDiffuse(half ndotv, half ndotl, half ldoth, half rr)
 {
     half energyBias = lerp(half(0.0), half(0.5), rr);
     half energyFactor = lerp(half(1.0), half(1.0) / half(1.51), rr);
+    // if f90 is const 0 => is good for cell shading
     half fd90 = energyBias + half(2.0) * ldoth * ldoth * rr;
 
     half lightScatter = F_Schlick(half(1.0), fd90, ndotl);

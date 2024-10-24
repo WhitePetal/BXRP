@@ -113,7 +113,7 @@ Shader "Test/BRDF_FullLit"
                 half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
                 half3 albedo = mainTex.rgb * GET_PROP(_DiffuseColor).rgb;
                 half reflectance = GET_PROP(_Reflectance);
-                half3 f0 = lerp(half(0.16)*reflectance*reflectance, albedo, oneMinusMetallic);
+                half3 f0 = lerp(albedo, half(0.16)*reflectance*reflectance, oneMinusMetallic);
                 half f90 = half(1.0);
                 albedo *= oneMinusMetallic;
 
@@ -126,17 +126,19 @@ Shader "Test/BRDF_FullLit"
                 #ifdef DIRECTIONAL_LIGHT
                     for(int lightIndex = 0; lightIndex < _DirectionalLightCount; ++lightIndex)
                     {
-                        half atten = GetDirectionalShadow(lightIndex, i.vertex.xy, pos_world, n, GetShadowDistanceStrength(depthEye));
                         half3 l = _DirectionalLightDirections[lightIndex].xyz;
+                        half ndotl = smoothstep(kds.x, kds.w, dot(n, l) + kds.y);
+                        if(ndotl <= half(0.0)) continue;
+
+                        half atten = GetDirectionalShadow(lightIndex, i.vertex.xy, pos_world, n, GetShadowDistanceStrength(depthEye));
                         half3 h = SafeNormalize(l + v);
                         half ldoth = max(half(0.0), dot(l, h));
-                        half ndotlm = max(half(0.0), dot(n, l)) + kds.y;
-                        half ndotl = smoothstep(kds.z, kds.w, min(ndotlm, atten));
                         half ndoth = max(half(0.0), dot(n, h));
+                        ndotl = saturate(ndotl);
                         half3 F = F_Schlick(f0, f90, ldoth);
                         half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                         half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x;
+                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * atten;
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
                     }
@@ -146,16 +148,20 @@ Shader "Test/BRDF_FullLit"
                     int clusterCount = GetClusterCount(i.vertex.xyz, depthEye, lightIndexStart);
                     for(int offset = 0; offset < clusterCount; ++offset)
                     {
+ 
                         int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
                         float4 lightPos = _ClusterLightSpheres[lightIndex];
                         half3 dir = half3(lightPos.xyz - pos_world);
+                        half3 l = normalize(dir);
+                        half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
+                        if(ndotl <= half(0.0)) continue;
+                        
                         half dstSqr = dot(dir, dir);
                         half rr = half(lightPos.w);
                         half dstF = dstSqr * rr;
                         half atten = max(half(0.0), half(1.0) - dstF * dstF) / (dstSqr + half(0.001));
                         half4 spotAngle = _ClusterLightSpotAngles[lightIndex];
                         half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
-                        half3 l = normalize(dir);
                         half spotAtten = saturate(dot(l, lightFwd) * spotAngle.x + spotAngle.y);
                         // atten *= spotAtten * spotAtten;
                         atten = 1.0 / (dstSqr + half(0.0001));
@@ -163,21 +169,18 @@ Shader "Test/BRDF_FullLit"
 
                         half3 h = SafeNormalize(l + v);
                         half ldoth = max(half(0.0), dot(l, h));
-                        half ndotlm = max(half(0.0), dot(n, l)) + kds.y;
-                        half ndotl = smoothstep(kds.z, kds.w, min(ndotlm, atten));
                         half ndoth = max(half(0.0), dot(n, h));
+                        ndotl = max(half(0.0), ndotl);
                         half3 F = F_Schlick(f0, f90, ldoth);
                         half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                         half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * ndotl;
+                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * atten;
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
-                        // D * F * Vis + Fr_Diffuse
-                        // 
                     }
                 #endif
 
-                return half4((diffuseLighting * albedo + specularLighting) * pi_inv, 1.0);
+                return half4((specularLighting) * pi_inv, 1.0);
             }
             ENDHLSL
         }

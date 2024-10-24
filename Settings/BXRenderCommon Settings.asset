@@ -18,9 +18,9 @@ MonoBehaviour:
   msaa: 2
   aaType: 0
   targetFrameRate: 120
-  maxShadowDistance: 20
+  maxShadowDistance: 100
   cascadeCount: 1
-  shadowMapSize: 1024
+  shadowMapSize: 4096
   shadowMapBits: 24
   distanceFade: 0.5
   cascadeRatio1: 0.05
