@@ -1,6 +1,7 @@
 https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
 https://tigoe.github.io/LightProjects/color-spaces-color-temp.html
 https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+https://zhuanlan.zhihu.com/p/60977923
 色温：决定现实常见光的颜色
 ![alt text](image_kelvin_color.png)
 
@@ -8,7 +9,7 @@ Radiant flux/power 辐射通量 光强度 瓦特(W)
 Luminous flux/power 光通量 人眼感知的光强度 流明(lm)
 Luminous intensity 光强度 单位体积角的光通量 坎德拉(cd) 传入Shader的光强
 Illuminance        照度 单位面积的光通量 勒克斯(lx)
-Luminance          亮度   单位体积角单位面积的光通量 尼特(nt)
+Luminance          亮度   单位体积角单位面积的光通量 尼特(nt)(cd/m^2)
 Exposure Value    相机曝光值
 
 辐射通量(Radiant power)(W)(Xe) 与 光通量(Luminous power)(lm)(Xv) 之间的转换：
@@ -48,3 +49,17 @@ $$E = \frac{\Phi}{4\pi distance^2}$$
 $$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$
 
 $f(x) = \frac{1}{\theta\sqrt{2\pi}}*e^{-\frac{(x-u)^2}{2\theta^2}}$
+
+$$\frac{r}{((nh*r-nh)*nh + 1)^2} * (f_0 + (f_{90} - f_0)*(1-lh)^5) * \frac{0.5}{(nl * sqrt((-nv * r + nv) * nv + r) + nv*sqrt((-nl*r+nl)*nl+r))}$$
+$$\frac{0.5 * r * (f_0 + (f_{90} - f_0)*(1-lh)^5)}{((nh*r-nh)*nh + 1)^2 * (nl * sqrt((-nv * r + nv) * nv + r) + nv*sqrt((-nl*r+nl)*nl+r))}$$
+
+$$(1 + (0.5 * r + 2 * lh * lh * r - 1) * (1 - nl)^5) * (1 + (0.5 * r + 2 * lh * lh * r - 1) * (1-nv)^5) * (1 - 0.51/1.51 * r)$$
+设 r = 1, nv = 1
+$$\frac{0.5 * (f_0 + (f_{90} - f_0)*(1-lh)^5)}{(nl + 1)}$$
+$$(1 + (2 * lh * lh - 0.5) * (1 - nl)^5) * (1 - 0.51/1.51)$$
+设 lh = 1
+$$\frac{f0}{4}$$
+$$\frac{1}{1.51} = 0.6622$$
+$$0.6622 + 0.25 * f0$$
+$$0.6622 * ((1 - 0.25 * f0) * 1.5) + 0.25 * f0 = 1$$
+$$1.51 - 0.3775f0$$

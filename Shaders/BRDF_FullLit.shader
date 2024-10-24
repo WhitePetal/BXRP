@@ -5,6 +5,7 @@ Shader "Test/BRDF_FullLit"
         _MainTex ("Albedo", 2D) = "white" {}
         _DiffuseColor("Diffuse Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _Fresnel("Fresnel0", Color) = (0.09, 0.09, 0.09, 1)
+        _Reflectance("Reflectance", Range(0, 1)) = 0.5
         [VectorRange(0.0, 8, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0)]_KdsExpoureClampMinMax("光照强度_曝光强度_暗部范围Min_暗部范围Max", Vector) = (1.0, 0.0, 0.0, 1.0)
         [NoScaleOffset]_NormalTex("Normal Map", 2D) = "bump" {}
         [NoScaleOffset]_DetilMask("Detil Mask", 2D) = "white" {}
@@ -60,6 +61,7 @@ Shader "Test/BRDF_FullLit"
 
             UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
                 UNITY_DEFINE_INSTANCED_PROP(half, _EmissionStrength)
+                UNITY_DEFINE_INSTANCED_PROP(half, _Reflectance)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _MainTex_ST)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexA_ST)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexB_ST)
@@ -103,15 +105,16 @@ Shader "Test/BRDF_FullLit"
                 v = normalize(v);
                 half4 normalScales = GET_PROP(_NormalScales);
                 half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, normalScales.x, normalScales.y, normalScales.z, detilMask);
-                half ndotv = max(half(0.0), dot(n, v));
-                half fnv = PBR_F(ndotv);
 
                 half4 mraValues = GET_PROP(_MetallicRoughnessAO);
                 half roughness = mraValues.y * MRA.g;
-                half oneMinusMetallic = max(half(1.0) - MRA.r * mraValues.x, half(0.2));
+                half perceptRoughness = roughness * roughness;
+                half oneMinusMetallic = half(1.0) - MRA.r * mraValues.x;
                 half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
                 half3 albedo = mainTex.rgb * GET_PROP(_DiffuseColor).rgb;
-                half3 specular = lerp(albedo, GET_PROP(_Fresnel).rgb, oneMinusMetallic);
+                half reflectance = GET_PROP(_Reflectance);
+                half3 f0 = lerp(half(0.16)*reflectance*reflectance, albedo, oneMinusMetallic);
+                half f90 = half(1.0);
                 albedo *= oneMinusMetallic;
 
                 float depthEye = LinearEyeDepth(i.vertex.z);
@@ -119,6 +122,7 @@ Shader "Test/BRDF_FullLit"
                 half3 diffuseLighting = half(0.0);
                 half3 specularLighting = half(0.0);
                 float3 pos_world = i.pos_world;
+                half ndotv = abs(dot(n, v)) + half(0.0001);
                 #ifdef DIRECTIONAL_LIGHT
                     for(int lightIndex = 0; lightIndex < _DirectionalLightCount; ++lightIndex)
                     {
@@ -129,16 +133,17 @@ Shader "Test/BRDF_FullLit"
                         half ndotlm = max(half(0.0), dot(n, l)) + kds.y;
                         half ndotl = smoothstep(kds.z, kds.w, min(ndotlm, atten));
                         half ndoth = max(half(0.0), dot(n, h));
-                        half2 fgd = half2(PBR_F(ldoth), PBR_G(ndotl, ndotv, roughness) * PBR_D(roughness, ndoth));
-                        half3 fresnel = specular + (half(1.0) - specular) * fgd.x;
-                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * ndotl;
-                        diffuseLighting += (half(1.0) - fresnel) * lightStrength;
-                        specularLighting += fresnel * fgd.y * lightStrength;
+                        half3 F = F_Schlick(f0, f90, ldoth);
+                        half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
+                        half D = D_GGX(ndoth, perceptRoughness);
+                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x;
+                        diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
+                        specularLighting += D * F * Vis * lightStrength;
                     }
                 #endif
                 #ifdef CLUSTER_LIGHT
                     int lightIndexStart;
-                    int clusterCount = GetClusterCount(i.vertex.xyz, pos_world, depthEye, lightIndexStart);
+                    int clusterCount = GetClusterCount(i.vertex.xyz, depthEye, lightIndexStart);
                     for(int offset = 0; offset < clusterCount; ++offset)
                     {
                         int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
@@ -161,15 +166,18 @@ Shader "Test/BRDF_FullLit"
                         half ndotlm = max(half(0.0), dot(n, l)) + kds.y;
                         half ndotl = smoothstep(kds.z, kds.w, min(ndotlm, atten));
                         half ndoth = max(half(0.0), dot(n, h));
-                        half2 fgd = half2(PBR_F(ldoth), PBR_G(ndotl, ndotv, roughness) * PBR_D(roughness, ndoth));
-                        half3 fresnel = specular + (half(1.0) - specular) * fgd.x;
+                        half3 F = F_Schlick(f0, f90, ldoth);
+                        half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
+                        half D = D_GGX(ndoth, perceptRoughness);
                         half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * ndotl;
-                        diffuseLighting += (half(1.0) - fresnel) * lightStrength;
-                        specularLighting += fresnel * fgd.y * lightStrength;
+                        diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
+                        specularLighting += D * F * Vis * lightStrength;
+                        // D * F * Vis + Fr_Diffuse
+                        // 
                     }
                 #endif
 
-                return half4(diffuseLighting * albedo + specularLighting, 1.0);
+                return half4((diffuseLighting * albedo + specularLighting) * pi_inv, 1.0);
             }
             ENDHLSL
         }

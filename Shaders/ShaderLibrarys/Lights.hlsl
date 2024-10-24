@@ -30,7 +30,7 @@ CBUFFER_END
 StructuredBuffer<uint> _ClusterLightingIndices;
 StructuredBuffer<uint> _ClusterLightingDatas;
 
-int GetClusterCount(float3 pos_screen, float pos_world, float depthEye, out int lightIndexStart)
+int GetClusterCount(float3 pos_screen, float depthEye, out int lightIndexStart)
 {
     float2 tileXY = pos_screen.xy / _ClusterSize.xy;
     tileXY = floor(tileXY);
