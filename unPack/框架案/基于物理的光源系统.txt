@@ -4,6 +4,7 @@ https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
 https://zhuanlan.zhihu.com/p/60977923
 https://google.github.io/filament/Filament.md.html#listing_diffusebrdf
 https://blog.selfshadow.com/publications/s2015-shading-course/#course_content
+https://en.wikipedia.org/wiki/Bidirectional_reflectance_distribution_function
 色温：决定现实常见光的颜色
 ![alt text](image_kelvin_color.png)
 
@@ -50,5 +51,4 @@ $$E = \frac{\Phi}{4\pi distance^2}$$
 对于聚光灯:
 $$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$
 
-固定 ndotl 为 1，得 在 roughness = 1, vAngle = -1.5 处有最大值为 1.5
-固定 roughness = 1，则在 ndot 接近 0 时 能量变得不可控，最大值为 6.5
+$$L = \frac{\phi}{4\pi * 4\pi * distane^2}$$

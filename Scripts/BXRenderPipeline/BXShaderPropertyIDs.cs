@@ -27,7 +27,7 @@ namespace BXRenderPipeline
         public static int _ClusterLightCount_ID = Shader.PropertyToID("_ClusterLightCount");
         public static int _ClusterLightSpheres_ID = Shader.PropertyToID("_ClusterLightSpheres");
         public static int _ClusterLightDirections_ID = Shader.PropertyToID("_ClusterLightDirections");
-        public static int _ClusterLightSpotAngles_ID = Shader.PropertyToID("_ClusterLightSpotAngles");
+        public static int _ClusterLightThresholds_ID = Shader.PropertyToID("_ClusterLightThresholds");
         public static int _ClusterLightColors_ID = Shader.PropertyToID("_ClusterLightColors");
         public static int _ClusterShadowDatas_ID = Shader.PropertyToID("_ClusterShadowDatas");
         public static int _FrameBuffer_ID = Shader.PropertyToID("_FrameBuffer");

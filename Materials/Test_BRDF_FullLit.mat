@@ -59,6 +59,6 @@ Material:
     - _DiffuseColor: {r: 0.5188679, g: 0.48421317, b: 0.369571, a: 1}
     - _Fresnel: {r: 0.089999996, g: 0.089999996, b: 0.089999996, a: 1}
     - _KdsExpoureClampMinMax: {r: 1, g: 0, b: 0, a: 1}
-    - _MetallicRoughnessAO: {r: 0, g: 0.573, b: 0.5, a: 0}
+    - _MetallicRoughnessAO: {r: 0, g: 0.524, b: 0.5, a: 0}
     - _NormalScales: {r: 1.5, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []

@@ -156,18 +156,17 @@ Shader "Test/BRDF_FullLit"
                         half3 dir = half3(lightPos.xyz - pos_world);
                         half3 l = normalize(dir);
                         half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
-                        if(ndotl <= half(0.0)) continue;
                         
+                        half4 thresholds = _ClusterLightThresholds[lightIndex];
                         half dstSqr = dot(dir, dir);
-                        half rr = half(lightPos.w);
-                        half dstF = dstSqr * rr;
-                        half atten = max(half(0.0), half(1.0) - dstF * dstF) / (dstSqr + half(0.001));
-                        half4 spotAngle = _ClusterLightSpotAngles[lightIndex];
+                        half atten = dstSqr * thresholds.y;
+                        atten = max(half(0.0), half(1.0) - atten);
+                        atten *= atten / (dstSqr + half(0.0001));
                         half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
-                        half spotAtten = saturate(dot(l, lightFwd) * spotAngle.x + spotAngle.y);
-                        // atten *= spotAtten * spotAtten;
-                        atten = 1.0 / (dstSqr + half(0.0001));
-                        atten *= GetClusterShadow(lightIndex, lightFwd, pos_world, n);
+                        half spotAtten = saturate(dot(l, lightFwd) * thresholds.z + thresholds.w);
+                        atten *= spotAtten * spotAtten;
+                        atten *= ndotl * GetClusterShadow(lightIndex, lightFwd, pos_world, n);
+                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * atten;
 
                         half3 h = SafeNormalize(l + v);
                         half ldoth = max(half(0.0), dot(l, h));
@@ -176,7 +175,6 @@ Shader "Test/BRDF_FullLit"
                         half3 F = F_Schlick(f0, f90, ldoth);
                         half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                         half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * atten;
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
                     }

@@ -42,7 +42,7 @@ namespace BXRenderPipeline
             clusterLightSpheres = new Vector4[maxClusterLightCount],
             clusterLightColors = new Vector4[maxClusterLightCount],
             clusterLightDirections = new Vector4[maxClusterLightCount],
-            clusterLightSpotAngles = new Vector4[maxClusterLightCount],
+            clusterLightThresholds = new Vector4[maxClusterLightCount],
             clusterLightMinBounds = new Vector4[maxClusterLightCount],
             clusterLightMaxBounds = new Vector4[maxClusterLightCount],
             clusterShadowDatas = new Vector4[maxClusterLightCount];
@@ -121,12 +121,14 @@ namespace BXRenderPipeline
             float range = visibleLight.range;
             Vector4 lightSphere = localToWorld.GetColumn(3);
             Vector4 lightRange = new Vector4(range, range, range);
-            lightSphere.w = 1f / (range * range);
+            float threshold = range * range;
+            lightSphere.w = 1f / threshold;
+            threshold = lightSphere.w;
             clusterLightSpheres[clusterLightIndex] = lightSphere;
             clusterLightMaxBounds[clusterLightIndex] = lightSphere + lightRange;
             clusterLightMinBounds[clusterLightIndex] = lightSphere - lightRange;
             clusterLightDirections[clusterLightIndex] = Vector4.zero;
-            clusterLightSpotAngles[clusterLightIndex] = new Vector4(0f, 1f);
+            clusterLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, 0f, 1f);
             clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
             clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
             clusterLights[clusterLightIndex] = visibleLight;
@@ -137,7 +139,10 @@ namespace BXRenderPipeline
             Matrix4x4 localToWorld = visibleLight.localToWorldMatrix;
             float range = visibleLight.range;
             Vector4 lightSphere = localToWorld.GetColumn(3);
-            lightSphere.w = 1f / (range * range);
+            float threshold = range * range;
+            lightSphere.w = 1f / threshold;
+            threshold = lightSphere.w;
+
             Vector4 lightDir = -localToWorld.GetColumn(2);
             Vector4 lightRight = localToWorld.GetColumn(0);
             Vector4 lightUp = localToWorld.GetColumn(1);
@@ -163,8 +168,8 @@ namespace BXRenderPipeline
             clusterLightMaxBounds[clusterLightIndex] = maxBound;
             clusterLightMinBounds[clusterLightIndex] = minBound;
             clusterLightDirections[clusterLightIndex] = lightDir;
-            clusterLightSpotAngles[clusterLightIndex] = new Vector4(angleRangeInv, -outerCos * angleRangeInv);
-            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma * 4 / (outerSin * outerSin);
+            clusterLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, angleRangeInv, -outerCos * angleRangeInv);
+            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
             clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
             clusterLights[clusterLightIndex] = visibleLight;
         }
@@ -193,7 +198,7 @@ namespace BXRenderPipeline
                 commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ClusterLightCount_ID, clusterLightCount);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightSpheres_ID, clusterLightSpheres);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightDirections_ID, clusterLightDirections);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightSpotAngles_ID, clusterLightSpotAngles);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightThresholds_ID, clusterLightThresholds);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightColors_ID, clusterLightColors);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterShadowDatas_ID, clusterShadowDatas);
                 clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
@@ -234,7 +239,7 @@ namespace BXRenderPipeline
             clusterLightSpheres = null;
             clusterLightColors = null;
             clusterLightDirections = null;
-            clusterLightSpotAngles = null;
+            clusterLightThresholds = null;
             clusterLightMinBounds = null;
             clusterLightMaxBounds = null;
             clusterShadowDatas = null;

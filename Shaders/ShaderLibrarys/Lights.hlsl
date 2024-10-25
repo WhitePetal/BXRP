@@ -21,7 +21,7 @@ CBUFFER_START(UnityLights)
     half4 _ClusterLightColors[MAX_CLUSTER_LIGHT_COUNT];
     float4 _ClusterLightSpheres[MAX_CLUSTER_LIGHT_COUNT];
     half4 _ClusterLightDirections[MAX_CLUSTER_LIGHT_COUNT];
-    half4 _ClusterLightSpotAngles[MAX_CLUSTER_LIGHT_COUNT];
+    half4 _ClusterLightThresholds[MAX_CLUSTER_LIGHT_COUNT];
     half4 _ClusterShadowDatas[MAX_CLUSTER_LIGHT_COUNT];
     float4x4 _ClusterLightWorldToObjectMatrixs[MAX_CLUSTER_LIGHT_COUNT];
     float4 _ClusterSize;

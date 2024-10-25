@@ -402,6 +402,11 @@ namespace BXRenderPipeline
                 case LightType.Point:
                     power_to_intensity = 1f / (4f * Mathf.PI);
                     break;
+                case LightType.Spot:
+                    float halfAngle = light.spotAngle * 0.5f * Mathf.Deg2Rad;
+                    float cos = Mathf.Cos(halfAngle);
+                    power_to_intensity = 1f / (2 * Mathf.PI * (1f - cos));
+                    break;
             }
             float luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(temperature, photopic_spectral_luminous_efficacy_curve) * light_efficacy;
             float luminous_power_temp = radiant_power * luminous_efficacy_temp * spectral_luminous_efficacy;
@@ -429,6 +434,11 @@ namespace BXRenderPipeline
         private void OnEnable()
         {
             this.light = GetComponent<Light>();
+        }
+
+        private void Update()
+        {
+            OnValidate();
         }
 
         private void OnValidate()
