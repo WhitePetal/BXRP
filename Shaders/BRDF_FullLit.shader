@@ -115,6 +115,7 @@ Shader "Test/BRDF_FullLit"
                 half reflectance = GET_PROP(_Reflectance);
                 half3 f0 = lerp(albedo, half(0.16)*reflectance*reflectance, oneMinusMetallic);
                 half f90 = half(1.0);
+                // albedo = albedo - f0;
                 albedo *= oneMinusMetallic;
 
                 float depthEye = LinearEyeDepth(i.vertex.z);
@@ -122,12 +123,13 @@ Shader "Test/BRDF_FullLit"
                 half3 diffuseLighting = half(0.0);
                 half3 specularLighting = half(0.0);
                 float3 pos_world = i.pos_world;
-                half ndotv = abs(dot(n, v)) + half(0.0001);
+                half ndotv = max(half(0.0), dot(n, v));
                 #ifdef DIRECTIONAL_LIGHT
                     for(int lightIndex = 0; lightIndex < _DirectionalLightCount; ++lightIndex)
                     {
+                        if(ndotv <= half(0.0)) break;
                         half3 l = _DirectionalLightDirections[lightIndex].xyz;
-                        half ndotl = smoothstep(kds.x, kds.w, dot(n, l) + kds.y);
+                        half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
                         if(ndotl <= half(0.0)) continue;
 
                         half atten = GetDirectionalShadow(lightIndex, i.vertex.xy, pos_world, n, GetShadowDistanceStrength(depthEye));
@@ -148,7 +150,7 @@ Shader "Test/BRDF_FullLit"
                     int clusterCount = GetClusterCount(i.vertex.xyz, depthEye, lightIndexStart);
                     for(int offset = 0; offset < clusterCount; ++offset)
                     {
- 
+                        if(ndotv <= half(0.0)) break;
                         int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
                         float4 lightPos = _ClusterLightSpheres[lightIndex];
                         half3 dir = half3(lightPos.xyz - pos_world);
@@ -180,7 +182,7 @@ Shader "Test/BRDF_FullLit"
                     }
                 #endif
 
-                return half4((specularLighting) * pi_inv, 1.0);
+                return half4(diffuseLighting * albedo * pi_inv + specularLighting, 1.0);
             }
             ENDHLSL
         }

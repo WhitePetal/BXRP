@@ -46,6 +46,10 @@ half V_SmithGGXCorrelated(half ndotl, half ndotv, half rr)
 
 half D_GGX(half ndoth, half rr)
 {
+    // 当粗糙度为0时，镜面反射方向聚焦于一点
+    // 此时 D => ~0 / (1-ndoth^2)^2
+    // 即只有当观察角度处于完美镜面反射角时(ndoth = 1)，可观察到镜面反射
+    // 但程序上不允许0做分母，因此粗糙度需要限制不为0
     half f = (ndoth * rr - ndoth) * ndoth + half(1.0);
     return rr / (f * f);
 }

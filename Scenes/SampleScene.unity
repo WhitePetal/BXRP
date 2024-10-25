@@ -151,8 +151,8 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Shape: 0
-  m_Color: {r: 1, g: 0.6470215, b: 0.35494274, a: 1}
-  m_Intensity: 591.58905
+  m_Color: {r: 1, g: 0.6334392, b: 0.33433527, a: 1}
+  m_Intensity: 127.91159
   m_Range: 12.271418
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -230,14 +230,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   colorSystemType: 0
-  color: {r: 1, g: 0.6470215, b: 0.35494274, a: 1}
-  color_temperature: 3900
+  color: {r: 1, g: 0.6334392, b: 0.33433527, a: 1}
+  color_temperature: 3815
   radiant_power: 40
-  light_efficacy: 1
-  luminous_efficacy: 0.27211303
-  luminous_power: 7434.128
-  luminous_intensity: 591.58905
-  illuminance_unit: 591.58905
+  light_efficacy: 0.218
+  luminous_efficacy: 0.05883545
+  luminous_power: 1607.3845
+  luminous_intensity: 127.91159
+  illuminance_unit: 127.91159
   luminance_unit: 0
   ev: 0
 --- !u!1 &210979058

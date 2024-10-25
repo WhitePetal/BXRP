@@ -2,6 +2,8 @@ https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_
 https://tigoe.github.io/LightProjects/color-spaces-color-temp.html
 https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
 https://zhuanlan.zhihu.com/p/60977923
+https://google.github.io/filament/Filament.md.html#listing_diffusebrdf
+https://blog.selfshadow.com/publications/s2015-shading-course/#course_content
 色温：决定现实常见光的颜色
 ![alt text](image_kelvin_color.png)
 
@@ -48,18 +50,5 @@ $$E = \frac{\Phi}{4\pi distance^2}$$
 对于聚光灯:
 $$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$
 
-$f(x) = \frac{1}{\theta\sqrt{2\pi}}*e^{-\frac{(x-u)^2}{2\theta^2}}$
-
-$$\frac{r}{((nh*r-nh)*nh + 1)^2} * (f_0 + (f_{90} - f_0)*(1-lh)^5) * \frac{0.5}{(nl * sqrt((-nv * r + nv) * nv + r) + nv*sqrt((-nl*r+nl)*nl+r))}$$
-$$\frac{0.5 * r * (f_0 + (f_{90} - f_0)*(1-lh)^5)}{((nh*r-nh)*nh + 1)^2 * (nl * sqrt((-nv * r + nv) * nv + r) + nv*sqrt((-nl*r+nl)*nl+r))}$$
-
-$$(1 + (0.5 * r + 2 * lh * lh * r - 1) * (1 - nl)^5) * (1 + (0.5 * r + 2 * lh * lh * r - 1) * (1-nv)^5) * (1 - 0.51/1.51 * r)$$
-设 r = 1, nv = 1
-$$\frac{0.5 * (f_0 + (f_{90} - f_0)*(1-lh)^5)}{(nl + 1)}$$
-$$(1 + (2 * lh * lh - 0.5) * (1 - nl)^5) * (1 - 0.51/1.51)$$
-设 lh = 1
-$$\frac{f0}{4}$$
-$$\frac{1}{1.51} = 0.6622$$
-$$0.6622 + 0.25 * f0$$
-$$0.6622 * ((1 - 0.25 * f0) * 1.5) + 0.25 * f0 = 1$$
-$$1.51 - 0.3775f0$$
+固定 ndotl 为 1，得 在 roughness = 1, vAngle = -1.5 处有最大值为 1.5
+固定 roughness = 1，则在 ndot 接近 0 时 能量变得不可控，最大值为 6.5

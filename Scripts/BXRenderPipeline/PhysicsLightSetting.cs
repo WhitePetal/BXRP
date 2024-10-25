@@ -433,7 +433,7 @@ namespace BXRenderPipeline
 
         private void OnValidate()
         {
-            Light light = GetComponent<Light>();
+            this.light = GetComponent<Light>();
             Vector3 XYZ = Spectrum_TO_XYZ(color_temperature);
             ColorSystem cs = GetColorSystem();
             Vector3 rgb = XYZ_TO_RGB(cs, XYZ);
