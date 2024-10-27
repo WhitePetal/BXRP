@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public partial class BXMainCameraRender
+    public partial class BXMainCameraRender : IDisposable
     {
         public Camera camera;
         public ScriptableRenderContext context;
@@ -265,7 +266,7 @@ namespace BXRenderPipeline
             context.Submit();
 		}
 
-        public void OnDispose()
+        public void Dispose()
 		{
             camera = null;
 #if UNITY_EDITOR
@@ -275,7 +276,7 @@ namespace BXRenderPipeline
             commandBuffer.Dispose();
             commandBuffer = null;
             commonSettings = null;
-            lights.OnDispose();
+            lights.Dispose();
             lights = null;
 		}
     }

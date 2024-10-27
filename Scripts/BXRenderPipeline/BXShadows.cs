@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public class BXShadows
+    public class BXShadows : IDisposable
     {
         private struct ShadowedDirectionalLight
         {
@@ -391,7 +392,7 @@ namespace BXRenderPipeline
             clusterShadowTiles[index] = data;
 		}
 
-        public void OnDispose()
+        public void Dispose()
 		{
             commandBuffer.Dispose();
             commandBuffer = null;

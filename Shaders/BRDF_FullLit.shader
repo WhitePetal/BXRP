@@ -156,17 +156,19 @@ Shader "Test/BRDF_FullLit"
                         half3 dir = half3(lightPos.xyz - pos_world);
                         half3 l = normalize(dir);
                         half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
+                        if(ndotl <= half(0.0)) continue;
                         
                         half4 thresholds = _ClusterLightThresholds[lightIndex];
                         half dstSqr = dot(dir, dir);
                         half atten = dstSqr * thresholds.y;
                         atten = max(half(0.0), half(1.0) - atten);
-                        atten *= atten / (dstSqr + half(0.0001));
+                        atten *= atten * rcp(dstSqr + half(0.0001));
                         half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
                         half spotAtten = saturate(dot(l, lightFwd) * thresholds.z + thresholds.w);
                         atten *= spotAtten * spotAtten;
                         atten *= ndotl * GetClusterShadow(lightIndex, lightFwd, pos_world, n);
                         half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * atten;
+                        lightStrength *= SampleClusterLightCookie(lightIndex, pos_world);
 
                         half3 h = SafeNormalize(l + v);
                         half ldoth = max(half(0.0), dot(l, h));

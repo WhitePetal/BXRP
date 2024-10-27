@@ -9,6 +9,10 @@
 #define MAX_CLUSTER_Z 64
 #define MAX_CLUSTER_DATA_INDEX CLUSTER_X_COUNT * CLUSTER_Y_COUNT * MAX_CLUSTER_Z - 1
 
+#define LIGHT_TYPE_SPOT 0
+#define LIGHT_TYPE_DIRECTIONAL 1
+#define LIGHT_TYPE_POINT 2
+
 CBUFFER_START(UnityLights)
     // part of Light because it can be used outside of shadow distance
     // half4 unity_OcclusionMaskSelector;
@@ -29,6 +33,8 @@ CBUFFER_END
 
 StructuredBuffer<uint> _ClusterLightingIndices;
 StructuredBuffer<uint> _ClusterLightingDatas;
+
+#include "LightCookies.hlsl"
 
 int GetClusterCount(float3 pos_screen, float depthEye, out int lightIndexStart)
 {

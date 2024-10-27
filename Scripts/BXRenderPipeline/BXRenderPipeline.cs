@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
@@ -67,6 +68,9 @@ namespace BXRenderPipeline
 			InitRenderFeatures(afterTransparentFeatures);
 			InitRenderFeatures(onPostProcessRenderFeatures);
 
+			Assert.IsTrue(commonSettings.coreBlitPS != null, "CommonSettings CoreBlitPS Shader is null");
+			Assert.IsTrue(commonSettings.coreBlitColorAndDepthPS != null, "CommonSettings CoreBlitColorAndDepth Shader is null");
+			Blitter.Initialize(commonSettings.coreBlitPS, commonSettings.coreBlitColorAndDepthPS);
 			BXVolumeManager.instance.Initialize();
 		}
 
@@ -92,11 +96,12 @@ namespace BXRenderPipeline
 
 		protected override void Dispose(bool disposing)
 		{
-			mainCameraRender.OnDispose();
+			mainCameraRender.Dispose();
 			mainCameraRender = null;
-			otherCameraRender.OnDispose();
+			otherCameraRender.Dispose();
 			otherCameraRender = null;
 			commonSettings = null;
+			Blitter.Cleanup();
 			DisposeRenderFeatures(ref beforeRenderFeatures);
 			DisposeRenderFeatures(ref onDirShadowRenderFeatures);
 			DisposeRenderFeatures(ref beforeOpaqueRenderFeatures);

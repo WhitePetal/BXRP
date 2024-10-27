@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace BXRenderPipeline
 {
@@ -23,6 +24,22 @@ namespace BXRenderPipeline
             FSR,
             DLSS
 		}
+
+        [System.Serializable]
+        public struct AtlasSettings
+        {
+            [SerializeField]
+            public Vector2Int resolution;
+            [SerializeField]
+            public GraphicsFormat format;
+
+            public bool isPow2 => Mathf.IsPowerOfTwo(resolution.x) && Mathf.IsPowerOfTwo(resolution.y);
+            public bool isSquare => resolution.x == resolution.y;
+        }
+
+        [Header("必要文件")]
+        public Shader coreBlitPS;
+        public Shader coreBlitColorAndDepthPS;
 
         [Header("分辨率")]
         public float downSample = 1;
@@ -54,6 +71,15 @@ namespace BXRenderPipeline
 
         [Header("阴影开关")]
         public bool drawShadows = true;
+
+        [Header("光源Cookie")]
+        public AtlasSettings cookieAtlas = new AtlasSettings() 
+        {
+            resolution = new Vector2Int(1024, 1024),
+            format = GraphicsFormat.R8G8B8A8_UNorm
+        };
+        public float cubeOctahedraSizeScale = 2.5f;
+        //public bool useStructuredBuffer = false;
 
         [Header("后处理")]
         public Material postProcessMaterial;

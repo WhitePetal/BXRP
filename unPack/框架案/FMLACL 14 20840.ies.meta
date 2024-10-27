@@ -1,0 +1,28 @@
+fileFormatVersion: 2
+guid: c0bd9755642c4cd46b51a44b3906a129
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 9801397f829a1ed42984340315cbf362, type: 3}
+  iesMetaData:
+    FileFormatVersion: LM-63-2002
+    IESPhotometricType: Type C
+    IESMaximumIntensity: 424
+    IESMaximumIntensityUnit: Candelas
+    Manufacturer: Lithonia Lighting
+    LuminaireCatalogNumber: FMLACL 14 20840
+    LuminaireDescription: 14" DIAMETER LACUNA WITH DR8 BOARD MOUNTED TO ,CHANNEL
+      AND 3.0T ZT40 DIFFUSER MATERIAL
+    LampCatalogNumber: SAMSUNG
+    LampDescription: LED
+    PrefabLightType: 0
+    SpotAngle: 120
+    iesSize: 256
+    ApplyLightAttenuation: 1
+    UseIESMaximumIntensity: 1
+    CookieCompression: 2
+    LightAimAxisRotation: 0

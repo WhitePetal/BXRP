@@ -49,5 +49,20 @@ namespace BXRenderPipeline
         public static int _TileLUStart_ID = Shader.PropertyToID("_TileLUStart");
         public static int _TileRVec_ID = Shader.PropertyToID("_TileRVec");
         public static int _ProjectionParams_ID = Shader.PropertyToID("_ProjectionParams");
+
+        //public static int _ClusterLightWorldToLightsBuffer_ID = Shader.PropertyToID("_ClusterLightWorldToLightsBuffer");
+        //public static int _ClusterLightCookieAltasUVRectsBuffer_ID = Shader.PropertyToID("_ClusterLightCookieAltasUVRectsBuffer");
+        //public static int _ClusterLightLightTypesBuffer_ID = Shader.PropertyToID("_ClusterLightLightTypesBuffer");
+        public static int _ClusterLightWorldToLights_ID = Shader.PropertyToID("_ClusterLightWorldToLights");
+        public static int _ClusterLightCookieAltasUVRects_ID = Shader.PropertyToID("_ClusterLightCookieAltasUVRects");
+        public static int _ClusterLightLightTypes_ID = Shader.PropertyToID("_ClusterLightLightTypes");
+        public static int _ClusterLightCookieEnableBits_ID = Shader.PropertyToID("_ClusterLightCookieEnableBits");
+        public static int _ClusterLightCookieAltas_ID = Shader.PropertyToID("_ClusterLightCookieAltas");
+        public static int _ClusterLightCookieAltasFormat_ID = Shader.PropertyToID("_ClusterLightCookieAltasFormat");
+
+
+        //public static int _MainLightCookie_ID = Shader.PropertyToID("_MainLightCookie");
+        //public static int _MainLightWorldToLight_ID = Shader.PropertyToID("_MainLightWorldToLight");
+        //public static int _MainLightCookieFormat_ID = Shader.PropertyToID("_MainLightCookieFormat");
     }
 }

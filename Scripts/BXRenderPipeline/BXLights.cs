@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -6,7 +7,7 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public class BXLights
+    public class BXLights : IDisposable
     {
         private Camera camera;
         private BXRenderCommonSettings commonSettings;
@@ -26,6 +27,7 @@ namespace BXRenderPipeline
 
         private BXShadows shadows = new BXShadows();
         private BXClusterLightCullCompute clusterLightCullCompute = new BXClusterLightCullCompute();
+        private BXLightCookie lightCookie = new BXLightCookie();
 
         public int dirLightCount;
         public int clusterLightCount;
@@ -60,7 +62,7 @@ namespace BXRenderPipeline
             for(int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
 			{
                 if (dirLightCount >= maxDirLightCount && clusterLightCount >= maxClusterLightCount) break;
-                VisibleLight visibleLight = visibleLights[visbileLightIndex];
+                ref var visibleLight = ref visibleLights.UnsafeElementAtMutable(visbileLightIndex);
                 LightBakingOutput lightBaking = visibleLight.light.bakingOutput;
                 if(lightBaking.lightmapBakeType == LightmapBakeType.Mixed && lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask)
 				{
@@ -102,6 +104,7 @@ namespace BXRenderPipeline
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
+            lightCookie.Setup(commandBuffer, this, commonSettings);
             shadows.Render(useShadowMask, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
@@ -221,12 +224,14 @@ namespace BXRenderPipeline
             shadows.Cleanup();
 		}
 
-        public void OnDispose()
+        public void Dispose()
 		{
-            shadows.OnDispose();
-            clusterLightCullCompute.OnDispose();
+            shadows.Dispose();
+            clusterLightCullCompute.Dispose();
+            lightCookie.Dispose();
             shadows = null;
             clusterLightCullCompute = null;
+            lightCookie = null;
 
             commandBuffer.Dispose();
             commandBuffer = null;

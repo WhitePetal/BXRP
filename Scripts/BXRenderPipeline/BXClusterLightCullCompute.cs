@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -8,7 +9,7 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public class BXClusterLightCullCompute
+    public class BXClusterLightCullCompute : IDisposable
     {
         private const string BufferName = "ClusterLightCulling";
         private CommandBuffer commandBuffer = new CommandBuffer()
@@ -227,7 +228,7 @@ namespace BXRenderPipeline
             commandBuffer.Clear();
         }
 
-        public void OnDispose()
+        public void Dispose()
         {
             commandBuffer.Dispose();
             commandBuffer = null;
