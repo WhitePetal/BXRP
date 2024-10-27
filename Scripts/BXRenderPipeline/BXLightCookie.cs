@@ -36,7 +36,7 @@ namespace BXRenderPipeline
                 int d = b2 - a2;
                 if (d == 0)
                 {
-                    // Èô°´³ß´çÎŞ·¨ÅÅĞòÔò°´ÎÆÀíidÅÅĞò
+                    // è‹¥æŒ‰å°ºå¯¸æ— æ³•æ’åºåˆ™æŒ‰çº¹ç†idæ’åº
                     int ai = alc.GetInstanceID();
                     int bi = blc.GetInstanceID();
                     return ai - bi;
@@ -82,7 +82,7 @@ namespace BXRenderPipeline
 			}
         }
 
-        // [] data µÄ ³Ö¾Ã ¹¤×÷/ÁÙÊ± ÄÚ´æ
+        // [] data çš„ æŒä¹… å·¥ä½œ/ä¸´æ—¶ å†…å­˜
         private class WorkMemory
 		{
             public LightCookieMapping[] lightMappings;
@@ -92,7 +92,7 @@ namespace BXRenderPipeline
 			{
                 if (size <= lightMappings?.Length) return;
 
-                // ±ÜÃâÃ¿´ÎÎ¢Ğ¡µÄ±ä»¯¶¼»á²úÉúÄÚ´æ·ÖÅä
+                // é¿å…æ¯æ¬¡å¾®å°çš„å˜åŒ–éƒ½ä¼šäº§ç”Ÿå†…å­˜åˆ†é…
                 size = Math.Max(size, ((size + 15) / 16) * 16);
 
                 lightMappings = new LightCookieMapping[size];
@@ -216,7 +216,7 @@ namespace BXRenderPipeline
 
         //private int[] m_VisibleLightIndexToShaderDataIndex;
 
-        // ÓÃÓÚÖØĞÂËõ·ÅCookieÒÔÊÊÓ¦Í¼¼¯²ÎÊı
+        // ç”¨äºé‡æ–°ç¼©æ”¾Cookieä»¥é€‚åº”å›¾é›†å‚æ•°
         private const int k_MaxCookieSizeDivisor = 16;
         private int m_CookieSizeDivisor = 1;
         private uint m_PrevCookieRequestPixelCount = 0xFFFFFFFF;
@@ -450,7 +450,7 @@ namespace BXRenderPipeline
 
         private int UpdateClusterLightsAtlas(CommandBuffer cmd, ref WorkSlice<LightCookieMapping> validLightMappings, Vector4[] textureAtlasUVRects)
 		{
-            // °´ÕÕcookied³ß´çÅÅĞò£¬¿ÉÒÔÌá¸ßÍ¼¼¯·ÖÅäĞ§ÂÊ ºÍ ÔÚÏÂÃæµÄCookie´ò°üÊ±µÄÈ¥ÖØ
+            // æŒ‰ç…§cookiedå°ºå¯¸æ’åºï¼Œå¯ä»¥æé«˜å›¾é›†åˆ†é…æ•ˆç‡ å’Œ åœ¨ä¸‹é¢çš„Cookieæ‰“åŒ…æ—¶çš„å»é‡
             validLightMappings.Sort(LightCookieMapping.s_CompareByCookieSize);
 
             uint cookieRequestPixelCount = ComputeCookieRequestPixelCount(ref validLightMappings);
@@ -458,9 +458,9 @@ namespace BXRenderPipeline
             float requestAtlasRatio = cookieRequestPixelCount / (float)(atlasSize.x * atlasSize.y);
             int cookieSizeDivisorApprox = ApproximateCookieSizeDivisor(requestAtlasRatio);
 
-            // ³¢ÊÔ»Ö¸´·Ö±æÂÊ ²¢°Ñ cookie Ëõ·Å»ØÔ­À´´óĞ¡
-            // Èç¹û cookie ÄÜ¹»ÌîÂú ²¢ÇÒ
-            // Èç¹ûÎÒÃÇÇëÇóµÄÏñËØ±ÈÉÏ´ÎÉÙ£¬ÎÒÃÇ¾ÍÕÒµ½ÁËÕıÈ·µÄ³ıÊı(·ÀÖ¹Ã¿Ö¡¶¼ÖØĞÂ³¢ÊÔ)
+            // å°è¯•æ¢å¤åˆ†è¾¨ç‡ å¹¶æŠŠ cookie ç¼©æ”¾å›åŸæ¥å¤§å°
+            // å¦‚æœ cookie èƒ½å¤Ÿå¡«æ»¡ å¹¶ä¸”
+            // å¦‚æœæˆ‘ä»¬è¯·æ±‚çš„åƒç´ æ¯”ä¸Šæ¬¡å°‘ï¼Œæˆ‘ä»¬å°±æ‰¾åˆ°äº†æ­£ç¡®çš„é™¤æ•°(é˜²æ­¢æ¯å¸§éƒ½é‡æ–°å°è¯•)
             if(cookieSizeDivisorApprox < m_CookieSizeDivisor &&
                 cookieRequestPixelCount < m_PrevCookieRequestPixelCount)
 			{
@@ -495,8 +495,8 @@ namespace BXRenderPipeline
                 Texture cookie = lcm.light.cookie;
                 int cookieID = cookie.GetInstanceID();
 
-                // È¥ÖØCookie
-                // ÒÀÀµÓÚÅÅĞò·½Ê½
+                // å»é‡Cookie
+                // ä¾èµ–äºæ’åºæ–¹å¼
                 if(cookieID == prevCookieID)
 				{
                     continue;
@@ -549,7 +549,7 @@ namespace BXRenderPipeline
                         return uvRectCount;
                     }
 
-                    // Î´ÄÜ¸øÃ¿¸öcookie·ÖÅä uv rect
+                    // æœªèƒ½ç»™æ¯ä¸ªcookieåˆ†é… uv rect
                     return 0;
 				}
 
@@ -581,8 +581,8 @@ namespace BXRenderPipeline
                 m_ClusterLightsCookieAtlas.AllocateTexture(cmd, ref uvScaleOffset, cookie, scaledOctCookieSize, scaledOctCookieSize);
 			}
 
-            // Í¼¼¯ÖĞµÄcookie´óĞ¡¿ÉÄÜÓë cookie texture µÄ ³ß´ç²»Ò»ÖÂ
-            // ¸ù¾İÍ¼¼¯µ÷ÕûUVRect
+            // å›¾é›†ä¸­çš„cookieå¤§å°å¯èƒ½ä¸ cookie texture çš„ å°ºå¯¸ä¸ä¸€è‡´
+            // æ ¹æ®å›¾é›†è°ƒæ•´UVRect
             var scaledCookieSize = Vector2.one * scaledOctCookieSize;
             AdjustUVRect(ref uvScaleOffset, cookie, ref scaledCookieSize);
             return uvScaleOffset;
@@ -603,7 +603,7 @@ namespace BXRenderPipeline
 		{
             if(uvScaleOffset != Vector4.one)
 			{
-                // ËõĞ¡0.5pxÒÔ¼Ğ½ôË«ÏßĞÔ²ÉÑùÒÔÅÅ³ıÍ¼¼¯ÁÚ¾Ó£¨no padding£©
+                // ç¼©å°0.5pxä»¥å¤¹ç´§åŒçº¿æ€§é‡‡æ ·ä»¥æ’é™¤å›¾é›†é‚»å±…ï¼ˆno paddingï¼‰
                 ShrinkUVRect(ref uvScaleOffset, 0.5f, ref cookieSize);
             }
 		}
