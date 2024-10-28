@@ -183,8 +183,7 @@ Light:
       e32: 0
       e33: 1
     m_UseCullingMatrixOverride: 0
-  m_Cookie: {fileID: 4603949415366630984, guid: c0bd9755642c4cd46b51a44b3906a129,
-    type: 3}
+  m_Cookie: {fileID: 4603949415366630984, guid: c0bd9755642c4cd46b51a44b3906a129, type: 3}
   m_DrawHalo: 0
   m_Flare: {fileID: 0}
   m_RenderMode: 1
@@ -230,6 +229,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9212c2b799858942a90d847ac484eaf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  intensityType: 0
   colorSystemType: 0
   color: {r: 1, g: 0.8202317, b: 0.6806758, a: 1}
   color_temperature: 5194
@@ -238,7 +238,10 @@ MonoBehaviour:
   luminous_efficacy: 0.01567775
   luminous_power: 428.31613
   luminous_intensity: 34.084312
-  ev: 0
+  illuminance: 34.084312
+  luminance: 34.084312
+  ev100: 0.12359357
+  ies: {fileID: 0}
 --- !u!1 &210979058
 GameObject:
   m_ObjectHideFlags: 0
@@ -602,6 +605,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9212c2b799858942a90d847ac484eaf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  intensityType: 0
   colorSystemType: 0
   color: {r: 0.721853, g: 0.77008176, b: 1, a: 1}
   color_temperature: 8430
@@ -610,7 +614,10 @@ MonoBehaviour:
   luminous_efficacy: 0.008560351
   luminous_power: 5.8467197
   luminous_intensity: 5.8467197
-  ev: 0
+  illuminance: 5.8467197
+  luminance: 5.8467197
+  ev100: 0.18025723
+  ies: {fileID: 0}
 --- !u!1 &432754160
 GameObject:
   m_ObjectHideFlags: 0
@@ -1391,6 +1398,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9212c2b799858942a90d847ac484eaf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  intensityType: 0
   colorSystemType: 0
   color: {r: 0.7353081, g: 0.77916354, b: 1, a: 1}
   color_temperature: 8289
@@ -1399,7 +1407,10 @@ MonoBehaviour:
   luminous_efficacy: 0.26841956
   luminous_power: 916.65283
   luminous_intensity: 3185.5974
-  ev: 0
+  illuminance: 3185.5974
+  luminance: 3185.5974
+  ev100: 0.06831838
+  ies: {fileID: 0}
 --- !u!108 &2077417847
 Light:
   m_ObjectHideFlags: 0

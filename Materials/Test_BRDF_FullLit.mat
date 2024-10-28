@@ -56,7 +56,7 @@ Material:
     - _EmissionStrength: 1
     - _Reflectance: 0.5
     m_Colors:
-    - _DiffuseColor: {r: 0.5188679, g: 0.48421317, b: 0.369571, a: 1}
+    - _DiffuseColor: {r: 0.9137255, g: 0.85490197, b: 0.6784314, a: 1}
     - _Fresnel: {r: 0.089999996, g: 0.089999996, b: 0.089999996, a: 1}
     - _KdsExpoureClampMinMax: {r: 1, g: 0, b: 0, a: 1}
     - _MetallicRoughnessAO: {r: 0, g: 0.524, b: 0.5, a: 0}

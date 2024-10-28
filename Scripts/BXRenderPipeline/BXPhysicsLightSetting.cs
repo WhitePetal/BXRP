@@ -8,6 +8,7 @@ namespace BXRenderPipeline
     [RequireComponent(typeof(Light)), ExecuteAlways]
     public class BXPhysicsLightSetting : MonoBehaviour
     {
+        public IntensityType intensityType;
         public ColorSystemType colorSystemType = ColorSystemType.PAL;
         //[ColorUsageAttribute(false, true)]
         public Color color; // R G B
@@ -21,11 +22,24 @@ namespace BXRenderPipeline
         public const float spectral_luminous_efficacy = 683f; // /
         public float luminous_power; // lm
         public float luminous_intensity; // cd
-        public float ev; // /
+        public float illuminance; // lx
+        public float luminance; // cd/m^2
+        public float ev100; // /
+        public Texture ies;
 
 		private new Light light;
 
 		private ColorSystem useColorSystem;
+
+        public enum IntensityType
+        {
+            RadiantPower,
+            LuminousPower,
+            LuminousIntensity,
+            Illuminance,
+            Luminance,
+            EV100
+        }
 
         public enum ColorSystemType
         {
@@ -419,6 +433,9 @@ namespace BXRenderPipeline
             this.luminous_efficacy = luminous_efficacy_temp;
             this.luminous_power = luminous_power_temp;
             this.luminous_intensity = luminous_intensity_temp;
+            this.illuminance = this.luminous_intensity;
+            this.luminance = this.illuminance;
+            this.ev100 = Mathf.Log(2, this.luminance * 100 / 12.5f);
         }
 
         private void UpdateByRadiantPower()

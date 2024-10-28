@@ -190,7 +190,7 @@ Shader "Test/BRDF_FullLit"
         Pass 
         {
 			Tags {"RenderType"="Opaque" "Queue"="Geometry" "LightMode" = "ShadowCaster"}
-
+            
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
