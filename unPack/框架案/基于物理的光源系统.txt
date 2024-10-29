@@ -6,6 +6,7 @@ https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf
 https://google.github.io/filament/Filament.md.html#listing_diffusebrdf
 https://blog.selfshadow.com/publications/s2015-shading-course/#course_content
 https://en.wikipedia.org/wiki/Bidirectional_reflectance_distribution_function
+https://catlikecoding.com/unity/tutorials/custom-srp/
 色温：决定现实常见光的颜色
 ![alt text](image_kelvin_color.png)
 

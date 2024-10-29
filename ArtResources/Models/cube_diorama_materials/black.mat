@@ -93,7 +93,7 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Reflectance: 0.5
+    - _Reflectance: 0.124
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -101,10 +101,10 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 0.123659424, g: 0.123659424, b: 0.123659424, a: 1}
-    - _DiffuseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _DiffuseColor: {r: 0.066037714, g: 0.066037714, b: 0.066037714, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _Fresnel: {r: 0.089999996, g: 0.089999996, b: 0.089999996, a: 1}
+    - _Fresnel: {r: 0.6037736, g: 0.2306871, b: 0.2306871, a: 1}
     - _KdsExpoureClampMinMax: {r: 1, g: 0, b: 0, a: 1}
-    - _MetallicRoughnessAO: {r: 0, g: 1, b: 0.5, a: 0}
+    - _MetallicRoughnessAO: {r: 0, g: 0.5, b: 0.5, a: 0}
     - _NormalScales: {r: 1.5, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []

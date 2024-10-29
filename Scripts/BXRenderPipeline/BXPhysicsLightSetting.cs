@@ -406,9 +406,8 @@ namespace BXRenderPipeline
             return XV / X;
         }
 
-        private void GetLuminousEfficiencyFromRadiant(float temperature)
+        private float GetPowerToIntensity()
         {
-
             float power_to_intensity = 1f;
             switch (light.type)
             {
@@ -421,12 +420,19 @@ namespace BXRenderPipeline
                     power_to_intensity = 1f / (2 * Mathf.PI * (1f - cos));
                     break;
             }
-            float luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(temperature, photopic_spectral_luminous_efficacy_curve) * light_efficacy;
+            return power_to_intensity;
+        }
+
+        public void UpdateByRadiantPower()
+        {
+            float power_to_intensity = GetPowerToIntensity();
+
+            float luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(color_temperature, photopic_spectral_luminous_efficacy_curve) * light_efficacy;
             float luminous_power_temp = radiant_power * luminous_efficacy_temp * spectral_luminous_efficacy;
             float luminous_intensity_temp = luminous_power_temp * power_to_intensity;
             if(luminous_intensity_temp < 0.1f)
             {
-                luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(temperature, scotopic_spectral_luminous_efficacy_curve) * light_efficacy;
+                luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(color_temperature, scotopic_spectral_luminous_efficacy_curve) * light_efficacy;
                 luminous_power_temp = radiant_power * luminous_efficacy_temp * spectral_luminous_efficacy;
                 luminous_intensity_temp = luminous_power_temp * power_to_intensity;
             }
@@ -438,34 +444,47 @@ namespace BXRenderPipeline
             this.ev100 = Mathf.Log(2, this.luminance * 100 / 12.5f);
         }
 
-        private void UpdateByRadiantPower()
-		{
-            luminous_power = luminous_efficacy * radiant_power;
+        public void UpdateByLuminousIntensity()
+        {
+            float power_to_intensity = GetPowerToIntensity();
 
+            float luminous_intensity_temp = this.luminous_intensity;
+
+            float luminous_efficacy_temp;
+            float luminous_power_temp;
+            float radiant_power_temp;
+            if (luminous_intensity_temp < 0.1f)
+            {
+                luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(color_temperature, scotopic_spectral_luminous_efficacy_curve) * light_efficacy;
+            }
+            else
+            {
+                luminous_efficacy_temp = GetLuminousEfficiencyFromRadiant(color_temperature, photopic_spectral_luminous_efficacy_curve) * light_efficacy;
+            }
+            luminous_power_temp = luminous_intensity_temp / power_to_intensity;
+            radiant_power_temp = luminous_power_temp / (luminous_efficacy_temp * spectral_luminous_efficacy);
+            this.radiant_power = radiant_power_temp;
+            this.luminous_efficacy = luminous_efficacy_temp;
+            this.luminous_power = luminous_power_temp;
+            this.luminous_intensity = luminous_intensity_temp;
+            this.illuminance = this.luminous_intensity;
+            this.luminance = this.illuminance;
+            this.ev100 = Mathf.Log(2, this.luminance * 100 / 12.5f);
         }
 
-        private void OnEnable()
+        public void UpdateColor()
         {
-            this.light = GetComponent<Light>();
-        }
-
-        private void Update()
-        {
-            OnValidate();
-        }
-
-        private void OnValidate()
-        {
-            this.light = GetComponent<Light>();
             Vector3 XYZ = Spectrum_TO_XYZ(color_temperature);
             ColorSystem cs = GetColorSystem();
             Vector3 rgb = XYZ_TO_RGB(cs, XYZ);
             rgb = ConstrainRGB(rgb);
             rgb = NormRGB(rgb);
             this.color = new Color(rgb.x, rgb.y, rgb.z);
-            light.color = color;
-            GetLuminousEfficiencyFromRadiant(color_temperature);
-            light.intensity = luminous_intensity;
+        }
+
+        private void OnEnable()
+        {
+            this.light = GetComponent<Light>();
         }
     }
 }

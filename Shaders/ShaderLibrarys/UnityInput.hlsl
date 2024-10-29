@@ -97,7 +97,7 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_SpecCube1_BoxMin;
     float4 unity_SpecCube1_ProbePosition;
 
-    float4 unity_LightmapsST;
+    float4 unity_LightmapST;
     float4 unity_DynamicLightmapST;
 
     half4 unity_SHAr;

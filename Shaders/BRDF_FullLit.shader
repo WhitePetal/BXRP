@@ -4,7 +4,6 @@ Shader "Test/BRDF_FullLit"
     {
         _MainTex ("Albedo", 2D) = "white" {}
         _DiffuseColor("Diffuse Color", Color) = (1.0, 1.0, 1.0, 1.0)
-        _Fresnel("Fresnel0", Color) = (0.09, 0.09, 0.09, 1)
         _Reflectance("Reflectance", Range(0, 1)) = 0.5
         [VectorRange(0.0, 8, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0)]_KdsExpoureClampMinMax("光照强度_曝光强度_暗部范围Min_暗部范围Max", Vector) = (1.0, 0.0, 0.0, 1.0)
         [NoScaleOffset]_NormalTex("Normal Map", 2D) = "bump" {}
@@ -16,6 +15,8 @@ Shader "Test/BRDF_FullLit"
         [VectorRange(0.0, 1.0, 0.01, 1.0, 0.0, 1.0)]_MetallicRoughnessAO("金属度_粗糙度_AO", Vector) = (1.0, 1.0, 0.5, 0.0)
         [NoScaleOffset]_EmissionMap("Emission RGB:Color A:Mask", 2D) = "black" {}
         _EmissionStrength("Emission Strength", Range(0.0, 10.0)) = 1.0
+        [Enum(UnityEngine.Rendering.BlendMode)]_SrcBlend("Src Blend", Int) = 0
+        [Enum(UnityEngine.Rendering.BlendMode)]_DstBlend("Dst Blend", Int) = 1
     }
     SubShader
     {
@@ -24,6 +25,7 @@ Shader "Test/BRDF_FullLit"
         Pass
         {
             Tags { "LightMode"="BXForwardBase"}
+            Blend [_SrcBlend] [_DstBlend]
             HLSLPROGRAM
             #pragma target 4.5
             #pragma vertex vert
@@ -33,10 +35,12 @@ Shader "Test/BRDF_FullLit"
             #pragma multi_compile __ CLUSTER_LIGHT
             #pragma multi_compile __ SHADOWS_DIR
             #pragma multi_compile __ SHADOWS_CLUSTER
+            #pragma multi_compile _ LIGHTMAP_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Shadows.hlsl"
+            #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
@@ -46,11 +50,12 @@ Shader "Test/BRDF_FullLit"
                 half3 normal : NORMAL;
                 half4 tangent : TANGENT;
                 half2 texcoord : TEXCOORD0;
+                half2 texcoord1 : TEXCOORD1;
             };
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
+                half4 uv : TEXCOORD0;
                 float4 uv_detil : TEXCOORD1;
                 float4 vertex : SV_POSITION;
                 float3 pos_world : TEXCOORD2;
@@ -66,7 +71,6 @@ Shader "Test/BRDF_FullLit"
                 UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexA_ST)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexB_ST)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _DiffuseColor)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _Fresnel)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _MetallicRoughnessAO)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _NormalScales)
                 UNITY_DEFINE_INSTANCED_PROP(half4, _KdsExpoureClampMinMax)
@@ -83,7 +87,8 @@ Shader "Test/BRDF_FullLit"
                 v2f o;
                 o.pos_world = TransformObjectToWorld(v.vertex.xyz);
                 o.vertex = mul(UNITY_MATRIX_VP, float4(o.pos_world, 1.0));
-                o.uv = v.texcoord * GET_PROP(_MainTex_ST).xy + GET_PROP(_MainTex_ST).zw; // main map
+                o.uv.xy = v.texcoord * GET_PROP(_MainTex_ST).xy + GET_PROP(_MainTex_ST).zw; // main map
+                o.uv.zw = v.texcoord1 * unity_LightmapST.xy + unity_LightmapST.zw;
                 o.uv_detil = float4(v.texcoord * GET_PROP(_DetilTexA_ST).xy + GET_PROP(_DetilTexA_ST).zw, v.texcoord * GET_PROP(_DetilTexB_ST).xy + GET_PROP(_DetilTexB_ST).zw); // detil map
                 o.normal_world = TransformObjectToWorldNormal(v.normal);
                 o.tangent_world = TransformObjectToWorldDir(v.tangent.xyz);
@@ -93,11 +98,11 @@ Shader "Test/BRDF_FullLit"
 
             half4 frag (v2f i) : SV_Target
             {
-                half4 mainTex = _MainTex.Sample(sampler_MainTex, i.uv);
-                half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv);
-                half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv);
-                half2 detilMask = _DetilMask.Sample(sampler_MainTex, i.uv).rg;
-                half4 emission = _EmissionMap.Sample(sampler_MainTex, i.uv);
+                half4 mainTex = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+                half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv.xy);
+                half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv.xy);
+                half2 detilMask = _DetilMask.Sample(sampler_MainTex, i.uv.xy).rg;
+                half4 emission = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
@@ -182,7 +187,12 @@ Shader "Test/BRDF_FullLit"
                     }
                 #endif
 
-                return half4(diffuseLighting * albedo * pi_inv + specularLighting, 1.0);
+                half3 ambient = half(0.0);
+                emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
+                #ifdef LIGHTMAP_ON
+                ambient = SampleLightMap(i.uv.zw) * albedo;
+                #endif
+                return half4(diffuseLighting * albedo * pi_inv + specularLighting + ambient + emission.rgb, mainTex.a * GET_PROP(_DiffuseColor).a);
             }
             ENDHLSL
         }
@@ -235,5 +245,134 @@ Shader "Test/BRDF_FullLit"
             }
 			ENDHLSL
 		}
+
+        // Meta
+        Pass
+        {
+            Name "META_BAKERY"
+            Tags {"LightMode"="Meta"}
+            Cull Off
+            HLSLPROGRAM
+
+            #pragma target 4.5
+            #pragma multi_compile_local __ _EMISSION_ON
+            #pragma shader_feature EDITOR_VISUALIZATION
+            #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/MetaPass.hlsl"
+
+            // Include Bakery meta pass
+            #include "Assets/Scripts/BXRenderPipeline/Bakery/BakeryMetaPass.cginc"
+
+            Texture2D _MainTex, _MRATex, _EmissionMap;
+            Texture2D<half4> _NormalTex, _DetilTexA, _DetilTexB, _DetilMask;
+            SamplerState sampler_NormalTex;
+            SamplerState sampler_MainTex;
+            CBUFFER_START(UnityPerMaterial)
+                half _EmissionStrength;
+                half _Reflectance;
+                half4 _MainTex_ST;
+                half4 _DetilTexA_ST;
+                half4 _DetilTexB_ST;
+                half4 _DiffuseColor;
+                half4 _MetallicRoughnessAO;
+                half4 _NormalScales;
+                half4 _KdsExpoureClampMinMax;
+            CBUFFER_END
+
+            struct a2v
+            {
+                float4 vertex : POSITION;
+                float2 uv0 : TEXCOORD0;
+                float2 uv1 : TEXCOORD1;
+                float3 normal : NORMAL;
+                float4 tangent : TANGENT;
+            };
+
+            struct v2f
+            {
+                float4 pos : SV_POSITION;
+                half2 uv : TEXCOORD0;
+                float4 uv_detil : TEXCOORD1;
+                float3 pos_world : TEXCOORD2;
+                half3 normal_world : TEXCOORD3;
+                half3 tangent_world : TEXCOORD4;
+                half3 binormal_world : TEXCOORD5;
+            };
+
+            #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
+
+            v2f vert_customeMeta(a2v v)
+            {
+                v2f o;
+                o.pos = float4(((v.uv1.xy * unity_LightmapST.xy + unity_LightmapST.zw)*2-1) * float2(1,-1), 0.5, 1);
+                o.pos_world = 0.0;
+                o.uv = v.uv0 * _MainTex_ST.xy + _MainTex_ST.zw;
+                o.uv_detil = float4(v.uv0 * _DetilTexA_ST.xy + _DetilTexA_ST.zw, v.uv0 * _DetilTexB_ST.xy + _DetilTexB_ST.zw); // detil map
+                o.normal_world = TransformObjectToWorldNormal(v.normal);
+                o.tangent_world = TransformObjectToWorldDir(v.tangent.xyz);
+                o.binormal_world = cross(o.normal_world, o.tangent_world) * v.tangent.w;
+                return o;
+            }
+
+            float4 frag_customMeta (v2f i): SV_Target
+            {	
+                UnityMetaInput o;
+                o = (UnityMetaInput)0;
+                // UNITY_INITIALIZE_OUTPUT(UnityMetaInput, o);
+
+                half4 mainTex = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+                if (unity_MetaFragmentControl.w)
+                {
+                    return mainTex.a;
+                }
+
+                half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv.xy);
+
+                half4 mraValues = _MetallicRoughnessAO;
+                half roughness = mraValues.y * MRA.g;
+                half perceptRoughness = roughness * roughness;
+                half oneMinusMetallic = half(1.0) - MRA.r * mraValues.x;
+                half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
+                half3 albedo = mainTex.rgb * _DiffuseColor.rgb;
+                half reflectance = _Reflectance;
+                half3 f0 = lerp(albedo, half(0.16)*reflectance*reflectance, oneMinusMetallic);
+                half f90 = half(1.0);
+                // albedo = albedo - f0;
+                albedo *= oneMinusMetallic;
+
+                #ifdef _EMISSION_ON
+                    float4 emission = 0.0;
+                    emission = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
+                    emission.rgb = emission.rgb * _EmissionScale * emission.a;
+                    o.Emission = emission.rgb;
+                #else
+                    o.Emission = 0.0;
+                #endif
+
+                o.Albedo = albedo;
+                // o.SpecularColor = specular;
+
+                // Output custom normal to use with Bakery's "Baked Normal Map" mode
+                if (unity_MetaFragmentControl.z)
+                {
+                    // Calculate custom normal
+                    half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv.xy);
+                    half2 detilMask = _DetilMask.Sample(sampler_MainTex, i.uv.xy).rg;
+                    half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
+                    half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
+   
+                    half4 normalScales = _NormalScales;
+                    half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, normalScales.x, normalScales.y, normalScales.z, detilMask);
+                    return float4(EncodeNormalBestFit(n), 1.0);
+                }
+
+                return UnityMetaFragment(o);
+            }
+
+            // Must use vert_bakerymt vertex shader
+            #pragma vertex vert_customeMeta
+            #pragma fragment frag_customMeta
+            ENDHLSL
+        }
     }
 }

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.Rendering;
 
 namespace BXRenderPipeline
 {
@@ -21,6 +22,7 @@ namespace BXRenderPipeline
         private static GUIContent illuminanceContent = new GUIContent("照度(lx)", "Illuminance(lx)");
         private static GUIContent luminanceContent = new GUIContent("亮度(cd/m^2)", "Luminance(cd/m^2)");
         private static GUIContent ev100Content = new GUIContent("EV100", "EV100");
+        private static GUIContent iesContent = new GUIContent("IES Texture", "IES");
 
         private BXPhysicsLightSetting physicLight;
         private Light light;
@@ -64,9 +66,31 @@ namespace BXRenderPipeline
             GUI.enabled = physicLight.intensityType == BXPhysicsLightSetting.IntensityType.EV100;
             EditorGUILayout.PropertyField(serializedObject.FindProperty("ev100"), ev100Content);
 
-            
+            GUI.enabled = true;
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("ies"), iesContent);
+            if (GUILayout.Button("根据IES设置光源参数") && physicLight.ies != null)
+            {
+                string iesProfilerPath = AssetDatabase.GetAssetPath(physicLight.ies);
+                IESObject iesProfile = AssetDatabase.LoadAssetAtPath<IESObject>(iesProfilerPath);
+                Debug.Log("IES Profile: " + iesProfile);
+            }
+          
 
-            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            serializedObject.ApplyModifiedProperties();
+
+
+            physicLight.UpdateColor();
+            light.color = physicLight.color;
+            switch (physicLight.intensityType)
+            {
+                case BXPhysicsLightSetting.IntensityType.RadiantPower:
+                    physicLight.UpdateByRadiantPower();
+                    break;
+                case BXPhysicsLightSetting.IntensityType.LuminousIntensity:
+                    physicLight.UpdateByLuminousIntensity();
+                    break;
+            }
+            light.intensity = physicLight.luminous_intensity;
         }
     }
 }

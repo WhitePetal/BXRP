@@ -404,7 +404,9 @@ MonoBehaviour:
   - Assets/Scripts/BXRenderPipeline/Bakery/examples/content/floor_lamp.FBX
   - Assets/Scripts/BXRenderPipeline/Bakery/examples/content/sponza/bush.FBX
   - Assets/ArtResources/cube_diorama.fbx
-  uvOverlapAssetList: 00000000ffffffff00000000000000000000000001010000
+  - Assets/unPack/cube_diorama/cube_diorama.blend
+  - Assets/ArtResources/Models/cube_diorama.fbx
+  uvOverlapAssetList: 00000000ffffffff000000000000000000000000010100000101000001010000
   xatlasWarningShown: 0
   foundCompatibleSetup: 0
   gpuName: 
