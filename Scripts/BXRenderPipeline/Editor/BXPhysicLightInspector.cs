@@ -86,8 +86,14 @@ namespace BXRenderPipeline
                 case BXPhysicsLightSetting.IntensityType.RadiantPower:
                     physicLight.UpdateByRadiantPower();
                     break;
+                case BXPhysicsLightSetting.IntensityType.LuminousPower:
+                    physicLight.UpdateByLuminousPower();
+                    break;
                 case BXPhysicsLightSetting.IntensityType.LuminousIntensity:
                     physicLight.UpdateByLuminousIntensity();
+                    break;
+                case BXPhysicsLightSetting.IntensityType.Illuminance:
+                    physicLight.UpdateByIlluminance();
                     break;
             }
         }
