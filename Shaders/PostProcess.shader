@@ -13,6 +13,7 @@ Shader "PostProcess"
         Pass
         {
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma editor_sync_compilation
             #pragma vertex vert
             #pragma fragment frag

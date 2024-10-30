@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
@@ -39,7 +40,6 @@ namespace BXRenderPipeline
 		public float shutter_time;
 		public float sensor_sensitvity;
 
-		//[HideInInspector]
 		public float ev100;
 
 		private void OnEnable()
@@ -90,5 +90,16 @@ namespace BXRenderPipeline
         {
 			return Mathf.Log(releate_aperture * releate_aperture * 100f / (shutter_time * sensor_sensitvity) , 2);
         }
+
+		public bool Has(Type componmentType)
+		{
+			if (components == null || components.Count == 0) return false;
+			for(int i = 0; i < components.Count; ++i)
+			{
+				if (components[i].GetType() == componmentType)
+					return true;
+			}
+			return false;
+		}
 	}
 }

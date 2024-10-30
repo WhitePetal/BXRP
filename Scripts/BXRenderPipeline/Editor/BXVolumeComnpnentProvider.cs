@@ -51,7 +51,7 @@ namespace BXRenderPipeline
 
         public void CreateComponentTree(List<Element> tree)
         {
-            var currentPipelineAssetType = GraphicsSettings.currentRenderPipeline;
+            var currentPipelineAssetType = GraphicsSettings.currentRenderPipeline.GetType();
             if (currentPipelineAssetType == null)
             {
                 tree.Add(new GroupElement(0, "No SRP in use"));
@@ -60,19 +60,19 @@ namespace BXRenderPipeline
 
             tree.Add(new GroupElement(0, "Volume Overrides"));
 
-            var volumeComponentTypesFiltered = BXVolumeManager.instance.GetVolumeComponentsForDisplay(typeof(BXRenderPipeline));
+            var volumeComponentTypesFiltered = BXVolumeManager.instance.GetVolumeComponentsForDisplay(currentPipelineAssetType);
             if (volumeComponentTypesFiltered.Count == 0)
                 return;
 
             var rootNode = new PathNode();
             foreach (var (path, t) in volumeComponentTypesFiltered)
             {
-                // Skip components that have already been added to the volume
-                //if (m_Target.Has(t))
-                    //continue;
+				// Skip components that have already been added to the volume
+				if (m_Target.Has(t))
+					continue;
 
-                // Prep the categories & types tree
-                AddNode(rootNode, path, t);
+				// Prep the categories & types tree
+				AddNode(rootNode, path, t);
             }
 
             // Recursively add all elements to the tree
@@ -83,8 +83,8 @@ namespace BXRenderPipeline
         {
             if (element is VolumeComponentElement volumeComponentElement)
             {
-                //m_TargetEditor.AddComponent(volumeComponentElement.type);
-                return true;
+				m_TargetEditor.AddComponent(volumeComponentElement.type);
+				return true;
             }
 
             return false;

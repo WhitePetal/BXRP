@@ -6,7 +6,12 @@ namespace BXRenderPipeline
 {
     public class BXBloomComponent : BXVolumeComponment
     {
-        public override void OverrideData<T>(T volume, float interpFactor)
+		public override BXVolumeComponment CopyCreate()
+		{
+			throw new System.NotImplementedException();
+		}
+
+		public override void OverrideData(BXVolumeComponment component, float interpFactor)
         {
             throw new System.NotImplementedException();
         }

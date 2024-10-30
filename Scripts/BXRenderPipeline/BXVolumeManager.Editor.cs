@@ -41,15 +41,14 @@ namespace BXRenderPipeline
         {
             if (currentPipelineAssetType == null)
                 return new List<(string, Type)>();
-            //if (!currentPipelineAssetType.IsSubclassOf(typeof(RenderPipelineAsset)))
-            //throw new ArgumentException(nameof(currentPipelineAssetType));
-            if (s_SupportedVolumeComponentsForRenderPipeline.TryGetValue(currentPipelineAssetType, out var supportedVolumeComponents))
+			if (!currentPipelineAssetType.IsSubclassOf(typeof(RenderPipelineAsset)))
+				throw new ArgumentException(nameof(currentPipelineAssetType));
+			if (s_SupportedVolumeComponentsForRenderPipeline.TryGetValue(currentPipelineAssetType, out var supportedVolumeComponents))
                 return supportedVolumeComponents;
 
             if (baseComponentTypeArray == null)
                 LoadBaseTypes(currentPipelineAssetType);
 
-            Debug.Log("baseComponentTypeArray: " + baseComponentTypeArray);
             supportedVolumeComponents = BuildVolumeComponentDisplayList(baseComponentTypeArray);
             s_SupportedVolumeComponentsForRenderPipeline[currentPipelineAssetType] = supportedVolumeComponents;
 

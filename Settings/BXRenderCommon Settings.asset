@@ -13,9 +13,10 @@ MonoBehaviour:
   m_Name: BXRenderCommon Settings
   m_EditorClassIdentifier: 
   coreBlitPS: {fileID: 4800000, guid: bdc1d85bac1101d4aaffe5fdab67b8e8, type: 3}
-  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9, type: 3}
+  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9,
+    type: 3}
   downSample: 1
-  minHeight: 1
+  minHeight: 1080
   maxHeight: 1440
   msaa: 2
   aaType: 1
@@ -37,6 +38,10 @@ MonoBehaviour:
     resolution: {x: 1024, y: 1024}
     format: 4
   cubeOctahedraSizeScale: 2.5
+  aperture: 22
+  shutter: 0.008
+  sensorSensitvity: 100
+  standardExpourse: 0.000013774106
   postProcessMaterial: {fileID: 2100000, guid: 1b0810ca95c784d9f8b779b7b083e65f, type: 2}
   gpuDrive: 0
   terrShadow: 0

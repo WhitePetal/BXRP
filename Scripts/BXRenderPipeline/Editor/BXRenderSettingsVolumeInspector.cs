@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
@@ -32,5 +33,21 @@ namespace BXRenderPipeline
                 }
             }
         }
-    }
+
+		public void AddComponent(Type componentType)
+		{
+			serializedObject.Update();
+			var component = (BXVolumeComponment)ScriptableObject.CreateInstance(componentType);
+			component.hideFlags = HideFlags.HideInInspector | HideFlags.HideInHierarchy;
+			component.name = componentType.Name;
+			Undo.RegisterCreatedObjectUndo(component, "Add Volume Override");
+
+			var components = serializedObject.FindProperty("components");
+			components.arraySize++;
+			var refComponent = components.GetArrayElementAtIndex(components.arraySize - 1);
+			refComponent.objectReferenceValue = component;
+			serializedObject.ApplyModifiedProperties();
+		}
+
+	}
 }
