@@ -42,6 +42,7 @@ namespace BXRenderPipeline
         public Shader coreBlitColorAndDepthPS;
 
         [Header("分辨率")]
+        [Range(0.1f, 4f)]
         public float downSample = 1;
         public int minHeight = 1080;
         public int maxHeight = 1440;
@@ -80,6 +81,13 @@ namespace BXRenderPipeline
         };
         public float cubeOctahedraSizeScale = 2.5f;
         //public bool useStructuredBuffer = false;
+
+        [Header("EV")]
+        public float aperture = 22f;
+        public float shutter = 1f / 125f;
+        public float sensorSensitvity = 100f;
+        [HideInInspector]
+        public float standardExpourse;
 
         [Header("后处理")]
         public Material postProcessMaterial;
@@ -156,6 +164,8 @@ namespace BXRenderPipeline
             SetPlatformCompatibles();
             SetGraphicsSettingsByQualityLevel(quality);
             SetBuiltinQualitySettings();
+            float standardEV100 = Mathf.Log(aperture * aperture * 100f / (shutter * sensorSensitvity), 2);
+            standardExpourse = 1f / (1.2f * Mathf.Pow(2, standardEV100));
         }
 
         public void SetGraphicsSettings(float downSample, int minHeight, int maxHeight,

@@ -72,6 +72,8 @@ CBUFFER_START(UnityPerCamera)
     // z = unused
     // w = 1.0 if camera is ortho, 0.0 if perspective
     float4 unity_OrthoParams;
+
+    half _ReleateExpourse;
 CBUFFER_END
 
 CBUFFER_START(UnityPerDraw)

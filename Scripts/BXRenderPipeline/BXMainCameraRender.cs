@@ -65,6 +65,8 @@ namespace BXRenderPipeline
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
+            BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
+
             SetupRenderFeatures(beforeRenderRenderFeatures);
             SetupRenderFeatures(onDirShadowsRenderFeatures);
             SetupRenderFeatures(beforeOpaqueRenderFeatures);
@@ -153,6 +155,9 @@ namespace BXRenderPipeline
             ExecuteCommand();
 
             ExecuteRenderFeatures(beforeOpaqueRenderFeatures);
+
+            // EV-Expourse
+            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, BXVolumeManager.instance.renderSettings.expourse);
 
             // Draw Opaque
             SortingSettings sortingSettings = new SortingSettings(camera)

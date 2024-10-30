@@ -406,7 +406,65 @@ MonoBehaviour:
   - Assets/ArtResources/cube_diorama.fbx
   - Assets/unPack/cube_diorama/cube_diorama.blend
   - Assets/ArtResources/Models/cube_diorama.fbx
-  uvOverlapAssetList: 00000000ffffffff000000000000000000000000010100000101000001010000
+  - Assets/ArtResources/Models/cube_diorama/cube_diorama.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vjjsace/vjjsace.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wc0jdfldw/wc0jdfldw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tmgmfeefa/tmgmfeefa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/udmmfbpqx/udmmfbpqx.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbmgdcpdw/wbmgdcpdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukknbeyaw/ukknbeyaw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/uc1kebzfa/uc1kebzfa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmfwcabdw/vmfwcabdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/udlmcdhqx/udlmcdhqx.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ugygfhdva/ugygfhdva.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmhmaardw/vmhmaardw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wldocam/wldocam.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ufzueazdw/ufzueazdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tmgpcg2fa/tmgpcg2fa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbpveaydw/wbpveaydw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmomfaadw/vmomfaadw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ufbpaeadw/ufbpaeadw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tl0vafqfa/tl0vafqfa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/xixlcj1mw/xixlcj1mw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmklfccga/vmklfccga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbdjcihdw/wbdjcihdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukipagtbw/ukipagtbw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tltvai3fa/tltvai3fa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wboweczdw/wboweczdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukmlcaoaw/ukmlcaoaw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ue3qfjddw/ue3qfjddw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/uknjbb2bw/uknjbb2bw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/uc2ichvqx/uc2ichvqx.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukikajmaw/ukikajmaw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/udehcidiw/udehcidiw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tmrveaeda/tmrveaeda.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ue3rackdw/ue3rackdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/uknkaffaw/uknkaffaw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbdjciudw/wbdjciudw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vi5hbjgga/vi5hbjgga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/udzrbfmfa/udzrbfmfa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ufbpacwdw/ufbpacwdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbolfcadw/wbolfcadw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ufbpadjdw/ufbpadjdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukkpdhqbw/ukkpdhqbw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmqifgedw/vmqifgedw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmgwbbhdw/vmgwbbhdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vkbhcbg/vkbhcbg.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukphdffaw/ukphdffaw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ufzjadyga/ufzjadyga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wczwafvdw/wczwafvdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wbhobeedw/wbhobeedw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vl3ubjqdw/vl3ubjqdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ukmjfdkbw/ukmjfdkbw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ugciag2ga/ugciag2ga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vlwmahl/vlwmahl.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ulejaaxga/ulejaaxga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/wb5udaydw/wb5udaydw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/tl3ifacfa/tl3ifacfa.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vfyqcj2ga/vfyqcj2ga.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/ue3qfikdw/ue3qfikdw.fbx
+  - Assets/ArtResources/Models/saloon_interior_mid/vmgjfabdw/vmgjfabdw.fbx
+  uvOverlapAssetList: 00000000ffffffff00000000000000000000000001010000010100000101000001010000000000000101000000000000000000000000000001010000000000000101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010100000000000000000000000000000000000000000000010100000000000000000000000000000000000000000000010100000000000000000000000000000000000000000000000000000101000000000000000000000000000000000000
   xatlasWarningShown: 0
   foundCompatibleSetup: 0
   gpuName: 

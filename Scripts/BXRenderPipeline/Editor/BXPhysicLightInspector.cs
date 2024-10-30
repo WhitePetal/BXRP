@@ -72,7 +72,7 @@ namespace BXRenderPipeline
             {
                 string iesProfilerPath = AssetDatabase.GetAssetPath(physicLight.ies);
                 IESObject iesProfile = AssetDatabase.LoadAssetAtPath<IESObject>(iesProfilerPath);
-                Debug.Log("IES Profile: " + iesProfile);
+                physicLight.luminous_intensity = iesProfile.iesMetaData.IESMaximumIntensity;
             }
           
 
@@ -90,7 +90,6 @@ namespace BXRenderPipeline
                     physicLight.UpdateByLuminousIntensity();
                     break;
             }
-            light.intensity = physicLight.luminous_intensity;
         }
     }
 }

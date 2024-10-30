@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public sealed class BXVolumeManager
+    public sealed partial class BXVolumeManager
     {
         private static readonly ProfilerMarker k_ProfilerMarkerUpdate = new ProfilerMarker("BXVolumeManager.Update");
         private static readonly ProfilerMarker k_ProfilerMarkerReplaceData = new ProfilerMarker("BXVolumeManager.ReplaceData");
@@ -97,6 +97,7 @@ namespace BXRenderPipeline
             if (!onlyGlobal)
                 trigger.TryGetComponent<Camera>(out camera);
 
+
             int numVolumes = volumes.Count;
             for (int i = 0; i < numVolumes; ++i)
             {
@@ -117,7 +118,7 @@ namespace BXRenderPipeline
 
                 var colliders = m_TempColliders;
                 volume.GetComponents(colliders);
-                if (colliders.Count == 0) return;
+                if (colliders.Count == 0) continue;
 
                 float closeDistanceSqr = float.PositiveInfinity;
 

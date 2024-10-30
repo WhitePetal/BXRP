@@ -72,3 +72,18 @@ $$L_r = f * E' = f * E * cos(\theta) = f * \frac{I}{distance^2} * cos(\theta)$$
 因此我们可以向材质传入 光强度 Luminous intensity $I$，在材质内计算出到材质表面的照度 Illuminance $E'$ 即可通过 BRDF 函数 $f$ 计算出材质表面反射出的 亮度 Luminance $L$ 了。
 
 IES 用来描述光源光强度分布的文件。存储的数据是光强度因此以 cd 为单位。我们可以把它转换为cookie图，让其数据除以其中最大的光强度，即把数值规范化，这样就变成了用来描述其光强在空间上分布比例的cookie了。同样的把采样到的cookie值乘上其最大光强度也就得到了其在采样方向上的光强度。
+
+
+Relative aperture 光圈 N
+Shutter time: 快门 t
+Sensor sensitivity 传感器灵敏度 S
+
+场景亮度到相机传感器照度：
+$$H = \frac{qt}{N^2}L = tE$$
+q 是 透镜 和 渐晕衰减，一般值为 0.65
+
+![alt text](image_EV_Expourse.png)
+
+$$L = H * A * \frac{N^2}{qt} = H * \frac{1}{q} * 2^{EV_{100}} = 1.2 * Q$$
+
+$$18662400 / 864 * 10^{-6}$$

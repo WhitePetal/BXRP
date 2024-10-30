@@ -189,7 +189,7 @@ half3 ToneMapping_ACES(half3 color, half adapted_lum)
     const half E = half(0.14);
 
     color *= adapted_lum;
-    return (color * (A * color + B)) / (color * (C * color + D) + E);
+    return saturate((color * (A * color + B)) / (color * (C * color + D) + E));
 }
 
 half3 ACES_To_Linear(half3 col)
@@ -199,7 +199,7 @@ half3 ACES_To_Linear(half3 col)
         dot(half3(half(-0.129553), half(1.13837), half(-0.00876801)), col),
         dot(half3(half(-0.0241261), half(-0.124633), half(1.14882)), col)
     );
-    return max(half(0.0001), res);
+    return saturate(res);
 }
 
 half3 ACES_To_sRGB(half3 col)

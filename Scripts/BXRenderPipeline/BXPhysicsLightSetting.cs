@@ -469,7 +469,7 @@ namespace BXRenderPipeline
             this.luminous_intensity = luminous_intensity_temp;
             this.illuminance = this.luminous_intensity;
             this.luminance = this.illuminance;
-            this.ev100 = Mathf.Log(2, this.luminance * 100 / 12.5f);
+            this.ev100 = Mathf.Log(this.luminance * 100 / 12.5f, 2);
         }
 
         public void UpdateColor()
@@ -482,9 +482,16 @@ namespace BXRenderPipeline
             this.color = new Color(rgb.x, rgb.y, rgb.z);
         }
 
-        private void OnEnable()
+        private void Awake()
         {
             this.light = GetComponent<Light>();
+        }
+
+        private void Update()
+        {
+            if (!BXVolumeManager.instance.isInitialized) return;
+
+            light.intensity = luminous_intensity * BXVolumeManager.instance.renderSettings.standard_expourse;
         }
     }
 }

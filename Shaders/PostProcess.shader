@@ -17,11 +17,14 @@ Shader "PostProcess"
             #pragma vertex vert
             #pragma fragment frag
 
+            // #define _ACES_C 1
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
 
             Texture2D _PostProcessInput;
 			float4 _PostProcessInput_TexelSize;
 			SamplerState sampler_PostProcessInput;
+
+            #include "Assets/Shaders/ShaderLibrarys/GSR.hlsl"
 
             struct v2f
             {
@@ -63,8 +66,10 @@ Shader "PostProcess"
 
             half4 frag (v2f i) : SV_Target
             {
-				half4 color = _PostProcessInput.SampleLevel(sampler_PostProcessInput, i.uv, 0);
-                color.rgb = saturate(ToneMapping_ACES_To_sRGB(color.rgb, half(1.0)));
+                half4 color = half4(half(0.0), half(0.0), half(0.0), half(1.0));
+				SgsrYuvH(color, i.uv, _PostProcessInput_TexelSize);
+				// color = _PostProcessInput.SampleLevel(sampler_PostProcessInput, i.uv, 0);
+                color.rgb = ToneMapping_ACES_To_sRGB(color.rgb, half(1.0));
 				return color;
             }
             ENDHLSL

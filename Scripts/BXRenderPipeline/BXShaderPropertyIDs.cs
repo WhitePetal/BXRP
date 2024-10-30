@@ -64,5 +64,7 @@ namespace BXRenderPipeline
         //public static int _MainLightCookie_ID = Shader.PropertyToID("_MainLightCookie");
         //public static int _MainLightWorldToLight_ID = Shader.PropertyToID("_MainLightWorldToLight");
         //public static int _MainLightCookieFormat_ID = Shader.PropertyToID("_MainLightCookieFormat");
+
+        public static int _ReleateExpourse_ID = Shader.PropertyToID("_ReleateExpourse");
     }
 }

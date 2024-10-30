@@ -13,8 +13,9 @@ Shader "Test/BRDF_FullLit"
         [VectorRange(0.0, 4.0, 0.0, 4.0, 0.0, 4.0)]_NormalScales("主法线强度_细节法线A强度_细节法线B强度", Vector) = (1.5, 1.0, 1.0, 0.0)
         [NoScaleOffset]_MRATex("金属度(R) 粗糙度(G) AO(B) 细节遮罩(A)", 2D) = "white" {}
         [VectorRange(0.0, 1.0, 0.01, 1.0, 0.0, 1.0)]_MetallicRoughnessAO("金属度_粗糙度_AO", Vector) = (1.0, 1.0, 0.5, 0.0)
+        [Toggle] _Emission("Emission On", Int) = 0
         [NoScaleOffset]_EmissionMap("Emission RGB:Color A:Mask", 2D) = "black" {}
-        _EmissionStrength("Emission Strength", Range(0.0, 10.0)) = 1.0
+        _EmissionStrength("Emission Strength", Float) = 1.0
         [Enum(UnityEngine.Rendering.BlendMode)]_SrcBlend("Src Blend", Int) = 0
         [Enum(UnityEngine.Rendering.BlendMode)]_DstBlend("Dst Blend", Int) = 1
     }
@@ -36,6 +37,7 @@ Shader "Test/BRDF_FullLit"
             #pragma multi_compile __ SHADOWS_DIR
             #pragma multi_compile __ SHADOWS_CLUSTER
             #pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile_local __ _EMISSION_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
@@ -102,7 +104,9 @@ Shader "Test/BRDF_FullLit"
                 half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv.xy);
                 half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv.xy);
                 half2 detilMask = _DetilMask.Sample(sampler_MainTex, i.uv.xy).rg;
+                #ifdef _EMISSION_ON
                 half4 emission = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
+                #endif
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
@@ -188,11 +192,21 @@ Shader "Test/BRDF_FullLit"
                 #endif
 
                 half3 ambient = half(0.0);
-                emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
                 #ifdef LIGHTMAP_ON
                 ambient = SampleLightMap(i.uv.zw) * albedo;
                 #endif
-                return half4(diffuseLighting * albedo * pi_inv + specularLighting + ambient + emission.rgb, mainTex.a * GET_PROP(_DiffuseColor).a);
+                #ifdef _EMISSION_ON
+                emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
+                #endif
+                return half4(
+                    (
+                        diffuseLighting * albedo * pi_inv + 
+                        specularLighting + 
+                        ambient 
+                        #ifdef _EMISSION_ON
+                        + emission.rgb
+                        #endif
+                    ) * _ReleateExpourse, mainTex.a * GET_PROP(_DiffuseColor).a);
             }
             ENDHLSL
         }
@@ -343,7 +357,7 @@ Shader "Test/BRDF_FullLit"
                 #ifdef _EMISSION_ON
                     float4 emission = 0.0;
                     emission = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
-                    emission.rgb = emission.rgb * _EmissionScale * emission.a;
+                    emission.rgb = emission.rgb * _EmissionStrength * emission.a;
                     o.Emission = emission.rgb;
                 #else
                     o.Emission = 0.0;
