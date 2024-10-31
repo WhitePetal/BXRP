@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <ui:VisualElement style="flex-grow: 1;">
+        <uie:PropertyField binding-path="m_IsGlobal" name="m_isGlobalField" />
+        <uie:PropertyField name="priortiyField" binding-path="priortiy" />
+        <uie:PropertyField name="blendDistanceField" binding-path="blendDistance" />
+        <uie:PropertyField name="weightField" binding-path="weight" />
+    </ui:VisualElement>
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:DropdownField name="ComponentsDrop" style="width: auto; height: 23px; justify-content: flex-start; flex-wrap: nowrap; align-self: auto;">
+            <ui:Label tabindex="-1" text="Add Settings" parse-escape-sequences="true" display-tooltip-when-elided="true" name="Label" style="position: absolute; left: 42%; top: 15%; right: auto; bottom: auto; font-size: 12px; justify-content: flex-start; align-items: stretch; align-self: auto; flex-direction: row;" />
+        </ui:DropdownField>
+    </ui:VisualElement>
+</ui:UXML>

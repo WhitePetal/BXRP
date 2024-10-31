@@ -66,5 +66,39 @@ namespace BXRenderPipeline
         //public static int _MainLightCookieFormat_ID = Shader.PropertyToID("_MainLightCookieFormat");
 
         public static int _ReleateExpourse_ID = Shader.PropertyToID("_ReleateExpourse");
+
+        public static int _BlurSpeard_ID = Shader.PropertyToID("_BlurSpeard");
+        public static int _BloomFilters_ID = Shader.PropertyToID("_BloomFilters");
+        public static int _BloomStrength_ID = Shader.PropertyToID("_BloomStrength");
+        public static int _BloomBlurStrength_ID = Shader.PropertyToID("_BloomBlurStrength");
+        public static int _BloomTex_ID = Shader.PropertyToID("_BloomTex");
+
+        public static int[] _BloomTempRT_IDs = new int[]
+        {
+            Shader.PropertyToID("_BloomTempRT0"),
+            Shader.PropertyToID("_BloomTempRT1"),
+            Shader.PropertyToID("_BloomTempRT2"),
+            Shader.PropertyToID("_BloomTempRT3"),
+            Shader.PropertyToID("_BloomTempRT4"),
+            Shader.PropertyToID("_BloomTempRT5"),
+            Shader.PropertyToID("_BloomTempRT6"),
+            Shader.PropertyToID("_BloomTempRT7"),
+            Shader.PropertyToID("_BloomTempRT8"),
+
+            Shader.PropertyToID("_BloomTempRT9"),
+        };
+        public static RenderTargetIdentifier[] _BloomTempRT_RTIDs = new RenderTargetIdentifier[]
+        {
+            new RenderTargetIdentifier(_BloomTempRT_IDs[0]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[1]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[2]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[3]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[4]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[5]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[6]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[7]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[8]),
+            new RenderTargetIdentifier(_BloomTempRT_IDs[9]),
+        };
     }
 }

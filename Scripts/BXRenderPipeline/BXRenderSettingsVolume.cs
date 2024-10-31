@@ -34,13 +34,8 @@ namespace BXRenderPipeline
         private int m_PreviousLayer;
         private float m_PreviousPriority;
 
+		[HideInInspector]
 		public List<BXVolumeComponment> components;
-
-		public float releate_aperture;
-		public float shutter_time;
-		public float sensor_sensitvity;
-
-		public float ev100;
 
 		private void OnEnable()
 		{
@@ -60,8 +55,6 @@ namespace BXRenderPipeline
 #if UNITY_EDITOR
 			GetComponents(m_Colliders);
 #endif
-
-			this.ev100 = ComputeEV100();
 		}
 
         internal void UpdateLayer()
@@ -85,11 +78,6 @@ namespace BXRenderPipeline
 		{
 			blendDistance = Mathf.Max(blendDistance, 0f);
 		}
-
-		private float ComputeEV100()
-        {
-			return Mathf.Log(releate_aperture * releate_aperture * 100f / (shutter_time * sensor_sensitvity) , 2);
-        }
 
 		public bool Has(Type componmentType)
 		{

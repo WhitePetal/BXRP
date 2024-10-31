@@ -9,8 +9,6 @@ namespace BXRenderPipeline
     {
         public abstract void OverrideData(BXVolumeComponment component, float interpFactor);
 
-		public abstract BXVolumeComponment CopyCreate();
-
-        public abstract void Render();
+        public abstract void RefreshData();
     }
 }

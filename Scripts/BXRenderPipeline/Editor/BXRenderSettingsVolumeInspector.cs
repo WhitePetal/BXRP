@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Rendering;
+using UnityEditorInternal;
 using UnityEngine;
 
 namespace BXRenderPipeline
@@ -11,15 +12,24 @@ namespace BXRenderPipeline
     public class BXRenderSettingsVolumeInspector : Editor
     {
         private BXRenderSettingsVolume volume;
+        private ReorderableList componentsReoLst;
 
         private void OnEnable()
         {
             volume = target as BXRenderSettingsVolume;
+            componentsReoLst = new ReorderableList(serializedObject, serializedObject.FindProperty("components"), false, true, false, true);
+            componentsReoLst.drawHeaderCallback += DrawComponentsLstHead;
+            componentsReoLst.drawElementCallback += DrawComponentsLstElement;
+            componentsReoLst.onRemoveCallback += OnComponentLstRemoveElement;
         }
 
         public override void OnInspectorGUI()
         {
             base.OnInspectorGUI();
+
+            EditorGUILayout.Space();
+
+            componentsReoLst.DoLayoutList();
 
             EditorGUILayout.Space();
 
@@ -49,5 +59,41 @@ namespace BXRenderPipeline
 			serializedObject.ApplyModifiedProperties();
 		}
 
+
+        private void DrawComponentsLstHead(Rect rect)
+        {
+            EditorGUI.LabelField(rect, EditorGUIUtility.TrTextContent("Components"));
+        }
+
+        private void DrawComponentsLstElement(Rect rect, int index, bool isActive, bool isFocused)
+        {
+            SerializedProperty element = componentsReoLst.serializedProperty.GetArrayElementAtIndex(index);
+            EditorGUI.PropertyField(rect, element);
+            if (Editor.CreateEditor(element.objectReferenceValue).DrawDefaultInspector())
+            {
+                element.serializedObject.ApplyModifiedProperties();
+            }
+            EditorGUILayout.Space();
+        }
+
+        private void OnComponentLstRemoveElement(ReorderableList lst)
+        {
+            var selectedIndices = lst.selectedIndices;
+            var components = serializedObject.FindProperty("components");
+            if (selectedIndices == null || selectedIndices.Count == 0)
+            {
+                if(components.arraySize > 0)
+                    components.arraySize--;
+            }
+            else
+            {
+                for (int i = 0; i < selectedIndices.Count; ++i)
+                {
+                    int index = selectedIndices[i];
+                    components.DeleteArrayElementAtIndex(index);
+                }
+            }
+            serializedObject.ApplyModifiedProperties();
+        }
 	}
 }

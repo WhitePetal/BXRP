@@ -39,6 +39,8 @@ namespace BXRenderPipeline
         private PerObjectData fullLightPerObjectFlags = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe |
             PerObjectData.LightProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume | PerObjectData.None;
 
+        private Material postProcessMat;
+
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
@@ -48,6 +50,7 @@ namespace BXRenderPipeline
             this.context = context;
             this.camera = camera;
             this.commonSettings = commonSettings;
+            this.postProcessMat = commonSettings.postProcessMaterial;
 
             width_screen = camera.pixelWidth;
             height_screen = camera.pixelHeight;
@@ -122,9 +125,13 @@ namespace BXRenderPipeline
 
         private void ExecuteRenderFeatures(List<BXRenderFeature> renderFeatures)
 		{
-            for (int i = 0; i < renderFeatures.Count; ++i)
+            if(renderFeatures != null && renderFeatures.Count > 0)
             {
-                renderFeatures[i].Render(commandBuffer, this);
+                for (int i = 0; i < renderFeatures.Count; ++i)
+                {
+                    renderFeatures[i].Render(commandBuffer, this);
+                }
+                ExecuteCommand();
             }
         }
 
@@ -152,12 +159,16 @@ namespace BXRenderPipeline
             commandBuffer.SetRenderTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, BXShaderPropertyIDs._DepthBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
             CameraClearFlags clearFlags = camera.clearFlags;
             commandBuffer.ClearRenderTarget(clearFlags <= CameraClearFlags.Depth, clearFlags <= CameraClearFlags.Color, clearFlags == CameraClearFlags.SolidColor ? camera.backgroundColor : Color.clear);
+
+            var renderSettings = BXVolumeManager.instance.renderSettings;
+            var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
+
+            // EV-Expourse
+            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
+
             ExecuteCommand();
 
             ExecuteRenderFeatures(beforeOpaqueRenderFeatures);
-
-            // EV-Expourse
-            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, BXVolumeManager.instance.renderSettings.expourse);
 
             // Draw Opaque
             SortingSettings sortingSettings = new SortingSettings(camera)
@@ -213,18 +224,80 @@ namespace BXRenderPipeline
         private void DrawPostProcess(List<BXRenderFeature> onPostProcessRenderFeatures)
 		{
             ExecuteRenderFeatures(onPostProcessRenderFeatures);
+
+            DrawBloom();
+
 #if UNITY_EDITOR
-            if(camera.cameraType == CameraType.SceneView)
+            if (camera.cameraType == CameraType.SceneView)
 			{
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
+                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 0, true, true, width_screen, height_screen);
 			}
 			else
 			{
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
+                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, postProcessMat, 0, true, true, width_screen, height_screen);
             }
 #else
             DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
 #endif
+            ReleaseBloom();
+        }
+
+        private void DrawBloom()
+        {
+            if (!commonSettings.enablBloom)
+            {
+                postProcessMat.DisableKeyword("_BLOOM");
+                return;
+            }
+            postProcessMat.EnableKeyword("_BLOOM");
+
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[0], width >> 1, height >> 1, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[1], width >> 2, height >> 2, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[2], width >> 2, height >> 2, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[3], width >> 3, height >> 3, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[4], width >> 3, height >> 3, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[5], width >> 4, height >> 4, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[6], width >> 4, height >> 4, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float);
+
+            var renderSettings = BXVolumeManager.instance.renderSettings.GetComponent<BXBloomComponent>();
+
+            Vector4 threshold;
+            threshold.x = renderSettings.threshold_runtime;
+            threshold.y = threshold.x * renderSettings.threshold_knne_runtime;
+            threshold.z = 2f * threshold.y;
+            threshold.w = 0.25f / (threshold.y + 0.0001f);
+            threshold.y -= threshold.x;
+            commandBuffer.SetGlobalVector(BXShaderPropertyIDs._BloomFilters_ID, threshold);
+            commandBuffer.SetGlobalVector(BXShaderPropertyIDs._BloomStrength_ID, new Vector4(renderSettings.bloom_strength_runtime, renderSettings.bright_clamp_runtime));
+
+            DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BXShaderPropertyIDs._BloomTempRT_RTIDs[0], postProcessMat, 1, false);
+
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[0], BXShaderPropertyIDs._BloomTempRT_RTIDs[1], postProcessMat, 2, false);
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[1], BXShaderPropertyIDs._BloomTempRT_RTIDs[2], postProcessMat, 3, false);
+
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[2], BXShaderPropertyIDs._BloomTempRT_RTIDs[3], postProcessMat, 2, false);
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[3], BXShaderPropertyIDs._BloomTempRT_RTIDs[4], postProcessMat, 3, false);
+
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[4], BXShaderPropertyIDs._BloomTempRT_RTIDs[5], postProcessMat, 2, false);
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[5], BXShaderPropertyIDs._BloomTempRT_RTIDs[6], postProcessMat, 3, false);
+
+            commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._BloomTex_ID, BXShaderPropertyIDs._BloomTempRT_RTIDs[4]);
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[6], BXShaderPropertyIDs._BloomTempRT_RTIDs[3], postProcessMat, 4, false);
+            commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._BloomTex_ID, BXShaderPropertyIDs._BloomTempRT_RTIDs[2]);
+            DrawPostProcess(BXShaderPropertyIDs._BloomTempRT_RTIDs[3], BXShaderPropertyIDs._BloomTempRT_RTIDs[1], postProcessMat, 4, false);
+            commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._BloomTex_ID, BXShaderPropertyIDs._BloomTempRT_RTIDs[1]);
+        }
+
+        public void ReleaseBloom()
+        {
+            if (!commonSettings.enablBloom) return;
+            for (int i = 0; i < BXShaderPropertyIDs._BloomTempRT_IDs.Length; ++i)
+            {
+                commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._BloomTempRT_IDs[i]);
+            }
         }
 
         private void DrawPostProcess(RenderTargetIdentifier source, RenderTargetIdentifier destination, Material mat, int pass, bool clear = false, bool setViewPort = false, int vW = 0, int vH = 0)
@@ -277,6 +350,7 @@ namespace BXRenderPipeline
 #if UNITY_EDITOR
             material_error = null;
 #endif
+            postProcessMat = null;
             SampleName = null;
             commandBuffer.Dispose();
             commandBuffer = null;

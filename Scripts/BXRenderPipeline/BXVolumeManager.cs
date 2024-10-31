@@ -97,8 +97,10 @@ namespace BXRenderPipeline
             if (!onlyGlobal)
                 trigger.TryGetComponent<Camera>(out camera);
 
-
             int numVolumes = volumes.Count;
+            if (numVolumes == 0) return;
+
+            m_RenderSettings.RefreshComponents();
             for (int i = 0; i < numVolumes; ++i)
             {
                 BXRenderSettingsVolume volume = volumes[i];

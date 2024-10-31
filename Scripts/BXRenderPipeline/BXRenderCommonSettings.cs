@@ -91,6 +91,7 @@ namespace BXRenderPipeline
 
         [Header("后处理")]
         public Material postProcessMaterial;
+        public bool enablBloom = true;
 
         [Header("地形")]
         public bool gpuDrive;

@@ -75,7 +75,7 @@ namespace BXRenderPipeline
                 var temp = volumes[i];
                 int j = i - 1;
 
-                while(j >= 0 && volumes[j].priortiy > temp.priortiy)
+                while(j >= 0 && (volumes[j].priortiy > temp.priortiy))
 				{
                     volumes[j + 1] = volumes[j];
                     j--;
