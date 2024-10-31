@@ -192,7 +192,6 @@ Shader "PostProcess"
 			Texture2D _PostProcessInput;
 			float4 _PostProcessInput_TexelSize;
 			SamplerState sampler_PostProcessInput; // clamp_bilinear 若要使用 point filter 可以使用 textureFetch 采样
-			half _BlurSpeard;
 
             v2f vert (uint vertexID : SV_VERTEXID)
             {
@@ -231,7 +230,7 @@ Shader "PostProcess"
 								   half(0.194595459), half(0.12162162), half(0.05405405), half(0.01621622)};
 				for(int i = 0; i < 9; ++i)
 				{
-					half offset = offsets[i] * _PostProcessInput_TexelSize.x * _BlurSpeard;;
+					half offset = offsets[i] * _PostProcessInput_TexelSize.x;;
 					half3 p = _PostProcessInput.SampleLevel(sampler_PostProcessInput, uv + float2(offset, 0.0), 0).rgb;
                     p = p * weights[i];
                     col += p;
@@ -267,7 +266,6 @@ Shader "PostProcess"
 			Texture2D _PostProcessInput;
 			float4 _PostProcessInput_TexelSize;
 			SamplerState sampler_PostProcessInput; // clamp_bilinear 若要使用 point filter 可以使用 textureFetch 采样
-			half _BlurSpeard;
 
             v2f vert (uint vertexID : SV_VERTEXID)
             {
@@ -306,7 +304,7 @@ Shader "PostProcess"
 								   half(0.194595459), half(0.12162162), half(0.05405405), half(0.01621622)};
 				for(int i = 0; i < 9; ++i)
 				{
-					half offset = offsets[i] * _PostProcessInput_TexelSize.y * _BlurSpeard;
+					half offset = offsets[i] * _PostProcessInput_TexelSize.y;
                     half3 p = _PostProcessInput.SampleLevel(sampler_PostProcessInput, uv + float2(0.0, offset), 0).rgb;
                     p = p * weights[i];
 					col += p;

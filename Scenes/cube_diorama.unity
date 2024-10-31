@@ -825,8 +825,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa7b8c7643125422c837130e45c5b740, type: 3}
   m_Name: BXBloomComponent
   m_EditorClassIdentifier: 
-  threshold: 4.52
-  threshold_knne: 0.714
+  threshold: 5
+  threshold_knne: 0.7
   bloom_strength: 1
   bright_clamp: 1
   threshold_runtime: 0
