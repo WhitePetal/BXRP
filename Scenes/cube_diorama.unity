@@ -463,6 +463,10 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2541575726926869206, guid: 95d1b53b36e184f388f0e75a1c3ca823, type: 3}
+      propertyPath: m_Shadows.m_Strength
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2541575726926869206, guid: 95d1b53b36e184f388f0e75a1c3ca823, type: 3}
       propertyPath: m_Shadows.m_NormalBias
       value: 1
       objectReference: {fileID: 0}

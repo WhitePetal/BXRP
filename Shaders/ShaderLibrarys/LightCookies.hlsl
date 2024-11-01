@@ -3,14 +3,14 @@
 
 #define MAX_COOKIE_LIGHT_COUNT 8
 
-Texture2D _ClusterLightCookieAltas;
-SamplerState sampler_ClusterLightCookieAltas;
+Texture2D _OtherLightCookieAltas;
+SamplerState sampler_OtherLightCookieAltas;
 
 CBUFFER_START(LightCookies)
-    float4x4 _ClusterLightWorldToLights[MAX_CLUSTER_LIGHT_COUNT];
-    half4 _ClusterLightCookieAltasUVRects[MAX_CLUSTER_LIGHT_COUNT];
-    float _ClusterLightCookieEnableBits[(MAX_CLUSTER_LIGHT_COUNT + 31) / 32];
-    float _ClusterLightLightTypes[MAX_CLUSTER_LIGHT_COUNT];
+    float4x4 _OtherLightWorldToLights[MAX_IMPORTED_OTHER_LIGHT_COUNT];
+    half4 _OtherLightCookieAltasUVRects[MAX_IMPORTED_OTHER_LIGHT_COUNT];
+    float _OtherLightCookieEnableBits[(MAX_IMPORTED_OTHER_LIGHT_COUNT + 31) / 32];
+    float _OtherLightLightTypes[MAX_IMPORTED_OTHER_LIGHT_COUNT];
 CBUFFER_END
 
 bool IsLightCookieEnable(int lightIndex)
@@ -19,14 +19,14 @@ bool IsLightCookieEnable(int lightIndex)
     uint elemIndex = ((uint)lightIndex) >> 5;
     uint bitOffset = (uint)lightIndex & ((1 << 5) - 1);
 
-    uint elem = asuint(_ClusterLightCookieEnableBits[elemIndex]);
+    uint elem = asuint(_OtherLightCookieEnableBits[elemIndex]);
 
     return (elem & (1u << bitOffset)) != 0u;
 }
 
 int GetLightCookieLightType(int lightIndex)
 {
-    return _ClusterLightLightTypes[lightIndex];
+    return _OtherLightLightTypes[lightIndex];
 }
 
 half2 ComputeLightCookieUVSpot(float4x4 worldToLight, float3 pos_world, half4 atlasUVRect)
@@ -56,7 +56,7 @@ half2 ComputeLightCookieUVPoint(float4x4 worldToLight, float3 pos_world, float4 
     return posAtlasUV;
 }
 
-half3 SampleClusterLightCookie(int lightIndex, float3 pos_world)
+half3 SampleOtherLightCookie(int lightIndex, float3 pos_world)
 {
     if(!IsLightCookieEnable(lightIndex))
     {
@@ -66,8 +66,8 @@ half3 SampleClusterLightCookie(int lightIndex, float3 pos_world)
     int lightType = GetLightCookieLightType(lightIndex);
     int isSpot = lightType == LIGHT_TYPE_SPOT;
     
-    float4x4 worldToLight = _ClusterLightWorldToLights[lightIndex];
-    half4 uvRect = _ClusterLightCookieAltasUVRects[lightIndex];
+    float4x4 worldToLight = _OtherLightWorldToLights[lightIndex];
+    half4 uvRect = _OtherLightCookieAltasUVRects[lightIndex];
 
     half2 uv;
     if(isSpot)
@@ -79,7 +79,7 @@ half3 SampleClusterLightCookie(int lightIndex, float3 pos_world)
         uv = ComputeLightCookieUVPoint(worldToLight, pos_world, uvRect);
     }
 
-    half4 color = _ClusterLightCookieAltas.SampleLevel(sampler_ClusterLightCookieAltas, uv, 0);
+    half4 color = _OtherLightCookieAltas.SampleLevel(sampler_OtherLightCookieAltas, uv, 0);
     return color.rgb;
 }
 

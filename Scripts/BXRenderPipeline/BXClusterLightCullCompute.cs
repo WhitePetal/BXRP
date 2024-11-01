@@ -27,7 +27,7 @@ namespace BXRenderPipeline
         public BXClusterLightCullCompute()
         {
             clusterCountZ = 64;
-            clusterLightingIndicesBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ * BXLights.maxClusterLightCount, sizeof(uint), ComputeBufferType.Default);
+            clusterLightingIndicesBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ * BXLightsBase.maxClusterLightCount, sizeof(uint), ComputeBufferType.Default);
             clusterLightingDatasBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ, sizeof(uint), ComputeBufferType.Default);
         }
 
@@ -137,7 +137,7 @@ namespace BXRenderPipeline
             }
         }
 
-        public void Render(Camera camera, BXLights lights, BXRenderCommonSettings commonSettings, int width, int height)
+        public void Render(Camera camera, BXLightsBase lights, BXRenderCommonSettings commonSettings, int width, int height)
         {
             if (camera.orthographic || commonSettings.clusterLightCompute == null) return;
             Transform cam_trans = camera.transform;
@@ -184,7 +184,7 @@ namespace BXRenderPipeline
                 int clusterCount = tileCountX * tileCountY * clusterCountZ;
                 job.minBounds = new NativeArray<Vector4>(lights.clusterLightMinBounds, Allocator.TempJob);
                 job.maxBounds = new NativeArray<Vector4>(lights.clusterLightMaxBounds, Allocator.TempJob);
-                job.clusterLightingIndices = new NativeArray<uint>(clusterCount * BXLights.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                job.clusterLightingIndices = new NativeArray<uint>(clusterCount * BXLightsBase.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 job.clusterLightingDatas = new NativeArray<uint>(clusterCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 JobHandle tempHandle = new JobHandle();
                 JobHandle jobHandle = job.ScheduleParallel(clusterCount, 8, tempHandle);

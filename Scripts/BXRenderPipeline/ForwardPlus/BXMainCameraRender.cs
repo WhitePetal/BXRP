@@ -3,43 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
-namespace BXRenderPipeline
+namespace BXRenderPipelineForward
 {
-    public partial class BXMainCameraRender : IDisposable
+    public partial class BXMainCameraRender : BXMainCameraRenderBase
     {
-        public Camera camera;
-        public ScriptableRenderContext context;
-        public CullingResults cullingResults;
-
-#if UNITY_EDITOR
-        private static Material material_error = new Material(Shader.Find("Hidden/InternalErrorShader"));
-#endif
-
-        private const string commandBufferName = "BXCommondBufferRender";
-
-#if !UNITY_EDITOR
-        private string SampleName = commandBufferName;
-#endif
-
-        public CommandBuffer commandBuffer = new CommandBuffer
-        {
-            name = commandBufferName
-        };
-
-        public BXRenderCommonSettings commonSettings;
-
         public BXLights lights = new BXLights();
-
-        public float maxShadowDistance;
-        public int width, height, width_screen, height_screen;
-
-        private FilteringSettings filterSettings_opaue = new FilteringSettings(RenderQueueRange.opaque);
-        private FilteringSettings filterSettings_transparent = new FilteringSettings(RenderQueueRange.transparent);
-        private PerObjectData fullLightPerObjectFlags = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe |
-            PerObjectData.LightProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume | PerObjectData.None;
-
-        private Material postProcessMat;
 
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
@@ -182,8 +152,8 @@ namespace BXRenderPipeline
             };
             opaqueDrawingSettings.sortingSettings = sortingSettings;
             opaqueDrawingSettings.perObjectData = fullLightPerObjectFlags;
-            opaqueDrawingSettings.SetShaderPassName(0, BXRenderPipeline.shaderTagIds[0]);
-            opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.shaderTagIds[1]);
+            opaqueDrawingSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[0]);
+            opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref opaqueDrawingSettings, ref filterSettings_opaue);
 
             ExecuteRenderFeatures(afterOpaqueRenderFeatures);
@@ -196,7 +166,7 @@ namespace BXRenderPipeline
             };
             alphaTestDrawSettings.perObjectData = fullLightPerObjectFlags;
             alphaTestDrawSettings.sortingSettings = sortingSettings;
-            alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.shaderTagIds[2]);
+            alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[2]);
             context.DrawRenderers(cullingResults, ref alphaTestDrawSettings, ref filterSettings_opaue);
 
             // Draw SkyBox
@@ -212,8 +182,8 @@ namespace BXRenderPipeline
             };
             alphaDrawSettings.perObjectData = fullLightPerObjectFlags;
             alphaDrawSettings.sortingSettings = sortingSettings;
-            alphaDrawSettings.SetShaderPassName(0, BXRenderPipeline.shaderTagIds[0]);
-            alphaDrawSettings.SetShaderPassName(1, BXRenderPipeline.shaderTagIds[1]);
+            alphaDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[0]);
+            alphaDrawSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref alphaDrawSettings, ref filterSettings_transparent);
 
             ExecuteRenderFeatures(afterTransparentRenderFeature);
@@ -344,7 +314,7 @@ namespace BXRenderPipeline
             context.Submit();
 		}
 
-        public void Dispose()
+        public override void Dispose()
 		{
             camera = null;
 #if UNITY_EDITOR

@@ -14,7 +14,7 @@ namespace BXRenderPipeline
             public float slopeScaleBias;
             public float nearPlaneOffst;
         }
-        private struct ShadowedClusterLight
+        private struct ShadowedOtherLight
         {
             public int lightIndex;
             public int tileIndex;
@@ -27,16 +27,16 @@ namespace BXRenderPipeline
         private const int maxShadowedDirLightCount = 1;
         private const int maxCascadeCount = 4;
 
-        private const int maxShadowedClusterLightCount = 8;
+        private const int maxShadowedOtherLightCount = 8;
 
         private GlobalKeyword dirShadowKeyword = GlobalKeyword.Create("SHADOWS_DIR");
-        private GlobalKeyword clusterShadowKeyword = GlobalKeyword.Create("SHADOWS_CLUSTER");
+        private GlobalKeyword otherShadowKeyword = GlobalKeyword.Create("SHADOWS_OTHER");
 
         private ScriptableRenderContext context;
         private CullingResults cullingResults;
 
         private ShadowedDirectionalLight[] shadowedDirLights = new ShadowedDirectionalLight[maxShadowedDirLightCount];
-        private ShadowedClusterLight[] shadowedClusterLights = new ShadowedClusterLight[maxShadowedClusterLightCount];
+        private ShadowedOtherLight[] shadowedOtherLights = new ShadowedOtherLight[maxShadowedOtherLightCount];
 
         private const string BufferName = "Shadows";
         private CommandBuffer commandBuffer = new CommandBuffer
@@ -44,12 +44,12 @@ namespace BXRenderPipeline
             name = BufferName
         };
 
-        private BXMainCameraRender mainCameraRender;
+        private BXMainCameraRenderBase mainCameraRender;
         private BXRenderCommonSettings commonSettings;
 
         private int shadowedDirLightCount;
-        private int shadowedClusterLightCount;
-        private int shadowedClusterLightTileCount;
+        private int shadowedOtherLightCount;
+        private int shadowedOtherLightTileCount;
 
         private Vector4 shadowMapSizes;
 
@@ -57,18 +57,18 @@ namespace BXRenderPipeline
         private Vector4[] cascadeCullingSphere = new Vector4[maxCascadeCount];
         private Matrix4x4[] dirShadowMatrixs = new Matrix4x4[maxShadowedDirLightCount * maxCascadeCount];
 
-        private Vector4[] clusterShadowTiles = new Vector4[maxShadowedClusterLightCount * 6];
-        private Matrix4x4[] clusterShadowMatrixs = new Matrix4x4[maxShadowedClusterLightCount * 6];
+        private Vector4[] otherShadowTiles = new Vector4[maxShadowedOtherLightCount * 6];
+        private Matrix4x4[] otherShadowMatrixs = new Matrix4x4[maxShadowedOtherLightCount * 6];
 
-        public void Setup(BXMainCameraRender mainCameraRender)
+        public void Setup(BXMainCameraRenderBase mainCameraRender)
         {
             this.mainCameraRender = mainCameraRender;
             this.context = mainCameraRender.context;
             this.cullingResults = mainCameraRender.cullingResults;
             this.commonSettings = mainCameraRender.commonSettings;
             this.shadowedDirLightCount = 0;
-            this.shadowedClusterLightCount = 0;
-            this.shadowedClusterLightTileCount = 0;
+            this.shadowedOtherLightCount = 0;
+            this.shadowedOtherLightTileCount = 0;
         }
 
         public Vector4 SaveDirectionalShadows(Light light, int visibleLightIndex)
@@ -93,7 +93,7 @@ namespace BXRenderPipeline
             return shadowData;
         }
 
-        public Vector4 SaveClusterShadows(Light light, int visibleLightIndex, int lightIndex)
+        public Vector4 SaveOtherShadows(Light light, int visibleLightIndex, int lightIndex)
         {
             if (light.shadows == LightShadows.None || light.shadowStrength <= 0f)
             {
@@ -105,27 +105,27 @@ namespace BXRenderPipeline
             {
                 maskChannel = lightBaking.occlusionMaskChannel;
             }
-            if (shadowedClusterLightCount >= maxShadowedClusterLightCount ||
+            if (shadowedOtherLightCount >= maxShadowedOtherLightCount ||
                 !cullingResults.GetShadowCasterBounds(visibleLightIndex, out Bounds bounds))
             {
                 return new Vector4(-light.shadowStrength, 0f, 0f, maskChannel);
             }
 
             bool isPoint = light.type == LightType.Point;
-            int newTileCount = shadowedClusterLightTileCount + (isPoint ? 6 : 1);
+            int newTileCount = shadowedOtherLightTileCount + (isPoint ? 6 : 1);
 
-            shadowedClusterLights[shadowedClusterLightCount] = new ShadowedClusterLight
+            shadowedOtherLights[shadowedOtherLightCount] = new ShadowedOtherLight
             {
                 lightIndex = lightIndex,
-                tileIndex = shadowedClusterLightTileCount,
+                tileIndex = shadowedOtherLightTileCount,
                 visibleLightIndex = visibleLightIndex,
                 slopeScaleBias = light.shadowBias,
                 normalBias = light.shadowNormalBias,
                 isPoint = isPoint
             };
-            ++shadowedClusterLightCount;
-            Vector4 data = new Vector4(light.shadowStrength, shadowedClusterLightTileCount, isPoint ? 1 : 0, maskChannel);
-            shadowedClusterLightTileCount = newTileCount;
+            ++shadowedOtherLightCount;
+            Vector4 data = new Vector4(light.shadowStrength, shadowedOtherLightTileCount, isPoint ? 1 : 0, maskChannel);
+            shadowedOtherLightTileCount = newTileCount;
             return data;
         }
 
@@ -139,10 +139,10 @@ namespace BXRenderPipeline
                     needExcuteCMD = true;
                     commandBuffer.DisableKeyword(dirShadowKeyword);
                 }
-                if (Shader.IsKeywordEnabled(in clusterShadowKeyword))
+                if (Shader.IsKeywordEnabled(in otherShadowKeyword))
                 {
                     needExcuteCMD = true;
-                    commandBuffer.DisableKeyword(clusterShadowKeyword);
+                    commandBuffer.DisableKeyword(otherShadowKeyword);
                 }
                 if (needExcuteCMD) ExecuteCommandBuffer();
                 return;
@@ -154,11 +154,11 @@ namespace BXRenderPipeline
                     commandBuffer.EnableKeyword(in dirShadowKeyword);
                 RenderDirectionalShadows(onDirShadowsRenderFeatures);
             }
-            if (shadowedClusterLightCount > 0)
+            if (shadowedOtherLightCount > 0)
             {
-                if (!Shader.IsKeywordEnabled(in clusterShadowKeyword))
-                    commandBuffer.EnableKeyword(in clusterShadowKeyword);
-                RenderClusterShadows();
+                if (!Shader.IsKeywordEnabled(in otherShadowKeyword))
+                    commandBuffer.EnableKeyword(in otherShadowKeyword);
+                RenderOtherShadows();
             }
 
             commandBuffer.BeginSample(BufferName);
@@ -170,7 +170,7 @@ namespace BXRenderPipeline
         public void Cleanup()
         {
             commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._DirectionalShadowMap_ID);
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._ClusterShadowMap_ID);
+            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID);
             ExecuteCommandBuffer();
         }
 
@@ -288,24 +288,24 @@ namespace BXRenderPipeline
             return offset;
 		}
 
-        private void RenderClusterShadows()
+        private void RenderOtherShadows()
 		{
-            int shadowMapSize = commonSettings.clusterLightShadowMapSize;
+            int shadowMapSize = commonSettings.otherLightShadowMapSize;
             shadowMapSizes.z = shadowMapSize;
             shadowMapSizes.w = 1f / shadowMapSize;
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._ClusterShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.clusterLightShadowMapBits, FilterMode.Point, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
-            commandBuffer.SetRenderTarget(BXShaderPropertyIDs._ClusterLightShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.otherLightShadowMapBits, FilterMode.Point, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
+            commandBuffer.SetRenderTarget(BXShaderPropertyIDs._OtherLightShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             commandBuffer.ClearRenderTarget(true, false, Color.clear);
             commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ShadowPancaking_ID, 0);
             commandBuffer.BeginSample(BufferName);
             ExecuteCommandBuffer();
 
-            int tiles = shadowedClusterLightTileCount;
+            int tiles = shadowedOtherLightTileCount;
             int split = tiles <= 1 ? 1 : tiles <= 4 ? 2 : 4;
             int tileSize = shadowMapSize / split;
-            for(int i = 0; i < shadowedClusterLightCount; ++i)
+            for(int i = 0; i < shadowedOtherLightCount; ++i)
 			{
-				if (shadowedClusterLights[i].isPoint)
+				if (shadowedOtherLights[i].isPoint)
 				{
                     RenderPointShadow(i, split, tileSize);
 				}
@@ -314,15 +314,15 @@ namespace BXRenderPipeline
                     RenderSpotShadow(i, split, tileSize);
 				}
 			}
-            commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterShadowTiles_ID, clusterShadowTiles);
-            commandBuffer.SetGlobalMatrixArray(BXShaderPropertyIDs._ClusterShadowMatrices_ID, clusterShadowMatrixs);
+            commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowTiles_ID, otherShadowTiles);
+            commandBuffer.SetGlobalMatrixArray(BXShaderPropertyIDs._OtherShadowMatrices_ID, otherShadowMatrixs);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
 		}
 
         private void RenderPointShadow(int index, int split, int tileSize)
 		{
-            ShadowedClusterLight light = shadowedClusterLights[index];
+            ShadowedOtherLight light = shadowedOtherLights[index];
             var shadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Perspective);
             float texelSize = 2f / tileSize;
             float filterSize = texelSize * (1 + 1f); // 1 means PCF3x3
@@ -343,8 +343,8 @@ namespace BXRenderPipeline
                 shadowSettings.splitData = splitData;
                 int tileIndex = light.tileIndex + i;
                 Vector2 offset = SetTileViewport(tileIndex, split, tileSize);
-                SetClusterTileData(tileIndex, offset, tileScale, bias);
-                clusterShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
+                SetOtherTileData(tileIndex, offset, tileScale, bias);
+                otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
                 commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
                 commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
                 ExecuteCommandBuffer();
@@ -355,7 +355,7 @@ namespace BXRenderPipeline
 
         private void RenderSpotShadow(int index, int split, int tileSize)
         {
-            ShadowedClusterLight light = shadowedClusterLights[index];
+            ShadowedOtherLight light = shadowedOtherLights[index];
             var shadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Perspective);
             cullingResults.ComputeSpotShadowMatricesAndCullingPrimitives
             (
@@ -370,8 +370,8 @@ namespace BXRenderPipeline
             int tileIndex = light.tileIndex;
             Vector2 offset = SetTileViewport(tileIndex, split, tileSize);
             float tileScale = 1f / split;
-            SetClusterTileData(tileIndex, offset, tileScale, bias);
-            clusterShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
+            SetOtherTileData(tileIndex, offset, tileScale, bias);
+            otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
             commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
             commandBuffer.SetGlobalDepthBias(0f, light.slopeScaleBias);
             ExecuteCommandBuffer();
@@ -379,7 +379,7 @@ namespace BXRenderPipeline
             commandBuffer.SetGlobalDepthBias(0f, 0f);
         }
 
-        private void SetClusterTileData(int index, Vector2 offset, float scale, float bias)
+        private void SetOtherTileData(int index, Vector2 offset, float scale, float bias)
 		{
             float border = shadowMapSizes.w * 0.5f;
             Vector4 data = new Vector4
@@ -389,7 +389,7 @@ namespace BXRenderPipeline
                 scale - border - border,
                 bias
             );
-            clusterShadowTiles[index] = data;
+            otherShadowTiles[index] = data;
 		}
 
         public void Dispose()
@@ -401,14 +401,14 @@ namespace BXRenderPipeline
             commonSettings = null;
 
             shadowedDirLights = null;
-            shadowedClusterLights = null;
+            shadowedOtherLights = null;
 
             cascadeDatas = null;
             cascadeCullingSphere = null;
             dirShadowMatrixs = null;
 
-            clusterShadowTiles = null;
-            clusterShadowMatrixs = null;
+            otherShadowTiles = null;
+            otherShadowMatrixs = null;
         }
     }
 

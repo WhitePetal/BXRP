@@ -4,7 +4,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Shadow/ShadowSamplingTent.hlsl"
 
 #define _DIRECTIONAL_PCF3 1
-#define _CLUSTER_PCF7 1
+#define _OTHER_PCF7 1
 
 #if defined(_DIRECTIONAL_PCF3)
 	#define DIRECTIONAL_FILTER_SAMPLES 4
@@ -17,24 +17,24 @@
 	#define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_7x7
 #endif
 
-#if defined(_CLUSTER_PCF3)
-	#define CLUSTER_FILTER_SAMPLES 4
-	#define CLUSTER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_3x3
-#elif defined(_CLUSTER_PCF5)
-	#define CLUSTER_FILTER_SAMPLES 9
-	#define CLUSTER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_5x5
-#elif defined(_CLUSTER_PCF7)
-	#define CLUSTER_FILTER_SAMPLES 16
-	#define CLUSTER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_7x7
+#if defined(_OTHER_PCF3)
+	#define OTHER_FILTER_SAMPLES 4
+	#define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_3x3
+#elif defined(_OTHER_PCF5)
+	#define OTHER_FILTER_SAMPLES 9
+	#define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_5x5
+#elif defined(_OTHER_PCF7)
+	#define OTHER_FILTER_SAMPLES 16
+	#define OTHER_FILTER_SETUP SampleShadow_ComputeSamples_Tent_7x7
 #endif
 
 #define MAX_DIRECTIONAL_SHADOW_COUNT 1
 #define MAX_CASCADE_COUNT 4
 
-#define MAX_CLUSTER_SHADOW_COUNT 8
+#define MAX_OTHER_SHADOW_COUNT 8
 
 TEXTURE2D_SHADOW(_DirectionalShadowMap);
-TEXTURE2D_SHADOW(_ClusterShadowMap);
+TEXTURE2D_SHADOW(_OtherShadowMap);
 #define SHADOW_SAMPLER sampler_linear_clamp_compare
 SAMPLER_CMP(SHADOW_SAMPLER);
 
@@ -51,8 +51,8 @@ CBUFFER_START(UnityShadows)
     float4 _ShadowsDistanceFade;
     float4 _ShadowMapSize;
 
-    float4x4 _ClusterShadowMatrices[MAX_CLUSTER_SHADOW_COUNT * 6];
-	half4 _ClusterShadowTiles[MAX_CLUSTER_SHADOW_COUNT * 6];
+    float4x4 _OtherShadowMatrices[MAX_OTHER_SHADOW_COUNT * 6];
+	half4 _OtherShadowTiles[MAX_OTHER_SHADOW_COUNT * 6];
 CBUFFER_END
 
 half SampleBakedShadows (float3 pos_world, half2 lightmapUV) 
@@ -180,31 +180,31 @@ half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, hal
     return lerp(half(1.0), shadow, shadowStrength);
 }
 
-half SampleClusterShadowMap(half3 pos_shadow, half3 bounds)
+half SampleOtherShadowMap(half3 pos_shadow, half3 bounds)
 {
     pos_shadow.xy = clamp(pos_shadow.xy, bounds.xy, bounds.xy + bounds.z);
 	return SAMPLE_TEXTURE2D_SHADOW(
-		_ClusterShadowMap, SHADOW_SAMPLER, pos_shadow
+		_OtherShadowMap, SHADOW_SAMPLER, pos_shadow
 	);
 }
 
-half FilterClusterShadow (float3 pos_shadow, half3 bounds)
+half FilterOtherShadow (float3 pos_shadow, half3 bounds)
 {
-	#if defined(CLUSTER_FILTER_SETUP)
-		real weights[CLUSTER_FILTER_SAMPLES];
-		real2 positions[CLUSTER_FILTER_SAMPLES];
+	#if defined(OTHER_FILTER_SETUP)
+		real weights[OTHER_FILTER_SAMPLES];
+		real2 positions[OTHER_FILTER_SAMPLES];
 		float4 size = _ShadowMapSize.wwzz;
-		CLUSTER_FILTER_SETUP(size, pos_shadow.xy, weights, positions);
+		OTHER_FILTER_SETUP(size, pos_shadow.xy, weights, positions);
 		half shadow = half(0.0);
-		for (int i = 0; i < int(CLUSTER_FILTER_SAMPLES); ++i) {
-			shadow += weights[i] * SampleClusterShadowMap(
+		for (int i = 0; i < int(OTHER_FILTER_SAMPLES); ++i) {
+			shadow += weights[i] * SampleOtherShadowMap(
 				half3(positions[i].xy, half(pos_shadow.z)),
                 bounds
 			);
 		}
 		return max(half(0.0), shadow);
 	#else
-		return SampleClusterShadowMap(pos_shadow, bounds);
+		return SampleOtherShadowMap(pos_shadow, bounds);
 	#endif
 }
 
@@ -238,18 +238,18 @@ int BXCubeMapFaceID(float3 dir)
     return faceID;
 }
 
-half GetClusterShadow(int lightIndex, half3 lightFwd, float3 pos_world, half3 normal_world)
+half GetOtherShadow(int lightIndex, half3 lightFwd, float3 pos_world, half3 normal_world)
 {
-    #ifndef SHADOWS_CLUSTER
+    #ifndef SHADOWS_OTHER
     return half(1.0);
     #endif
-    half4 shadowData = _ClusterShadowDatas[lightIndex];
+    half4 shadowData = _OtherShadowDatas[lightIndex];
     half strength = shadowData.x;
     if(strength <= half(0.0)) return half(1.0);
     
     int tileIndex = shadowData.y;
     // int maskChanel = shadowData.w;
-    float3 lightPos = _ClusterLightSpheres[lightIndex].xyz;
+    float3 lightPos = _OtherLightSpheres[lightIndex].xyz;
     half3 toLightDir = half3(lightPos - pos_world);
 
     half3 lightPlane;
@@ -264,11 +264,11 @@ half GetClusterShadow(int lightIndex, half3 lightFwd, float3 pos_world, half3 no
         lightPlane = lightFwd;
     }
     
-    half4 tileData = _ClusterShadowTiles[tileIndex].xyzw;
+    half4 tileData = _OtherShadowTiles[tileIndex].xyzw;
     half distanceToLightPlane = dot(toLightDir, lightPlane);
     float3 normalBias = normal_world * distanceToLightPlane * tileData.w;
-    float4 pos_shadow = mul(_ClusterShadowMatrices[tileIndex], float4(pos_world + normalBias, 1.0));
-    return FilterClusterShadow(pos_shadow.xyz / pos_shadow.w, tileData.xyz);
+    float4 pos_shadow = mul(_OtherShadowMatrices[tileIndex], float4(pos_world + normalBias, 1.0));
+    return FilterOtherShadow(pos_shadow.xyz / pos_shadow.w, tileData.xyz);
 }
 
 void DitherClipShadow(float2 pos_clip, half alpha)

@@ -14,22 +14,30 @@ namespace BXRenderPipeline
         public static int _CascadeDatas_ID = Shader.PropertyToID("_CascadeDatas");
         public static int _ShadowMapSize_ID = Shader.PropertyToID("_ShadowMapSize");
         public static int _DirectionalShadowMap_ID = Shader.PropertyToID("_DirectionalShadowMap");
-        public static int _ClusterShadowMap_ID = Shader.PropertyToID("_ClusterShadowMap");
+        public static int _OtherShadowMap_ID = Shader.PropertyToID("_OtherShadowMap");
         public static RenderTargetIdentifier _DirectionalShadowMap_TargetID = new RenderTargetIdentifier(_DirectionalShadowMap_ID);
-        public static RenderTargetIdentifier _ClusterLightShadowMap_TargetID = new RenderTargetIdentifier(_ClusterShadowMap_ID);
+        public static RenderTargetIdentifier _OtherLightShadowMap_TargetID = new RenderTargetIdentifier(_OtherShadowMap_ID);
+
         public static int _ShadowPancaking_ID = Shader.PropertyToID("_ShadowPancaking");
-        public static int _ClusterShadowTiles_ID = Shader.PropertyToID("_ClusterShadowTiles");
-        public static int _ClusterShadowMatrices_ID = Shader.PropertyToID("_ClusterShadowMatrices");
+        public static int _OtherShadowTiles_ID = Shader.PropertyToID("_OtherShadowTiles");
+        public static int _OtherShadowMatrices_ID = Shader.PropertyToID("_OtherShadowMatrices");
+
+
         public static int _DirectionalLightCount_ID = Shader.PropertyToID("_DirectionalLightCount");
         public static int _DirectionalLightDirections_ID = Shader.PropertyToID("_DirectionalLightDirections");
         public static int _DirectionalLightColors_ID = Shader.PropertyToID("_DirectionalLightColors");
         public static int _DirectionalShadowDatas_ID = Shader.PropertyToID("_DirectionalShadowDatas");
+
         public static int _ClusterLightCount_ID = Shader.PropertyToID("_ClusterLightCount");
-        public static int _ClusterLightSpheres_ID = Shader.PropertyToID("_ClusterLightSpheres");
-        public static int _ClusterLightDirections_ID = Shader.PropertyToID("_ClusterLightDirections");
-        public static int _ClusterLightThresholds_ID = Shader.PropertyToID("_ClusterLightThresholds");
-        public static int _ClusterLightColors_ID = Shader.PropertyToID("_ClusterLightColors");
-        public static int _ClusterShadowDatas_ID = Shader.PropertyToID("_ClusterShadowDatas");
+        public static int _StencilLightCount_ID = Shader.PropertyToID("_StencilLightCount");
+
+        public static int _OtherLightSpheres_ID = Shader.PropertyToID("_OtherLightSpheres");
+        public static int _OtherLightDirections_ID = Shader.PropertyToID("_OtherLightDirections");
+        public static int _OtherLightThresholds_ID = Shader.PropertyToID("_OtherLightThresholds");
+        public static int _OtherLightColors_ID = Shader.PropertyToID("_OtherLightColors");
+        public static int _OtherShadowDatas_ID = Shader.PropertyToID("_OtherShadowDatas");
+
+
         public static int _FrameBuffer_ID = Shader.PropertyToID("_FrameBuffer");
         public static int _DepthBuffer_ID = Shader.PropertyToID("_DepthBuffer");
         public static RenderTargetIdentifier _FrameBuffer_TargetID = new RenderTargetIdentifier(_FrameBuffer_ID);
@@ -50,15 +58,13 @@ namespace BXRenderPipeline
         public static int _TileRVec_ID = Shader.PropertyToID("_TileRVec");
         public static int _ProjectionParams_ID = Shader.PropertyToID("_ProjectionParams");
 
-        //public static int _ClusterLightWorldToLightsBuffer_ID = Shader.PropertyToID("_ClusterLightWorldToLightsBuffer");
-        //public static int _ClusterLightCookieAltasUVRectsBuffer_ID = Shader.PropertyToID("_ClusterLightCookieAltasUVRectsBuffer");
-        //public static int _ClusterLightLightTypesBuffer_ID = Shader.PropertyToID("_ClusterLightLightTypesBuffer");
-        public static int _ClusterLightWorldToLights_ID = Shader.PropertyToID("_ClusterLightWorldToLights");
-        public static int _ClusterLightCookieAltasUVRects_ID = Shader.PropertyToID("_ClusterLightCookieAltasUVRects");
-        public static int _ClusterLightLightTypes_ID = Shader.PropertyToID("_ClusterLightLightTypes");
-        public static int _ClusterLightCookieEnableBits_ID = Shader.PropertyToID("_ClusterLightCookieEnableBits");
-        public static int _ClusterLightCookieAltas_ID = Shader.PropertyToID("_ClusterLightCookieAltas");
-        public static int _ClusterLightCookieAltasFormat_ID = Shader.PropertyToID("_ClusterLightCookieAltasFormat");
+
+        public static int _OtherLightWorldToLights_ID = Shader.PropertyToID("_OtherLightWorldToLights");
+        public static int _OtherLightCookieAltasUVRects_ID = Shader.PropertyToID("_OtherLightCookieAltasUVRects");
+        public static int _OtherLightLightTypes_ID = Shader.PropertyToID("_OtherLightLightTypes");
+        public static int _OtherLightCookieEnableBits_ID = Shader.PropertyToID("_OtherLightCookieEnableBits");
+        public static int _OtherLightCookieAltas_ID = Shader.PropertyToID("_OtherLightCookieAltas");
+        public static int _OtherLightCookieAltasFormat_ID = Shader.PropertyToID("_OtherLightCookieAltasFormat");
 
 
         //public static int _MainLightCookie_ID = Shader.PropertyToID("_MainLightCookie");

@@ -7,6 +7,7 @@ using UnityEngine.Assertions;
 using Unity.Mathematics;
 using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
 namespace BXRenderPipeline
 {
@@ -20,7 +21,7 @@ namespace BXRenderPipeline
             Red = 2
 		}
 
-        public const int maxCookieClusterLightCount = 8;
+        public const int maxCookieOtherLightCount = 8;
 
         private struct LightCookieMapping
 		{
@@ -168,12 +169,12 @@ namespace BXRenderPipeline
 				//}
 				//else
 				//{
-                    cmd.SetGlobalMatrixArray(BXShaderPropertyIDs._ClusterLightWorldToLights_ID, m_WorldToLightCpuData);
-                    cmd.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightCookieAltasUVRects_ID, m_AtlasUVRectCpuData);
-                    cmd.SetGlobalFloatArray(BXShaderPropertyIDs._ClusterLightLightTypes_ID, m_LightTypeCpuData);
+                    cmd.SetGlobalMatrixArray(BXShaderPropertyIDs._OtherLightWorldToLights_ID, m_WorldToLightCpuData);
+                    cmd.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightCookieAltasUVRects_ID, m_AtlasUVRectCpuData);
+                    cmd.SetGlobalFloatArray(BXShaderPropertyIDs._OtherLightLightTypes_ID, m_LightTypeCpuData);
                 //}
 
-                cmd.SetGlobalFloatArray(BXShaderPropertyIDs._ClusterLightCookieEnableBits_ID, m_CookieEnableBitsCpuData.data);
+                cmd.SetGlobalFloatArray(BXShaderPropertyIDs._OtherLightCookieEnableBits_ID, m_CookieEnableBitsCpuData.data);
                 isUploaded = true;
 			}
 
@@ -182,7 +183,7 @@ namespace BXRenderPipeline
 				if (isUploaded)
 				{
                     m_CookieEnableBitsCpuData.Clear();
-                    cmd.SetGlobalFloatArray(BXShaderPropertyIDs._ClusterLightCookieEnableBits_ID, m_CookieEnableBitsCpuData.data);
+                    cmd.SetGlobalFloatArray(BXShaderPropertyIDs._OtherLightCookieEnableBits_ID, m_CookieEnableBitsCpuData.data);
                     isUploaded = false;
                 }
 			}
@@ -207,8 +208,8 @@ namespace BXRenderPipeline
         // i.e. (0, 1) uv == (-0.5, 0.5) world area instead of the (0,1) world area.
         //private static readonly Matrix4x4 s_DirLightProj = Matrix4x4.Ortho(-0.5f, 0.5f, -0.5f, 0.5f, -0.5f, 0.5f);
 
-        private Texture2DAtlas m_ClusterLightsCookieAtlas;
-        private LightCookieShaderData m_ClusterLightsCookieShaderData;
+        private Texture2DAtlas m_OtherLightsCookieAtlas;
+        private LightCookieShaderData m_OtherLightsCookieShaderData;
 
         private BXRenderCommonSettings commonSettings;
         //private readonly Settings m_Settings;
@@ -223,13 +224,13 @@ namespace BXRenderPipeline
 
         private int m_PrevWarnFrame = -1;
 
-        internal RTHandle ClusterLightsCookieAtlas => m_ClusterLightsCookieAtlas?.AtlasTexture;
+        internal RTHandle OtherLightsCookieAtlas => m_OtherLightsCookieAtlas?.AtlasTexture;
 
         private GlobalKeyword cookieEnableKeyword = GlobalKeyword.Create("COOKIE");
 
-        private void InitClusterLights(int size)
+        private void InitOtherLights(int size)
 		{
-            m_ClusterLightsCookieAtlas = new Texture2DAtlas(
+            m_OtherLightsCookieAtlas = new Texture2DAtlas(
                 Math.Max(4, commonSettings.cookieAtlas.resolution.x),
                 Math.Max(4, commonSettings.cookieAtlas.resolution.y),
                 commonSettings.cookieAtlas.format,
@@ -238,7 +239,7 @@ namespace BXRenderPipeline
                 "BX Light Cookie Atlas",
                 false);
 
-            m_ClusterLightsCookieShaderData = new LightCookieShaderData(size);
+            m_OtherLightsCookieShaderData = new LightCookieShaderData(size);
             //const int mainLightCount = 1;
             //m_VisibleLightIndexToShaderDataIndex = new int[m_Settings.maxClusterLights + mainLightCount];
 
@@ -246,7 +247,7 @@ namespace BXRenderPipeline
             m_PrevCookieRequestPixelCount = 0xFFFFFFFF;
         }
 
-        public bool isInitialized() => m_ClusterLightsCookieAtlas != null && m_ClusterLightsCookieShaderData != null;
+        public bool isInitialized() => m_OtherLightsCookieAtlas != null && m_OtherLightsCookieShaderData != null;
         
   //      public int GetLightCookieShaderDataIndex(int visibleLightIndex)
 		//{
@@ -255,7 +256,7 @@ namespace BXRenderPipeline
   //          return m_VisibleLightIndexToShaderDataIndex[visibleLightIndex];
 		//}
 
-        public void Setup(CommandBuffer cmd, BXLights lights, BXRenderCommonSettings commonSettings)
+        public void Setup(CommandBuffer cmd, BXLightsBase lights, BXRenderCommonSettings commonSettings)
 		{
             using var profScope = new ProfilingScope(cmd, ProfilingSampler.Get(BXProfileId.LightCookies));
 
@@ -267,10 +268,10 @@ namespace BXRenderPipeline
    //             isMainLightAvailable = SetupMainLight(cmd, ref mainLight);
 			//}
 
-            bool isClusterLightsAvaliable = lights.clusterLightCount > 0;
-			if (isClusterLightsAvaliable)
+            bool isOtherLightsAvaliable = lights.importedOtherLightCount > 0;
+			if (isOtherLightsAvaliable)
 			{
-                isClusterLightsAvaliable = SetupClusterLights(cmd, lights);
+                isOtherLightsAvaliable = SetupOtherLights(cmd, lights);
 			}
 
 			//if (!isClusterLightsAvaliable)
@@ -288,7 +289,7 @@ namespace BXRenderPipeline
 
             //bool isKeywordLightCookieEnable = isMainLightAvailable || isClusterLightsAvaliable;
             //cmd.SetKeyword(in cookieEnableKeyword, isKeywordLightCookieEnable);
-            cmd.SetKeyword(in cookieEnableKeyword, isClusterLightsAvaliable);
+            cmd.SetKeyword(in cookieEnableKeyword, isOtherLightsAvaliable);
         }
 
   //      private bool SetupMainLight(CommandBuffer cmd, ref VisibleLight visibleMainLight)
@@ -369,50 +370,50 @@ namespace BXRenderPipeline
 #if UNITY_EDITOR
         private void CheckNeedReCreateAtlas(int size)
 		{
-            if(m_ClusterLightsCookieAtlas.AtlasTexture.referenceSize.x != commonSettings.cookieAtlas.resolution.x ||
-                m_ClusterLightsCookieAtlas.AtlasTexture.referenceSize.y != commonSettings.cookieAtlas.resolution.y ||
-                m_ClusterLightsCookieAtlas.AtlasTexture.rt.graphicsFormat != commonSettings.cookieAtlas.format)
+            if(m_OtherLightsCookieAtlas.AtlasTexture.referenceSize.x != commonSettings.cookieAtlas.resolution.x ||
+                m_OtherLightsCookieAtlas.AtlasTexture.referenceSize.y != commonSettings.cookieAtlas.resolution.y ||
+                m_OtherLightsCookieAtlas.AtlasTexture.rt.graphicsFormat != commonSettings.cookieAtlas.format)
 			{
                 Assert.IsTrue(SystemInfo.IsFormatSupported(commonSettings.cookieAtlas.format, FormatUsage.Sample), "Not Support the CookieAtlas Format");
-                m_ClusterLightsCookieAtlas.Release();
-                m_ClusterLightsCookieShaderData.Dispose();
-                InitClusterLights(size);
+                m_OtherLightsCookieAtlas.Release();
+                m_OtherLightsCookieShaderData.Dispose();
+                InitOtherLights(size);
             }
 		}
 #endif
 
-        private bool SetupClusterLights(CommandBuffer cmd, BXLights lights)
+        private bool SetupOtherLights(CommandBuffer cmd, BXLightsBase lights)
 		{
-            m_WorkMem.Resize(Math.Min(maxCookieClusterLightCount, lights.clusterLightCount));
-            int validLightCount = FilterAndValidateClusterLights(lights, m_WorkMem.lightMappings);
+            m_WorkMem.Resize(Math.Min(maxCookieOtherLightCount, lights.importedOtherLightCount));
+            int validLightCount = FilterAndValidateOtherLights(lights, m_WorkMem.lightMappings);
 
             if (validLightCount <= 0) return false;
 
             if (!isInitialized())
-                InitClusterLights(validLightCount);
+                InitOtherLights(validLightCount);
 
 #if UNITY_EDITOR
             CheckNeedReCreateAtlas(validLightCount);
 #endif
 
             var validLights = new WorkSlice<LightCookieMapping>(m_WorkMem.lightMappings, validLightCount);
-            int validUVRectCount = UpdateClusterLightsAtlas(cmd, ref validLights, m_WorkMem.uvRects);
+            int validUVRectCount = UpdateOtherLightsAtlas(cmd, ref validLights, m_WorkMem.uvRects);
 
             var validUvRects = new WorkSlice<Vector4>(m_WorkMem.uvRects, validUVRectCount);
-            UploadClusterLights(cmd, lights, ref validLights, ref validUvRects);
+            UploadOtherLights(cmd, lights, ref validLights, ref validUvRects);
 
             bool isClusterLightsEnabled = validUvRects.length > 0;
             return isClusterLightsEnabled;
         }
 
-        private int FilterAndValidateClusterLights(BXLights lights, LightCookieMapping[] validLightMappings)
+        private int FilterAndValidateOtherLights(BXLightsBase lights, LightCookieMapping[] validLightMappings)
 		{
             int validLightCount = 0;
 
-            int clusterLightCount = lights.clusterLightCount;
-            for (int i = 0; i < clusterLightCount; ++i)
+            int otherLightCount = lights.importedOtherLightCount;
+            for (int i = 0; i < otherLightCount; ++i)
 			{
-				ref var visLight = ref lights.clusterLights.UnsafeElementAtMutable(i);
+				ref var visLight = ref lights.otherLights.UnsafeElementAtMutable(i);
                 Light light = visLight.light;
 
                 if (light.cookie == null) continue;
@@ -431,11 +432,11 @@ namespace BXRenderPipeline
 				if (lp.lightIndex >= validLightMappings.Length || validLightCount + 1 >= validLightMappings.Length)
 				{
 					// TODO: Better error system
-					if (clusterLightCount > maxCookieClusterLightCount &&
+					if (otherLightCount > maxCookieOtherLightCount &&
 						Time.frameCount - m_PrevWarnFrame > 60 * 60) // warn throttling: ~60 FPS * 60 secs ~= 1 min
 					{
 						m_PrevWarnFrame = Time.frameCount;
-						Debug.LogWarning($"Max light cookies ({validLightMappings.Length.ToString()}) reached. Some visible lights ({(clusterLightCount - i - 1).ToString()}) might skip light cookie rendering.");
+						Debug.LogWarning($"Max light cookies ({validLightMappings.Length.ToString()}) reached. Some visible lights ({(otherLightCount - i - 1).ToString()}) might skip light cookie rendering.");
 					}
 
 					// Always break, buffer full.
@@ -448,13 +449,13 @@ namespace BXRenderPipeline
             return validLightCount;
 		}
 
-        private int UpdateClusterLightsAtlas(CommandBuffer cmd, ref WorkSlice<LightCookieMapping> validLightMappings, Vector4[] textureAtlasUVRects)
+        private int UpdateOtherLightsAtlas(CommandBuffer cmd, ref WorkSlice<LightCookieMapping> validLightMappings, Vector4[] textureAtlasUVRects)
 		{
             // 按照cookied尺寸排序，可以提高图集分配效率 和 在下面的Cookie打包时的去重
             validLightMappings.Sort(LightCookieMapping.s_CompareByCookieSize);
 
             uint cookieRequestPixelCount = ComputeCookieRequestPixelCount(ref validLightMappings);
-            var atlasSize = m_ClusterLightsCookieAtlas.AtlasTexture.referenceSize;
+            var atlasSize = m_OtherLightsCookieAtlas.AtlasTexture.referenceSize;
             float requestAtlasRatio = cookieRequestPixelCount / (float)(atlasSize.x * atlasSize.y);
             int cookieSizeDivisorApprox = ApproximateCookieSizeDivisor(requestAtlasRatio);
 
@@ -464,7 +465,7 @@ namespace BXRenderPipeline
             if(cookieSizeDivisorApprox < m_CookieSizeDivisor &&
                 cookieRequestPixelCount < m_PrevCookieRequestPixelCount)
 			{
-                m_ClusterLightsCookieAtlas.ResetAllocator();
+                m_OtherLightsCookieAtlas.ResetAllocator();
                 m_CookieSizeDivisor = cookieSizeDivisorApprox;
 			}
 
@@ -475,7 +476,7 @@ namespace BXRenderPipeline
 			
                 if(uvRectCount <= 0)
 				{
-                    m_ClusterLightsCookieAtlas.ResetAllocator();
+                    m_OtherLightsCookieAtlas.ResetAllocator();
 
                     m_CookieSizeDivisor = Mathf.Max(m_CookieSizeDivisor + 1, cookieSizeDivisorApprox);
                     m_PrevCookieRequestPixelCount = cookieRequestPixelCount;
@@ -571,14 +572,14 @@ namespace BXRenderPipeline
 
             int scaledOctCookieSize = Mathf.Max(ComputeOctahedralCookieSize(cookie) / cookieSizeDivisor, 4);
 
-            bool isCached = m_ClusterLightsCookieAtlas.IsCached(out uvScaleOffset, cookie);
+            bool isCached = m_OtherLightsCookieAtlas.IsCached(out uvScaleOffset, cookie);
 			if (isCached)
 			{
-                m_ClusterLightsCookieAtlas.UpdateTexture(cmd, cookie, ref uvScaleOffset);
+                m_OtherLightsCookieAtlas.UpdateTexture(cmd, cookie, ref uvScaleOffset);
 			}
 			else
 			{
-                m_ClusterLightsCookieAtlas.AllocateTexture(cmd, ref uvScaleOffset, cookie, scaledOctCookieSize, scaledOctCookieSize);
+                m_OtherLightsCookieAtlas.AllocateTexture(cmd, ref uvScaleOffset, cookie, scaledOctCookieSize, scaledOctCookieSize);
 			}
 
             // 图集中的cookie大小可能与 cookie texture 的 尺寸不一致
@@ -629,26 +630,26 @@ namespace BXRenderPipeline
             var scaledHeight = Mathf.Max(cookie.height / cookieSizeDivisor, 4);
             Vector2 scaledCookieSize = new Vector2(scaledWidth, scaledHeight);
 
-            bool isCached = m_ClusterLightsCookieAtlas.IsCached(out uvScaleOffset, cookie);
+            bool isCached = m_OtherLightsCookieAtlas.IsCached(out uvScaleOffset, cookie);
 			if (isCached)
 			{
-                m_ClusterLightsCookieAtlas.UpdateTexture(cmd, cookie, ref uvScaleOffset);
+                m_OtherLightsCookieAtlas.UpdateTexture(cmd, cookie, ref uvScaleOffset);
 			}
 			else
 			{
-                m_ClusterLightsCookieAtlas.AllocateTexture(cmd, ref uvScaleOffset, cookie, scaledWidth, scaledHeight);
+                m_OtherLightsCookieAtlas.AllocateTexture(cmd, ref uvScaleOffset, cookie, scaledWidth, scaledHeight);
 			}
 
             AdjustUVRect(ref uvScaleOffset, cookie, ref scaledCookieSize);
             return uvScaleOffset;
 		}
 
-        private void UploadClusterLights(CommandBuffer cmd, BXLights lights, ref WorkSlice<LightCookieMapping> validLightMappings, ref WorkSlice<Vector4> validUvRects)
+        private void UploadOtherLights(CommandBuffer cmd, BXLightsBase lights, ref WorkSlice<LightCookieMapping> validLightMappings, ref WorkSlice<Vector4> validUvRects)
 		{
-            Assert.IsTrue(m_ClusterLightsCookieAtlas != null);
-            Assert.IsTrue(m_ClusterLightsCookieShaderData != null);
+            Assert.IsTrue(m_OtherLightsCookieAtlas != null);
+            Assert.IsTrue(m_OtherLightsCookieShaderData != null);
 
-            cmd.SetGlobalTexture(BXShaderPropertyIDs._ClusterLightCookieAltas_ID, m_ClusterLightsCookieAtlas.AtlasTexture);
+            cmd.SetGlobalTexture(BXShaderPropertyIDs._OtherLightCookieAltas_ID, m_OtherLightsCookieAtlas.AtlasTexture);
             //cmd.SetGlobalFloat(BXShaderPropertyIDs._ClusterLightCookieAltasFormat_ID, (float)GetLightCookieShaderFormat(m_ClusterLightsCookieAtlas.AtlasTexture.rt.graphicsFormat));
 
    //         if (m_VisibleLightIndexToShaderDataIndex.Length < lights.clusterLightCount)
@@ -660,12 +661,12 @@ namespace BXRenderPipeline
    //             m_VisibleLightIndexToShaderDataIndex[i] = -1;
 			//}
 
-            m_ClusterLightsCookieShaderData.Resize(BXLights.maxClusterLightCount);
+            m_OtherLightsCookieShaderData.Resize(lights.maxImportedOtherLightCount);
 
-            var worldToLights = m_ClusterLightsCookieShaderData.worldToLights;
-            var cookieEnableBits = m_ClusterLightsCookieShaderData.cookieEnableBits;
-            var atlasUVRects = m_ClusterLightsCookieShaderData.atlasUVRects;
-            var lightTypes = m_ClusterLightsCookieShaderData.lightTypes;
+            var worldToLights = m_OtherLightsCookieShaderData.worldToLights;
+            var cookieEnableBits = m_OtherLightsCookieShaderData.cookieEnableBits;
+            var atlasUVRects = m_OtherLightsCookieShaderData.atlasUVRects;
+            var lightTypes = m_OtherLightsCookieShaderData.lightTypes;
 
             Array.Clear(atlasUVRects, 0, atlasUVRects.Length);
             cookieEnableBits.Clear();
@@ -679,7 +680,7 @@ namespace BXRenderPipeline
                 //m_VisibleLightIndexToShaderDataIndex[visIndex] = bufIndex;
 
                 //ref var visLight = ref lights.clusterLights.UnsafeElementAtMutable(visIndex);
-                ref var visLight = ref lights.clusterLights.UnsafeElementAtMutable(lightIndex);
+                ref var visLight = ref lights.otherLights.UnsafeElementAtMutable(lightIndex);
 
 				//lightTypes[bufIndex] = (int)visLight.lightType;
 				//worldToLights[bufIndex] = visLight.localToWorldMatrix.inverse;
@@ -717,13 +718,13 @@ namespace BXRenderPipeline
     //            }
 			}
 
-            m_ClusterLightsCookieShaderData.Upload(cmd);
+            m_OtherLightsCookieShaderData.Upload(cmd);
 		}
 
         public void Dispose()
 		{
-            m_ClusterLightsCookieAtlas?.Release();
-            m_ClusterLightsCookieShaderData?.Dispose();
+            m_OtherLightsCookieAtlas?.Release();
+            m_OtherLightsCookieShaderData?.Dispose();
             m_WorkMem = null;
             commonSettings = null;
         }

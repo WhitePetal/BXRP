@@ -3,6 +3,16 @@
 
 #define MAX_DIRECTIONAL_LIGHT_COUNT 1
 #define MAX_CLUSTER_LIGHT_COUNT 64
+
+#ifdef BX_DEFERRED
+#define MAX_STENCIL_LIGHT_COUNT 8
+#define MAX_OTHER_LIGHT_COUNT 72 // 8 + 64
+#define MAX_IMPORTED_OTHER_LIGHT_COUNT 8
+#else
+#define MAX_OTHER_LIGHT_COUNT 64
+#define MAX_IMPORTED_OTHER_LIGHT_COUNT 64
+#endif
+
 #define CLUSTER_X_COUNT 8
 #define CLUSTER_Y_COUNT 4
 #define CLUSTER_X_MUL_Y_COUNT CLUSTER_X_COUNT * CLUSTER_Y_COUNT
@@ -22,12 +32,12 @@ CBUFFER_START(UnityLights)
     half4 _DirectionalLightColors[MAX_DIRECTIONAL_LIGHT_COUNT];
     half4 _DirectionalShadowDatas[MAX_DIRECTIONAL_LIGHT_COUNT];
     int _ClusterLightCount;
-    half4 _ClusterLightColors[MAX_CLUSTER_LIGHT_COUNT];
-    float4 _ClusterLightSpheres[MAX_CLUSTER_LIGHT_COUNT];
-    half4 _ClusterLightDirections[MAX_CLUSTER_LIGHT_COUNT];
-    half4 _ClusterLightThresholds[MAX_CLUSTER_LIGHT_COUNT];
-    half4 _ClusterShadowDatas[MAX_CLUSTER_LIGHT_COUNT];
-    float4x4 _ClusterLightWorldToObjectMatrixs[MAX_CLUSTER_LIGHT_COUNT];
+    half4 _OtherLightColors[MAX_OTHER_LIGHT_COUNT];
+    float4 _OtherLightSpheres[MAX_OTHER_LIGHT_COUNT];
+    half4 _OtherLightDirections[MAX_OTHER_LIGHT_COUNT];
+    half4 _OtherLightThresholds[MAX_OTHER_LIGHT_COUNT];
+    half4 _OtherShadowDatas[MAX_IMPORTED_OTHER_LIGHT_COUNT];
+    float4x4 _OtherLightWorldToObjectMatrixs[MAX_OTHER_LIGHT_COUNT];
     float4 _ClusterSize;
 CBUFFER_END
 

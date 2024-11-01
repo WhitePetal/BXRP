@@ -21,8 +21,8 @@ namespace BXRenderPipeline
         public bool isDynamic;
         public RenderFeatureStep step;
         public abstract void Init(BXRenderCommonSettings commonSettings);
-        public abstract void Setup(BXMainCameraRender render);
-        public abstract void Render(CommandBuffer cmd, BXMainCameraRender render);
+        public abstract void Setup(BXMainCameraRenderBase render);
+        public abstract void Render(CommandBuffer cmd, BXMainCameraRenderBase render);
         public abstract void Dispose();
     }
 }

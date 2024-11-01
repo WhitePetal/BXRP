@@ -4,18 +4,16 @@ using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
-namespace BXRenderPipeline
+namespace BXRenderPipelineForward
 {
-    public class BXLights : IDisposable
+    public class BXLights : BXLightsBase
     {
         private Camera camera;
         private BXRenderCommonSettings commonSettings;
         private ScriptableRenderContext context;
         private CullingResults cullingResults;
-
-        public const int maxDirLightCount = 1;
-        public const int maxClusterLightCount = 64;
 
         private const string BufferName = "Lights";
         private CommandBuffer commandBuffer = new CommandBuffer()
@@ -29,29 +27,15 @@ namespace BXRenderPipeline
         private BXClusterLightCullCompute clusterLightCullCompute = new BXClusterLightCullCompute();
         private BXLightCookie lightCookie = new BXLightCookie();
 
-        public int dirLightCount;
-        public int clusterLightCount;
-
         private GlobalKeyword dirLightKeyword = GlobalKeyword.Create("DIRECTIONAL_LIGHT");
         private GlobalKeyword clusterLightKeyword = GlobalKeyword.Create("CLUSTER_LIGHT");
 
         private bool useShadowMask;
 
-        public Vector4[]
-            dirLightColors = new Vector4[maxDirLightCount],
-            dirLightDirections = new Vector4[maxDirLightCount],
-            dirShadowDatas = new Vector4[maxDirLightCount],
-            clusterLightSpheres = new Vector4[maxClusterLightCount],
-            clusterLightColors = new Vector4[maxClusterLightCount],
-            clusterLightDirections = new Vector4[maxClusterLightCount],
-            clusterLightThresholds = new Vector4[maxClusterLightCount],
-            clusterLightMinBounds = new Vector4[maxClusterLightCount],
-            clusterLightMaxBounds = new Vector4[maxClusterLightCount],
-            clusterShadowDatas = new Vector4[maxClusterLightCount];
-
-        public NativeArray<VisibleLight>
-            dirLights = new NativeArray<VisibleLight>(maxDirLightCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory),
-            clusterLights = new NativeArray<VisibleLight>(maxClusterLightCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+        public BXLights() : base(maxClusterLightCount, maxClusterLightCount)
+        {
+            
+        }
 
         private void CollectLightDatas()
 		{
@@ -93,7 +77,7 @@ namespace BXRenderPipeline
 			}
 		}
 
-        public void Setup(BXMainCameraRender mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Setup(BXMainCameraRenderBase mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
 		{
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
@@ -127,14 +111,14 @@ namespace BXRenderPipeline
             float threshold = range * range;
             lightSphere.w = 1f / threshold;
             threshold = lightSphere.w;
-            clusterLightSpheres[clusterLightIndex] = lightSphere;
+            otherLightSpheres[clusterLightIndex] = lightSphere;
             clusterLightMaxBounds[clusterLightIndex] = lightSphere + lightRange;
             clusterLightMinBounds[clusterLightIndex] = lightSphere - lightRange;
-            clusterLightDirections[clusterLightIndex] = Vector4.zero;
-            clusterLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, 0f, 1f);
-            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
-            clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
-            clusterLights[clusterLightIndex] = visibleLight;
+            otherLightDirections[clusterLightIndex] = Vector4.zero;
+            otherLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, 0f, 1f);
+            otherLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
+            otherShadowDatas[clusterLightIndex] = shadows.SaveOtherShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
+            otherLights[clusterLightIndex] = visibleLight;
 		}
 
         private void SetupSpotLight(int clusterLightIndex, int visibleLightIndex, ref VisibleLight visibleLight)
@@ -167,14 +151,14 @@ namespace BXRenderPipeline
             Vector4 maxBound = Vector4.Max(p4, Vector4.Max(p3, Vector4.Max(p2, Vector4.Max(p1, p0))));
             Vector4 minBound = Vector4.Min(p4, Vector4.Min(p3, Vector4.Min(p2, Vector4.Min(p1, p0))));
 
-            clusterLightSpheres[clusterLightIndex] = lightSphere;
+            otherLightSpheres[clusterLightIndex] = lightSphere;
             clusterLightMaxBounds[clusterLightIndex] = maxBound;
             clusterLightMinBounds[clusterLightIndex] = minBound;
-            clusterLightDirections[clusterLightIndex] = lightDir;
-            clusterLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, angleRangeInv, -outerCos * angleRangeInv);
-            clusterLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
-            clusterShadowDatas[clusterLightIndex] = shadows.SaveClusterShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
-            clusterLights[clusterLightIndex] = visibleLight;
+            otherLightDirections[clusterLightIndex] = lightDir;
+            otherLightThresholds[clusterLightIndex] = new Vector4(1f / (1f - threshold), threshold, angleRangeInv, -outerCos * angleRangeInv);
+            otherLightColors[clusterLightIndex] = visibleLight.finalColor.gamma;
+            otherShadowDatas[clusterLightIndex] = shadows.SaveOtherShadows(visibleLight.light, visibleLightIndex, clusterLightIndex);
+            otherLights[clusterLightIndex] = visibleLight;
         }
 
         private void SetupLights()
@@ -199,11 +183,11 @@ namespace BXRenderPipeline
                 if (!Shader.IsKeywordEnabled(in clusterLightKeyword))
                     commandBuffer.EnableKeyword(in clusterLightKeyword);
                 commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ClusterLightCount_ID, clusterLightCount);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightSpheres_ID, clusterLightSpheres);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightDirections_ID, clusterLightDirections);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightThresholds_ID, clusterLightThresholds);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterLightColors_ID, clusterLightColors);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._ClusterShadowDatas_ID, clusterShadowDatas);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightSpheres_ID, otherLightSpheres);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightDirections_ID, otherLightDirections);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightThresholds_ID, otherLightThresholds);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightColors_ID, otherLightColors);
+                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowDatas_ID, otherShadowDatas);
                 clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
 			}
             else
@@ -224,8 +208,10 @@ namespace BXRenderPipeline
             shadows.Cleanup();
 		}
 
-        public void Dispose()
+        public override void Dispose()
 		{
+            base.Dispose();
+
             shadows.Dispose();
             clusterLightCullCompute.Dispose();
             lightCookie.Dispose();
@@ -241,16 +227,6 @@ namespace BXRenderPipeline
             dirLightColors = null;
             dirLightDirections = null;
             dirShadowDatas = null;
-            clusterLightSpheres = null;
-            clusterLightColors = null;
-            clusterLightDirections = null;
-            clusterLightThresholds = null;
-            clusterLightMinBounds = null;
-            clusterLightMaxBounds = null;
-            clusterShadowDatas = null;
-
-            dirLights.Dispose();
-            clusterLights.Dispose();
         }
     }
 }

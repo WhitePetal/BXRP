@@ -65,10 +65,10 @@ namespace BXRenderPipeline
         [Range(0.1f, 1f)]
         public float cascadeFade = 0.1f;
 
-        [Header("Cluster光影设置")]
+        [Header("Other光源设置")]
         public ComputeShader clusterLightCompute;
-        public int clusterLightShadowMapSize = 1024;
-        public int clusterLightShadowMapBits = 24;
+        public int otherLightShadowMapSize = 1024;
+        public int otherLightShadowMapBits = 24;
 
         [Header("阴影开关")]
         public bool drawShadows = true;

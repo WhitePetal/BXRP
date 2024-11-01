@@ -236,4 +236,53 @@ half2 PackNormalOctQuadEncode(half3 n)
     return n.xy + half2(n.x >= half(0.0) ? t : -t, n.y >= half(0.0) ? t : -t);
 }
 
+inline half2 EncodeViewNormalStereo( half3 n )
+{
+    half kScale = half(1.7777);
+    half2 enc;
+    enc = n.xy / (n.z+half(1));
+    enc /= kScale;
+    enc = enc*half(0.5)+half(0.5);
+    return enc;
+}
+inline half3 DecodeViewNormalStereo( half4 enc4 )
+{
+    half kScale = half(1.7777);
+    half3 nn = enc4.xyz*half3(half(2)*kScale,half(2)*kScale,half(0)) + half3(-kScale,-kScale,half(1));
+    half g = half(2.0) / dot(nn.xyz,nn.xyz);
+    half3 n;
+    n.xy = g*nn.xy;
+    n.z = g-half(1);
+    return n;
+}
+
+inline half2 EncodeFloatRG( float v )
+{
+    float2 kEncodeMul = float2(1.0, 255.0);
+    float kEncodeBit = 1.0/255.0;
+    float2 enc = kEncodeMul * v;
+    enc = frac (enc);
+    enc.x -= enc.y * kEncodeBit;
+    return enc;
+}
+inline float DecodeFloatRG( float2 enc )
+{
+    float2 kDecodeDot = float2(1.0, 1/255.0);
+    return dot( enc, kDecodeDot );
+}
+
+inline half4 EncodeDepthNormal( float depth, half3 normal )
+{
+    half4 enc;
+    enc.xy = EncodeViewNormalStereo (normal);
+    enc.zw = EncodeFloatRG(depth);
+    return enc;
+}
+
+inline void DecodeDepthNormal( half4 enc, out float depth, out half3 normal )
+{
+    depth = DecodeFloatRG (enc.zw);
+    normal = DecodeViewNormalStereo (enc);
+}
+
 #endif

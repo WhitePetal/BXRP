@@ -1,6 +1,8 @@
 #ifndef CUSTOME_UNITY_INPUT_INCLUDE
 #define CUSTOME_UNITY_INPUT_INCLUDE
 
+#define BX_FORWARDPLUS 1
+
 CBUFFER_START(UnityPerFrame)
     half4 glstate_lightmodel_ambient;
     half4 unity_AmbientSky;

@@ -5,38 +5,39 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
-namespace BXRenderPipeline
+namespace BXRenderPipelineDeferred
 {
-    public partial class BXMainCameraRender
+    public partial class BXMainCameraRenderDeferred
     {
         private string SampleName { get; set; }
 
         private void PreparBuffer()
-		{
+        {
             Profiler.BeginSample("Editor Only");
             commandBuffer.name = SampleName = camera.name;
             Profiler.EndSample();
-		}
+        }
 
         private void PreparForSceneWindow()
-		{
-            if(camera.cameraType == CameraType.SceneView)
-			{
+        {
+            if (camera.cameraType == CameraType.SceneView)
+            {
                 ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);
-			}
-		}
+            }
+        }
 
         private void DrawUnsupportShader()
         {
-            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.shaderTagIds[0], new SortingSettings(camera))
+            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[0], new SortingSettings(camera))
             {
                 overrideMaterial = material_error
             };
             FilteringSettings filteringSettings = FilteringSettings.defaultValue;
-            for (int i = 1; i < BXRenderPipeline.legacyShaderTagIds.Length; ++i)
+            for (int i = 1; i < BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds.Length; ++i)
             {
-                drawingSettings.SetShaderPassName(i, BXRenderPipeline.legacyShaderTagIds[i]);
+                drawingSettings.SetShaderPassName(i, BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds[i]);
             }
             context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
         }
@@ -55,7 +56,7 @@ namespace BXRenderPipeline
         }
 
         private void DrawGizmosAfterPostProcess()
-		{
+        {
             if (Handles.ShouldRenderGizmos())
             {
                 context.DrawGizmos(camera, GizmoSubset.PostImageEffects);

@@ -1,4 +1,4 @@
-Shader "Test/BRDF_FullLit"
+Shader "Test/BRDF_FullLit_Deferred"
 {
     Properties
     {
@@ -25,26 +25,19 @@ Shader "Test/BRDF_FullLit"
 
         Pass
         {
-            Tags { "LightMode"="BXForwardBase"}
+            Tags { "LightMode"="BXDeferredBase"}
             Blend [_SrcBlend] [_DstBlend]
             HLSLPROGRAM
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
-            #pragma multi_compile __ DIRECTIONAL_LIGHT
-            #pragma multi_compile __ CLUSTER_LIGHT
-            #pragma multi_compile __ SHADOWS_DIR
-            #pragma multi_compile __ SHADOWS_CLUSTER
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_local __ _EMISSION_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
-            #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
-            #include "Assets/Shaders/ShaderLibrarys/Shadows.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
-            #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
             struct appdata
             {
@@ -64,6 +57,13 @@ Shader "Test/BRDF_FullLit"
                 half3 normal_world : TEXCOORD3;
                 half3 tangent_world : TEXCOORD4;
                 half3 binormal_world : TEXCOORD5;
+            };
+
+            struct GBuffer
+            {
+                half4 albedo_roughness : SV_TARGET0;
+                half4 normal_depth : SV_TARGET1;
+                half3 indirectLighting : SV_TARGET2;
             };
 
             UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
@@ -98,8 +98,9 @@ Shader "Test/BRDF_FullLit"
                 return o;
             }
 
-            half4 frag (v2f i) : SV_Target
+            GBuffer frag (v2f i)
             {
+                GBuffer gbuffer;
                 half4 mainTex = _MainTex.Sample(sampler_MainTex, i.uv.xy);
                 half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv.xy);
                 half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv.xy);
@@ -110,10 +111,9 @@ Shader "Test/BRDF_FullLit"
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
-                half3 v = _WorldSpaceCameraPos.xyz - i.pos_world;
-                v = normalize(v);
                 half4 normalScales = GET_PROP(_NormalScales);
                 half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, normalScales.x, normalScales.y, normalScales.z, detilMask);
+                half3 n_view = TransformWorldToViewDir(n);
 
                 half4 mraValues = GET_PROP(_MetallicRoughnessAO);
                 half roughness = mraValues.y * MRA.g;
@@ -121,75 +121,9 @@ Shader "Test/BRDF_FullLit"
                 half oneMinusMetallic = half(1.0) - MRA.r * mraValues.x;
                 half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
                 half3 albedo = mainTex.rgb * GET_PROP(_DiffuseColor).rgb;
-                half reflectance = GET_PROP(_Reflectance);
-                half3 f0 = lerp(albedo, half(0.16)*reflectance*reflectance, oneMinusMetallic);
-                half f90 = half(1.0);
-                // albedo = albedo - f0;
                 albedo *= oneMinusMetallic;
 
-                float depthEye = LinearEyeDepth(i.vertex.z);
-                half4 kds = GET_PROP(_KdsExpoureClampMinMax);
-                half3 diffuseLighting = half(0.0);
-                half3 specularLighting = half(0.0);
-                float3 pos_world = i.pos_world;
-                half ndotv = max(half(0.0), dot(n, v));
-                #ifdef DIRECTIONAL_LIGHT
-                    for(int lightIndex = 0; lightIndex < _DirectionalLightCount; ++lightIndex)
-                    {
-                        if(ndotv <= half(0.0)) break;
-                        half3 l = _DirectionalLightDirections[lightIndex].xyz;
-                        half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
-                        if(ndotl <= half(0.0)) continue;
-
-                        half atten = GetDirectionalShadow(lightIndex, i.vertex.xy, pos_world, n, GetShadowDistanceStrength(depthEye));
-                        half3 h = SafeNormalize(l + v);
-                        half ldoth = max(half(0.0), dot(l, h));
-                        half ndoth = max(half(0.0), dot(n, h));
-                        ndotl = saturate(ndotl);
-                        half3 F = F_Schlick(f0, f90, ldoth);
-                        half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
-                        half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * atten;
-                        diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
-                        specularLighting += D * F * Vis * lightStrength;
-                    }
-                #endif
-                #ifdef CLUSTER_LIGHT
-                    int lightIndexStart;
-                    int clusterCount = GetClusterCount(i.vertex.xyz, depthEye, lightIndexStart);
-                    for(int offset = 0; offset < clusterCount; ++offset)
-                    {
-                        if(ndotv <= half(0.0)) break;
-                        int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
-                        float4 lightPos = _ClusterLightSpheres[lightIndex];
-                        half3 dir = half3(lightPos.xyz - pos_world);
-                        half3 l = normalize(dir);
-                        half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
-                        if(ndotl <= half(0.0)) continue;
-                        
-                        half4 thresholds = _ClusterLightThresholds[lightIndex];
-                        half dstSqr = dot(dir, dir);
-                        half atten = dstSqr * thresholds.y;
-                        atten = max(half(0.0), half(1.0) - atten);
-                        atten *= atten * rcp(dstSqr + half(0.0001));
-                        half3 lightFwd = _ClusterLightDirections[lightIndex].xyz;
-                        half spotAtten = saturate(dot(l, lightFwd) * thresholds.z + thresholds.w);
-                        atten *= spotAtten * spotAtten;
-                        atten *= ndotl * GetClusterShadow(lightIndex, lightFwd, pos_world, n);
-                        half3 lightStrength = _ClusterLightColors[lightIndex].rgb * kds.x * atten;
-                        lightStrength *= SampleClusterLightCookie(lightIndex, pos_world);
-
-                        half3 h = SafeNormalize(l + v);
-                        half ldoth = max(half(0.0), dot(l, h));
-                        half ndoth = max(half(0.0), dot(n, h));
-                        ndotl = max(half(0.0), ndotl);
-                        half3 F = F_Schlick(f0, f90, ldoth);
-                        half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
-                        half D = D_GGX(ndoth, perceptRoughness);
-                        diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
-                        specularLighting += D * F * Vis * lightStrength;
-                    }
-                #endif
+                float depth = Linear01Depth(i.vertex.z);
 
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
@@ -198,15 +132,16 @@ Shader "Test/BRDF_FullLit"
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
                 #endif
-                return half4(
-                    (
-                        diffuseLighting * albedo * pi_inv + 
-                        specularLighting + 
-                        ambient 
-                        #ifdef _EMISSION_ON
-                        + emission.rgb
-                        #endif
-                    ) * _ReleateExpourse, mainTex.a * GET_PROP(_DiffuseColor).a);
+                gbuffer.albedo_roughness = half4(albedo, perceptRoughness);
+                gbuffer.normal_depth = EncodeDepthNormal(depth, n_view);
+                gbuffer.indirectLighting = 
+                    ambient * ao
+                    #ifdef _EMISSION_ON
+                    + emission.rgb
+                    #endif
+                ;
+                
+                return gbuffer;
             }
             ENDHLSL
         }

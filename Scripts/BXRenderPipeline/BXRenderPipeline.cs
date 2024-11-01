@@ -3,17 +3,27 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering;
+using BXRenderPipelineForward;
 
 namespace BXRenderPipeline
 {
     public class BXRenderPipeline : RenderPipeline
     {
-		public static ShaderTagId[] shaderTagIds = new ShaderTagId[]
+		public static ShaderTagId[] forwardShaderTagIds = new ShaderTagId[]
 		{
 			new ShaderTagId("SRPDefaultUnlit"),
 			new ShaderTagId("BXForwardBase"),
 			new ShaderTagId("BXForwardBaseAlphaTest")
 		};
+		public static ShaderTagId[] deferredShaderTagIds = new ShaderTagId[]
+		{
+			new ShaderTagId("SRPDefaultUnlit"),
+			new ShaderTagId("BXDeferredBase"),
+			new ShaderTagId("BXDeferredBaseAlphaTest"),
+			new ShaderTagId("BXDeferredBaseAlpha"),
+			new ShaderTagId("BXDeferredAddAlpha")
+		};
+
 		public static ShaderTagId[] legacyShaderTagIds = new ShaderTagId[]
 		{
 			new ShaderTagId("Always"),
