@@ -1,7 +1,8 @@
 #ifndef CUSTOME_UNITY_INPUT_INCLUDE
 #define CUSTOME_UNITY_INPUT_INCLUDE
 
-#define BX_FORWARDPLUS 1
+// #define BX_FORWARDPLUS 1
+#define BX_DEFERRED 1
 
 CBUFFER_START(UnityPerFrame)
     half4 glstate_lightmodel_ambient;
@@ -30,6 +31,9 @@ CBUFFER_START(UnityPerCameraRare)
     float4x4 unity_CameraInvProjection;
     float4x4 unity_WorldToCamera;
     float4x4 unity_CameraToWorld;
+    #if BX_DEFERRED
+    float4x4 _ViewPortRays;
+    #endif
 CBUFFER_END
 
 CBUFFER_START(UnityPerCamera)

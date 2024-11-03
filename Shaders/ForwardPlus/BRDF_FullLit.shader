@@ -149,7 +149,7 @@ Shader "Test/BRDF_FullLit"
                         half3 F = F_Schlick(f0, f90, ldoth);
                         half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                         half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * atten;
+                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * ndotl;
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
                     }

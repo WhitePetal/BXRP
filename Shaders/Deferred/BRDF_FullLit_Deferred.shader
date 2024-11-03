@@ -121,7 +121,8 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half oneMinusMetallic = half(1.0) - MRA.r * mraValues.x;
                 half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
                 half3 albedo = mainTex.rgb * GET_PROP(_DiffuseColor).rgb;
-                albedo *= oneMinusMetallic;
+                // albedo *= oneMinusMetallic;
+                half reflectance = GET_PROP(_Reflectance);
 
                 float depth = Linear01Depth(i.vertex.z);
 
@@ -130,10 +131,10 @@ Shader "Test/BRDF_FullLit_Deferred"
                 ambient = SampleLightMap(i.uv.zw) * albedo;
                 #endif
                 #ifdef _EMISSION_ON
-                emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
+                emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
                 #endif
-                gbuffer.albedo_roughness = half4(albedo, perceptRoughness);
-                gbuffer.normal_depth = EncodeDepthNormal(depth, n_view);
+                gbuffer.albedo_roughness = half4(albedo, roughness);
+                gbuffer.normal_depth = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
                 gbuffer.indirectLighting = 
                     ambient * ao
                     #ifdef _EMISSION_ON

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering;
-using BXRenderPipelineForward;
+using BXRenderPipelineDeferred;
 
 namespace BXRenderPipeline
 {
@@ -35,7 +35,7 @@ namespace BXRenderPipeline
 		};
 
 		private bool useDynamicBatching, useGPUInstancing;
-		private BXMainCameraRender mainCameraRender = new BXMainCameraRender();
+		private BXMainCameraRenderDeferred mainCameraRender = new BXMainCameraRenderDeferred();
 		private BXOtherCameraRender otherCameraRender = new BXOtherCameraRender();
 		public BXRenderCommonSettings commonSettings;
 

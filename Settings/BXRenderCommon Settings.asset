@@ -31,8 +31,8 @@ MonoBehaviour:
   cascadeRatio3: 0.5
   cascadeFade: 0.5
   clusterLightCompute: {fileID: 7200000, guid: 600204642eed34254966b742580d1a7e, type: 3}
-  clusterLightShadowMapSize: 1024
-  clusterLightShadowMapBits: 24
+  otherLightShadowMapSize: 1024
+  otherLightShadowMapBits: 24
   drawShadows: 1
   cookieAtlas:
     resolution: {x: 1024, y: 1024}
@@ -43,6 +43,8 @@ MonoBehaviour:
   sensorSensitvity: 100
   standardExpourse: 0.000013774106
   postProcessMaterial: {fileID: 2100000, guid: 1b0810ca95c784d9f8b779b7b083e65f, type: 2}
+  enablBloom: 1
+  deferredMaterial: {fileID: 2100000, guid: c6894ffc7d3f42b4d984004f87fee8c8, type: 2}
   gpuDrive: 0
   terrShadow: 0
   terrGrass: 0

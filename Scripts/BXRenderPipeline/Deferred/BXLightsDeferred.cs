@@ -15,6 +15,8 @@ namespace BXRenderPipelineDeferred
         private ScriptableRenderContext context;
         private CullingResults cullingResults;
 
+		private Matrix4x4 worldToViewMatrix;
+
         private const string BufferName = "Lights";
         private CommandBuffer commandBuffer = new CommandBuffer()
         {
@@ -91,7 +93,7 @@ namespace BXRenderPipelineDeferred
 			}
 		}
 
-        public void Setup(BXMainCameraRenderBase mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Setup(BXMainCameraRenderDeferred mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
 		{
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
@@ -99,6 +101,7 @@ namespace BXRenderPipelineDeferred
             this.commonSettings = mainCameraRender.commonSettings;
             this.width = mainCameraRender.width;
             this.height = mainCameraRender.height;
+			this.worldToViewMatrix = mainCameraRender.worldToViewMatrix;
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
@@ -111,7 +114,9 @@ namespace BXRenderPipelineDeferred
         private void SetupDirectionalLight(int dirLightIndex, int visibleLightIndex, ref VisibleLight visibleLight)
 		{
             dirLightColors[dirLightIndex] = visibleLight.finalColor.gamma;
-            dirLightDirections[dirLightIndex] = -visibleLight.localToWorldMatrix.GetColumn(2);
+			Vector4 dir = -visibleLight.localToWorldMatrix.GetColumn(2);
+			dir.w = 0f;
+			dirLightDirections[dirLightIndex] = worldToViewMatrix * dir;
             dirShadowDatas[dirLightIndex] = shadows.SaveDirectionalShadows(visibleLight.light, visibleLightIndex);
             dirLights[dirLightIndex] = visibleLight;
 		}

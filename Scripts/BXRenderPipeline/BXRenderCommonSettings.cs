@@ -93,6 +93,9 @@ namespace BXRenderPipeline
         public Material postProcessMaterial;
         public bool enablBloom = true;
 
+		[Header("Deferred Shading")]
+		public Material deferredMaterial;
+
         [Header("地形")]
         public bool gpuDrive;
         public bool terrShadow;

@@ -12,6 +12,8 @@ namespace BXRenderPipelineDeferred
     {
         public BXLightsDeferred lights = new BXLightsDeferred();
 
+		public Matrix4x4 worldToViewMatrix;
+
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
@@ -39,7 +41,9 @@ namespace BXRenderPipelineDeferred
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
-            BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
+			worldToViewMatrix = camera.worldToCameraMatrix;
+
+			BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
             SetupRenderFeatures(beforeRenderRenderFeatures);
             SetupRenderFeatures(onDirShadowsRenderFeatures);
@@ -132,16 +136,45 @@ namespace BXRenderPipelineDeferred
             // EV-Expourse
             commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
 
-            ExecuteCommand();
+			float aspec = camera.aspect;
+			float h_half;
+			if (camera.orthographic || camera.fieldOfView == 0f)
+			{
+				h_half = camera.orthographicSize;
+			}
+			else
+			{
+				float fov = camera.fieldOfView;
+				h_half = Mathf.Tan(0.5f * fov * Mathf.Deg2Rad);
+			}
+			float w_half = h_half * aspec;
+
+			Matrix4x4 viewPortRays = Matrix4x4.identity;
+			Vector4 forward = new Vector4(0f, 0f, -1f);
+			Vector4 up = new Vector4(0f, h_half, 0f);
+			Vector4 right = new Vector4(w_half, 0f, 0f);
+
+			Vector4 lb = forward - right - up;
+			Vector4 lu = forward - right + up;
+			Vector4 rb = forward + right - up;
+			Vector4 ru = forward + right + up;
+			viewPortRays.SetRow(0, lb);
+			viewPortRays.SetRow(1, lu);
+			viewPortRays.SetRow(2, rb);
+			viewPortRays.SetRow(3, ru);
+
+			commandBuffer.SetGlobalMatrix(BXShaderPropertyIDs._ViewPortRaysID, viewPortRays);
+
+			ExecuteCommand();
 
             var albeod_roughness = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
-            var normal_depth = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
+            var normal_metallic_mask = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var indirectLighting = new AttachmentDescriptor(RenderTextureFormat.RGB111110Float);
             var depth = new AttachmentDescriptor(RenderTextureFormat.Depth);
             var framebuffer = new AttachmentDescriptor(RenderTextureFormat.RGB111110Float);
 
             albeod_roughness.ConfigureClear(Color.clear);
-            normal_depth.ConfigureClear(Color.clear);
+			normal_metallic_mask.ConfigureClear(Color.clear);
             indirectLighting.ConfigureClear(Color.clear);
             depth.ConfigureClear(Color.clear, 1f, 0);
             framebuffer.ConfigureClear(Color.clear);
@@ -149,10 +182,10 @@ namespace BXRenderPipelineDeferred
             framebuffer.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
 
             var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
-            const int depthIndex = 0, albedo_roughnessIndex = 1, normal_depthIndex = 2, indirectLightingIndex = 3, framebufferIndex = 4;
+            const int depthIndex = 0, albedo_roughnessIndex = 1, normal_metallic_maskIndex = 2, indirectLightingIndex = 3, framebufferIndex = 4;
             attachments[depthIndex] = depth;
             attachments[albedo_roughnessIndex] = albeod_roughness;
-            attachments[normal_depthIndex] = normal_depth;
+            attachments[normal_metallic_maskIndex] = normal_metallic_mask;
             attachments[indirectLightingIndex] = indirectLighting;
             attachments[framebufferIndex] = framebuffer;
             context.BeginRenderPass(width, height, 1, commonSettings.msaa, attachments, depthIndex);
@@ -161,13 +194,14 @@ namespace BXRenderPipelineDeferred
             // RenderGbuffer Sub Pass
             var gbuffers = new NativeArray<int>(3, Allocator.Temp);
             gbuffers[0] = albedo_roughnessIndex;
-            gbuffers[1] = normal_depthIndex;
+            gbuffers[1] = normal_metallic_maskIndex;
             gbuffers[2] = indirectLightingIndex;
             context.BeginSubPass(gbuffers);
             gbuffers.Dispose();
 
             ExecuteRenderFeatures(beforeOpaqueRenderFeatures);
 
+			// Draw Opaque GBuffers
             SortingSettings sortingSettings = new SortingSettings(camera)
             {
                 criteria = SortingCriteria.CommonOpaque
@@ -185,7 +219,7 @@ namespace BXRenderPipelineDeferred
 
             ExecuteRenderFeatures(afterOpaqueRenderFeatures);
 
-            // Draw Alpha Test
+            // Draw Alpha Test GBuffers
             DrawingSettings alphaTestDrawSettings = new DrawingSettings()
             {
                 enableDynamicBatching = useDynamicBatching,
@@ -196,9 +230,6 @@ namespace BXRenderPipelineDeferred
             alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[2]);
             context.DrawRenderers(cullingResults, ref alphaTestDrawSettings, ref filterSettings_opaue);
 
-            // Draw SkyBox
-            context.DrawSkybox(camera);
-
             context.EndSubPass();
 
             // Render Lighting Sub Pass
@@ -206,19 +237,30 @@ namespace BXRenderPipelineDeferred
             lightingBuffers[0] = framebufferIndex;
             var lightingInputs = new NativeArray<int>(3, Allocator.Temp);
             lightingInputs[0] = albedo_roughnessIndex;
-            lightingInputs[1] = normal_depthIndex;
+            lightingInputs[1] = normal_metallic_maskIndex;
             lightingInputs[2] = indirectLightingIndex;
-            context.BeginSubPass(lightingBuffers, lightingInputs, true);
+            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
 
-            // ...
+			int deferredStartPass = commonSettings.msaa > 1 ? 1 : 0;
+			// Deferred Base Lighting: Directional Lighting + Indirect Lighting
+			commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, deferredStartPass, MeshTopology.Triangles, 6);
 
-            context.EndSubPass();
+			for(int i = 0; i < lights.otherLightCount; ++i)
+			{
+				commandBuffer.SetGlobalInt("_OtherLightIndex", i);
+			}
+
+			ExecuteCommand();
+			context.EndSubPass();
 
             context.EndRenderPass();
 
-            ExecuteRenderFeatures(beforeTransparentRenderFeatures);
+			// Draw SkyBox
+			context.DrawSkybox(camera);
+
+			ExecuteRenderFeatures(beforeTransparentRenderFeatures);
 
             // Draw Transparent
             DrawingSettings alphaDrawSettings = new DrawingSettings()

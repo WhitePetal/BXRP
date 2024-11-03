@@ -18,7 +18,9 @@ namespace BXRenderPipeline
         public static RenderTargetIdentifier _DirectionalShadowMap_TargetID = new RenderTargetIdentifier(_DirectionalShadowMap_ID);
         public static RenderTargetIdentifier _OtherLightShadowMap_TargetID = new RenderTargetIdentifier(_OtherShadowMap_ID);
 
-        public static int _ShadowPancaking_ID = Shader.PropertyToID("_ShadowPancaking");
+		public static int _ViewPortRaysID = Shader.PropertyToID("_ViewPortRays");
+
+		public static int _ShadowPancaking_ID = Shader.PropertyToID("_ShadowPancaking");
         public static int _OtherShadowTiles_ID = Shader.PropertyToID("_OtherShadowTiles");
         public static int _OtherShadowMatrices_ID = Shader.PropertyToID("_OtherShadowMatrices");
 

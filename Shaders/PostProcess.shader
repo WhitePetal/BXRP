@@ -119,7 +119,8 @@ Shader "PostProcess"
             v2f vert (uint vertexID : SV_VERTEXID)
             {
                 v2f o;
-				#if defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+				if(_ProjectionParams.x < 0.0)
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 0 ? 3.0 : -1.0,
@@ -129,7 +130,10 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 0 ? 2.0 : 0.0
 					);
-				#else
+					o.uv.y = 1.0 - o.uv.y;
+				}
+				else
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 1 ? 3.0 : -1.0,
@@ -139,8 +143,7 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 1 ? 2.0 : 0.0
 					);
-				#endif
-				if(_ProjectionParams.x < 0.0) o.uv.y = 1.0 - o.uv.y;
+				}
                 return o;
             }
 
@@ -196,7 +199,8 @@ Shader "PostProcess"
             v2f vert (uint vertexID : SV_VERTEXID)
             {
                 v2f o;
-				#if defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+				if(_ProjectionParams.x < 0.0)
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 0 ? 3.0 : -1.0,
@@ -206,7 +210,10 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 0 ? 2.0 : 0.0
 					);
-				#else
+					o.uv.y = 1.0 - o.uv.y;
+				}
+				else
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 1 ? 3.0 : -1.0,
@@ -216,8 +223,7 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 1 ? 2.0 : 0.0
 					);
-				#endif
-				if(_ProjectionParams.x < 0.0) o.uv.y = 1.0 - o.uv.y;
+				}
                 return o;
             }
 
@@ -270,7 +276,8 @@ Shader "PostProcess"
             v2f vert (uint vertexID : SV_VERTEXID)
             {
                 v2f o;
-				#if defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+				if(_ProjectionParams.x < 0.0)
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 0 ? 3.0 : -1.0,
@@ -280,7 +287,10 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 0 ? 2.0 : 0.0
 					);
-				#else
+					o.uv.y = 1.0 - o.uv.y;
+				}
+				else
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 1 ? 3.0 : -1.0,
@@ -290,8 +300,7 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 1 ? 2.0 : 0.0
 					);
-				#endif
-				if(_ProjectionParams.x < 0.0) o.uv.y = 1.0 - o.uv.y;
+				}
                 return o;
             }
 
@@ -348,7 +357,8 @@ Shader "PostProcess"
             v2f vert (uint vertexID : SV_VERTEXID)
             {
                 v2f o;
-				#if defined(SHADER_API_METAL) || defined(SHADER_API_VULKAN)
+				if(_ProjectionParams.x < 0.0)
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 0 ? 3.0 : -1.0,
@@ -358,7 +368,10 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 0 ? 2.0 : 0.0
 					);
-				#else
+					o.uv.y = 1.0 - o.uv.y;
+				}
+				else
+				{
 					o.vertex = float4(
 						vertexID <= 1 ? -1.0 : 3.0,
 						vertexID == 1 ? 3.0 : -1.0,
@@ -368,8 +381,7 @@ Shader "PostProcess"
 						vertexID <= 1 ? 0.0 : 2.0,
 						vertexID == 1 ? 2.0 : 0.0
 					);
-				#endif
-				if(_ProjectionParams.x < 0.0) o.uv.y = 1.0 - o.uv.y;
+				}
                 return o;
             }
 
