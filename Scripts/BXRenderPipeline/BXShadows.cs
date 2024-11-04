@@ -29,6 +29,8 @@ namespace BXRenderPipeline
 
         private const int maxShadowedOtherLightCount = 8;
 
+        private Matrix4x4 viewToWorldMatrix;
+
         private GlobalKeyword dirShadowKeyword = GlobalKeyword.Create("SHADOWS_DIR");
         private GlobalKeyword otherShadowKeyword = GlobalKeyword.Create("SHADOWS_OTHER");
 
@@ -69,6 +71,7 @@ namespace BXRenderPipeline
             this.shadowedDirLightCount = 0;
             this.shadowedOtherLightCount = 0;
             this.shadowedOtherLightTileCount = 0;
+            this.viewToWorldMatrix = mainCameraRender.viewToWorldMatrix;
         }
 
         public Vector4 SaveDirectionalShadows(Light light, int visibleLightIndex)
@@ -344,7 +347,9 @@ namespace BXRenderPipeline
                 int tileIndex = light.tileIndex + i;
                 Vector2 offset = SetTileViewport(tileIndex, split, tileSize);
                 SetOtherTileData(tileIndex, offset, tileScale, bias);
-                otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
+                // viewToWorldMatrix is for deferred shading => view space lighting
+                // in forward shading, is Matrix.identity
+                otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale) * viewToWorldMatrix;
                 commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
                 commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
                 ExecuteCommandBuffer();
@@ -371,9 +376,9 @@ namespace BXRenderPipeline
             Vector2 offset = SetTileViewport(tileIndex, split, tileSize);
             float tileScale = 1f / split;
             SetOtherTileData(tileIndex, offset, tileScale, bias);
-            otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale);
+            otherShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, offset, tileScale) * viewToWorldMatrix;
             commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
-            commandBuffer.SetGlobalDepthBias(0f, light.slopeScaleBias);
+            commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
             ExecuteCommandBuffer();
             context.DrawShadows(ref shadowSettings);
             commandBuffer.SetGlobalDepthBias(0f, 0f);

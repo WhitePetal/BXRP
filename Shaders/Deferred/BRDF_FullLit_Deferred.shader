@@ -62,8 +62,11 @@ Shader "Test/BRDF_FullLit_Deferred"
             struct GBuffer
             {
                 half4 albedo_roughness : SV_TARGET0;
-                half4 normal_depth : SV_TARGET1;
+                half4 normal_metallic_mask : SV_TARGET1;
                 half3 indirectLighting : SV_TARGET2;
+                #if SHADER_API_METAL
+                half4 depth_metal : SV_TARGET3;
+                #endif
             };
 
             UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
@@ -124,8 +127,6 @@ Shader "Test/BRDF_FullLit_Deferred"
                 // albedo *= oneMinusMetallic;
                 half reflectance = GET_PROP(_Reflectance);
 
-                float depth = Linear01Depth(i.vertex.z);
-
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
                 ambient = SampleLightMap(i.uv.zw) * albedo;
@@ -134,13 +135,16 @@ Shader "Test/BRDF_FullLit_Deferred"
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
                 #endif
                 gbuffer.albedo_roughness = half4(albedo, roughness);
-                gbuffer.normal_depth = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
+                gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
                 gbuffer.indirectLighting = 
                     ambient * ao
                     #ifdef _EMISSION_ON
                     + emission.rgb
                     #endif
                 ;
+                #if SHADER_API_METAL
+                gbuffer.depth_metal = EncodeFloatRGBA(Linear01Depth(i.vertex.z));
+                #endif
                 
                 return gbuffer;
             }

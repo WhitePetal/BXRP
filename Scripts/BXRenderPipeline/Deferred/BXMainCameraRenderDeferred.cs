@@ -5,14 +5,13 @@ using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using BXRenderPipeline;
-
 namespace BXRenderPipelineDeferred
 {
     public partial class BXMainCameraRenderDeferred : BXMainCameraRenderBase
     {
         public BXLightsDeferred lights = new BXLightsDeferred();
 
-		public Matrix4x4 worldToViewMatrix;
+        private GlobalKeyword framebufferfetch_msaa = GlobalKeyword.Create("FRAMEBUFFERFETCH_MSAA");
 
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
@@ -41,9 +40,7 @@ namespace BXRenderPipelineDeferred
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
-			worldToViewMatrix = camera.worldToCameraMatrix;
-
-			BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
+            BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
             SetupRenderFeatures(beforeRenderRenderFeatures);
             SetupRenderFeatures(onDirShadowsRenderFeatures);
@@ -61,6 +58,9 @@ namespace BXRenderPipelineDeferred
             maxShadowDistance = Mathf.Min(camera.farClipPlane, commonSettings.maxShadowDistance);
             if (!Cull(maxShadowDistance)) return;
 
+            worldToViewMatrix = camera.worldToCameraMatrix;
+            viewToWorldMatrix = camera.cameraToWorldMatrix;
+
             commandBuffer.BeginSample(SampleName);
             lights.Setup(this, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(SampleName);
@@ -70,16 +70,8 @@ namespace BXRenderPipelineDeferred
             context.SetupCameraProperties(camera);
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
             GenerateGraphicsBuffe();
-            DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures);
-#if UNITY_EDITOR
-            DrawUnsupportShader();
-            DrawGizmosBeforePostProcess();
-#endif
-            DrawPostProcess(onPostProcessRenderFeatures);
+            DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures, onPostProcessRenderFeatures);
 
-#if UNITY_EDITOR
-            DrawGizmosAfterPostProcess();
-#endif
             CleanUp();
             Submit();
         }
@@ -123,82 +115,103 @@ namespace BXRenderPipelineDeferred
 
         private void GenerateGraphicsBuffe()
 		{
+            commandBuffer.SetKeyword(framebufferfetch_msaa, commonSettings.msaa > 1);
             commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA);
-		}
 
-        private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing,
-            List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
-            List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeature)
-		{
             var renderSettings = BXVolumeManager.instance.renderSettings;
             var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
 
             // EV-Expourse
             commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
 
-			float aspec = camera.aspect;
-			float h_half;
-			if (camera.orthographic || camera.fieldOfView == 0f)
-			{
-				h_half = camera.orthographicSize;
-			}
-			else
-			{
-				float fov = camera.fieldOfView;
-				h_half = Mathf.Tan(0.5f * fov * Mathf.Deg2Rad);
-			}
-			float w_half = h_half * aspec;
+            float aspec = camera.aspect;
+            float h_half;
+            if (camera.orthographic || camera.fieldOfView == 0f)
+            {
+                h_half = camera.orthographicSize;
+            }
+            else
+            {
+                float fov = camera.fieldOfView;
+                h_half = Mathf.Tan(0.5f * fov * Mathf.Deg2Rad);
+            }
+            float w_half = h_half * aspec;
 
-			Matrix4x4 viewPortRays = Matrix4x4.identity;
-			Vector4 forward = new Vector4(0f, 0f, -1f);
-			Vector4 up = new Vector4(0f, h_half, 0f);
-			Vector4 right = new Vector4(w_half, 0f, 0f);
+            Matrix4x4 viewPortRays = Matrix4x4.identity;
+            Vector4 forward = new Vector4(0f, 0f, -1f);
+            Vector4 up = new Vector4(0f, h_half, 0f);
+            Vector4 right = new Vector4(w_half, 0f, 0f);
 
-			Vector4 lb = forward - right - up;
-			Vector4 lu = forward - right + up;
-			Vector4 rb = forward + right - up;
-			Vector4 ru = forward + right + up;
-			viewPortRays.SetRow(0, lb);
-			viewPortRays.SetRow(1, lu);
-			viewPortRays.SetRow(2, rb);
-			viewPortRays.SetRow(3, ru);
+            Vector4 lb = forward - right - up;
+            Vector4 lu = forward - right + up;
+            Vector4 rb = forward + right - up;
+            Vector4 ru = forward + right + up;
+            viewPortRays.SetRow(0, lb);
+            viewPortRays.SetRow(1, lu);
+            viewPortRays.SetRow(2, rb);
+            viewPortRays.SetRow(3, ru);
 
-			commandBuffer.SetGlobalMatrix(BXShaderPropertyIDs._ViewPortRaysID, viewPortRays);
+            commandBuffer.SetGlobalMatrix(BXShaderPropertyIDs._ViewPortRaysID, viewPortRays);
 
-			ExecuteCommand();
+            ExecuteCommand();
+        }
 
-#if UNITY_STANDALONE_OSX
-
-#endif
+        private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing,
+            List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
+            List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeature, List<BXRenderFeature> onPostProcessRenderFeatures)
+		{
             var albeod_roughness = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var normal_metallic_mask = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var indirectLighting = new AttachmentDescriptor(RenderTextureFormat.RGB111110Float);
-            var depth = new AttachmentDescriptor(RenderTextureFormat.Depth);
+            var depth = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.D24_UNorm_S8_UInt);
             var framebuffer = new AttachmentDescriptor(RenderTextureFormat.RGB111110Float);
-
+            // for metal can't framefetch depth buffer, so Encode Depth to a external attachments
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            var depth_metal = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
+#endif
             albeod_roughness.ConfigureClear(Color.clear);
 			normal_metallic_mask.ConfigureClear(Color.clear);
             indirectLighting.ConfigureClear(Color.clear);
             depth.ConfigureClear(Color.clear, 1f, 0);
             framebuffer.ConfigureClear(Color.clear);
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            depth_metal.ConfigureClear(Color.clear);
+#endif
 
             framebuffer.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
 
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            var attachments = new NativeArray<AttachmentDescriptor>(6, Allocator.Temp);
+#else
             var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
+#endif
             const int depthIndex = 0, albedo_roughnessIndex = 1, normal_metallic_maskIndex = 2, indirectLightingIndex = 3, framebufferIndex = 4;
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            const int depth_metalIndex = 5;
+#endif
             attachments[depthIndex] = depth;
             attachments[albedo_roughnessIndex] = albeod_roughness;
             attachments[normal_metallic_maskIndex] = normal_metallic_mask;
             attachments[indirectLightingIndex] = indirectLighting;
             attachments[framebufferIndex] = framebuffer;
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            attachments[depth_metalIndex] = depth_metal;
+#endif
             context.BeginRenderPass(width, height, 1, commonSettings.msaa, attachments, depthIndex);
             attachments.Dispose();
 
             // RenderGbuffer Sub Pass
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            var gbuffers = new NativeArray<int>(4, Allocator.Temp);
+#else
             var gbuffers = new NativeArray<int>(3, Allocator.Temp);
+#endif
             gbuffers[0] = albedo_roughnessIndex;
             gbuffers[1] = normal_metallic_maskIndex;
             gbuffers[2] = indirectLightingIndex;
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            gbuffers[3] = depth_metalIndex;
+#endif
             context.BeginSubPass(gbuffers);
             gbuffers.Dispose();
 
@@ -242,56 +255,87 @@ namespace BXRenderPipelineDeferred
             lightingInputs[0] = albedo_roughnessIndex;
             lightingInputs[1] = normal_metallic_maskIndex;
             lightingInputs[2] = indirectLightingIndex;
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            lightingInputs[3] = depth_metalIndex;
+#else
             lightingInputs[3] = depthIndex;
-            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
+#endif
+#if UNITY_STANDALONE_OSX || UNITY_IOS
+            context.BeginSubPass(lightingBuffers, lightingInputs);
+#else
+            context.BeginSubPass(lightingBuffers, lightingInputs, true);
+#endif
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
 
-			int deferredStartPass = commonSettings.msaa > 1 ? 1 : 0;
 			// Deferred Base Lighting: Directional Lighting + Indirect Lighting
-			commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, deferredStartPass, MeshTopology.Triangles, 6);
+			commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 0, MeshTopology.Triangles, 6);
+            ExecuteCommand();
+            // Deferred Other Light Lighting
             Material otherLightMat = commonSettings.deferredOtherLightMaterial;
-            int otherLightShadingPass = deferredStartPass + 1;
-            for (int i = 0; i < lights.otherLightCount; ++i)
+            for (int i = 0; i < lights.stencilLightCount; ++i)
 			{
 				commandBuffer.SetGlobalInt("_OtherLightIndex", i);
                 var visibleLight = lights.otherLights[i];
                 switch (visibleLight.lightType)
                 {
                     case LightType.Point:
-                        float range = visibleLight.range;
-                        Vector3 lightSphere = lights.otherLightSpheres[i];
-                        Matrix4x4 localToWorld = Matrix4x4.TRS(lightSphere, Quaternion.identity, Vector3.one * range);
-                        if(Vector3.SqrMagnitude(camera.transform.position - lightSphere) <= range * range)
                         {
-                            otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
-                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
-                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                            float range = visibleLight.range;
+                            Vector3 lightSphere = lights.otherLightSpheres[i];
+                            Vector3 lightPos = visibleLight.light.transform.position;
+                            Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, Quaternion.identity, Vector3.one * range);
+                            if (Vector3.SqrMagnitude(lightSphere) <= range * range)
+                            {
+                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
+                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                            }
+                            else
+                            {
+                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
+                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
+                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
+                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                            }
+                            commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 1, MeshTopology.Triangles, 6);
                         }
-                        else
-                        {
-                            otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
-                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
-                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
-                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
-                        }
-                        commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, otherLightShadingPass, MeshTopology.Triangles, 6);
                         break;
                     case LightType.Spot:
-
+                        {
+                            float range = visibleLight.range;
+                            Vector3 lightSphere = lights.otherLightSpheres[i];
+                            float angleRangeInv = lights.otherLightThresholds[i].z;
+                            Vector3 lightPos = visibleLight.light.transform.position;
+                            Vector3 toLight = (camera.transform.position - lightPos).normalized;
+                            float cosAngle = Vector3.Dot(toLight, visibleLight.light.transform.forward);
+                            float angleDst = (1 - cosAngle) * angleRangeInv;
+                            Vector3 scale = Vector3.one * range;
+                            scale.x *= visibleLight.spotAngle / 30f;
+                            scale.y *= visibleLight.spotAngle / 30f;
+                            Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, visibleLight.light.transform.rotation, scale);
+                            if (Vector3.SqrMagnitude(lightSphere) <= range * range && angleDst < 1f)
+                            {
+                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
+                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                            commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
+                            }
+                            else
+                            {
+                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
+                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
+                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 0);
+                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
+                            }
+                            commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 1, MeshTopology.Triangles, 6);
+                        }
                         break;
                 }
+                ExecuteCommand();
 			}
-
-			ExecuteCommand();
-			context.EndSubPass();
-
-            context.EndRenderPass();
-
-			// Draw SkyBox
-			context.DrawSkybox(camera);
-
-			ExecuteRenderFeatures(beforeTransparentRenderFeatures);
+            // Draw SkyBox
+            context.DrawSkybox(camera);
+            ExecuteRenderFeatures(beforeTransparentRenderFeatures);
 
             // Draw Transparent
             DrawingSettings alphaDrawSettings = new DrawingSettings()
@@ -307,7 +351,18 @@ namespace BXRenderPipelineDeferred
 
             ExecuteRenderFeatures(afterTransparentRenderFeature);
 
-            ExecuteCommand();
+#if UNITY_EDITOR
+            DrawUnsupportShader();
+            DrawGizmosBeforePostProcess();
+#endif
+            DrawPostProcess(onPostProcessRenderFeatures);
+#if UNITY_EDITOR
+            DrawGizmosAfterPostProcess();
+#endif
+
+            context.EndSubPass();
+
+            context.EndRenderPass();
         }
 
         private void DrawPostProcess(List<BXRenderFeature> onPostProcessRenderFeatures)

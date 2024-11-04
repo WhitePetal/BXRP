@@ -51,11 +51,12 @@ Shader "DeferredOtherLightShading"
 
             void frag (v2f i)
             {
-       
+
             }
             ENDHLSL
         }
 
+        // 1
         Pass
         {
             Cull Front

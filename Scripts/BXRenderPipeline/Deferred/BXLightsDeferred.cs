@@ -83,6 +83,7 @@ namespace BXRenderPipelineDeferred
                         if(stencilLightCount < maxStencilLightCount)
 						{
                             SetupStencilSpotLight(otherLightCount++, visbileLightIndex, ref visibleLight);
+                            ++stencilLightCount;
                         }
                         else if(clusterLightCount < maxClusterLightCount)
                         {
@@ -144,6 +145,10 @@ namespace BXRenderPipelineDeferred
             Matrix4x4 localToWorld = visibleLight.localToWorldMatrix;
             float range = visibleLight.range;
             Vector4 lightSphere = localToWorld.GetColumn(3);
+
+            lightSphere.w = 1f;
+            lightSphere = worldToViewMatrix * lightSphere;
+
             float threshold = range * range;
             lightSphere.w = 1f / threshold;
             threshold = lightSphere.w;
@@ -199,11 +204,18 @@ namespace BXRenderPipelineDeferred
             Matrix4x4 localToWorld = visibleLight.localToWorldMatrix;
             float range = visibleLight.range;
             Vector4 lightSphere = localToWorld.GetColumn(3);
+
+            lightSphere.w = 1f;
+            lightSphere = worldToViewMatrix * lightSphere;
+
             float threshold = range * range;
             lightSphere.w = 1f / threshold;
             threshold = lightSphere.w;
 
             Vector4 lightDir = -localToWorld.GetColumn(2);
+            lightDir.w = 0f;
+            lightDir = worldToViewMatrix * lightDir;
+
             float outerRad = Mathf.Deg2Rad * 0.5f * visibleLight.spotAngle;
             float outerCos = Mathf.Cos(outerRad);
             float angleRangeInv = 1f / Mathf.Max(1f - outerCos, 0.001f);
@@ -233,11 +245,14 @@ namespace BXRenderPipelineDeferred
                 if (Shader.IsKeywordEnabled(in dirLightKeyword))
                     commandBuffer.DisableKeyword(in dirLightKeyword);
 			}
-            if(clusterLightCount > 0)
+            if(otherLightCount > 0)
 			{
-                if (!Shader.IsKeywordEnabled(in clusterLightKeyword))
-                    commandBuffer.EnableKeyword(in clusterLightKeyword);
-                commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ClusterLightCount_ID, clusterLightCount);
+                if(clusterLightCount > 0)
+                {
+                    if (!Shader.IsKeywordEnabled(in clusterLightKeyword))
+                        commandBuffer.EnableKeyword(in clusterLightKeyword);
+                    commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ClusterLightCount_ID, clusterLightCount);
+                }
                 commandBuffer.SetGlobalInt(BXShaderPropertyIDs._StencilLightCount_ID, stencilLightCount);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightSpheres_ID, otherLightSpheres);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightDirections_ID, otherLightDirections);

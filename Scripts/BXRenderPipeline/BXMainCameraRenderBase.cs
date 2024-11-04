@@ -32,6 +32,9 @@ namespace BXRenderPipeline
         public float maxShadowDistance;
         public int width, height, width_screen, height_screen;
 
+        public Matrix4x4 worldToViewMatrix = Matrix4x4.identity;
+        public Matrix4x4 viewToWorldMatrix = Matrix4x4.identity;
+
         protected FilteringSettings filterSettings_opaue = new FilteringSettings(RenderQueueRange.opaque);
         protected FilteringSettings filterSettings_transparent = new FilteringSettings(RenderQueueRange.transparent);
         protected PerObjectData fullLightPerObjectFlags = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe |

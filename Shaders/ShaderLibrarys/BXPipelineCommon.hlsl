@@ -1,6 +1,9 @@
 #ifndef BXPIPELINE_COMMON_LIBRARY
 #define BXPIPELINE_COMMON_LIBRARY
 
+// #define BX_FORWARDPLUS 1
+#define BX_DEFERRED 1
+
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
@@ -130,6 +133,14 @@
     #define GATHER_GREEN_TEXTURE2D_X(textureName, samplerName, coord2)      GATHER_GREEN_TEXTURE2D(textureName, samplerName, coord2)
     #define GATHER_BLUE_TEXTURE2D_X(textureName, samplerName, coord2)       GATHER_BLUE_TEXTURE2D(textureName, samplerName, coord2)
     #define GATHER_ALPHA_TEXTURE2D_X(textureName, samplerName, coord2)      GATHER_ALPHA_TEXTURE2D(textureName, samplerName, coord2)
+#endif
+
+#ifdef FRAMEBUFFERFETCH_MSAA
+#define DEFINE_FRAMEBUFFER_INPUT_HALF(idx) FRAMEBUFFER_INPUT_HALF_MS(idx)
+#define FRAMEBUFFER_INPUT_LOAD(idx, sampleID, samplerName) LOAD_FRAMEBUFFER_INPUT_MS(idx, sampleID, samplerName)
+#else
+#define DEFINE_FRAMEBUFFER_INPUT_HALF(idx)FRAMEBUFFER_INPUT_HALF(idx)
+#define FRAMEBUFFER_INPUT_LOAD(idx, sampleID, samplerName) LOAD_FRAMEBUFFER_INPUT(idx, samplerName)
 #endif
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -283,6 +294,21 @@ inline void DecodeDepthNormal( half4 enc, out float depth, out half3 normal )
 {
     depth = DecodeFloatRG (enc.zw);
     normal = DecodeViewNormalStereo (enc);
+}
+
+inline half4 EncodeFloatRGBA( float v )
+{
+    half4 kEncodeMul = half4(half(1.0), half(255.0), half(65025.0), half(16581375.0));
+    half kEncodeBit = 1.0/255.0;
+    half4 enc = kEncodeMul * v;
+    enc = frac (enc);
+    enc -= enc.yzww * kEncodeBit;
+    return enc;
+}
+inline float DecodeFloatRGBA( float4 enc )
+{
+    float4 kDecodeDot = float4(1.0, 1/255.0, 1/65025.0, 1/16581375.0);
+    return dot( enc, kDecodeDot );
 }
 
 #endif
