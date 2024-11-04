@@ -18,13 +18,9 @@ public class ObjectRenderTest : MonoBehaviour
         
     }
 
-    private void OnPreRender()
-    {
-
-    }
-
     private void OnWillRenderObject()
     {
+        // OnWillRenderObject calling in Renderpipeline Cull()
         // 0 means dont render
         //GetComponent<MeshRenderer>().renderingLayerMask = 0;
         //RenderTexture rt = new RenderTexture();
