@@ -215,7 +215,7 @@ Shader "DeferredShading"
             }
             Blend One One
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 5.0
             #pragma editor_sync_compilation
             #pragma vertex vert
             #pragma fragment frag
@@ -265,6 +265,7 @@ Shader "DeferredShading"
                 return o;
             }
 
+            [earlydepthstencil]
             half4 frag (v2f i, uint sampleID : SV_SampleIndex) : SV_Target0
             {
                 half4 color;
