@@ -263,7 +263,7 @@ namespace BXRenderPipelineDeferred
 #if UNITY_STANDALONE_OSX || UNITY_IOS
             context.BeginSubPass(lightingBuffers, lightingInputs);
 #else
-            context.BeginSubPass(lightingBuffers, lightingInputs, true);
+            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
 #endif
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
@@ -355,7 +355,7 @@ namespace BXRenderPipelineDeferred
             DrawUnsupportShader();
             DrawGizmosBeforePostProcess();
 #endif
-            DrawPostProcess(onPostProcessRenderFeatures);
+
 #if UNITY_EDITOR
             DrawGizmosAfterPostProcess();
 #endif
@@ -363,7 +363,9 @@ namespace BXRenderPipelineDeferred
             context.EndSubPass();
 
             context.EndRenderPass();
-        }
+
+			DrawPostProcess(onPostProcessRenderFeatures);
+		}
 
         private void DrawPostProcess(List<BXRenderFeature> onPostProcessRenderFeatures)
 		{

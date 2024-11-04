@@ -99,7 +99,7 @@ Shader "DeferredShading"
                     half3 F = F_Schlick(f0, f90, ldoth);
                     half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                     half D = D_GGX(ndoth, perceptRoughness);
-                    half3 lightStrength = _DirectionalLightColors[_OtherLightIndex].rgb * ndotl;
+                    half3 lightStrength = _DirectionalLightColors[0].rgb * ndotl;
                     diffuseLighting = albedo * Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength * pi_inv;
                     specularLighting = D * F * Vis * lightStrength;
                 #endif
@@ -187,10 +187,11 @@ Shader "DeferredShading"
                 #if SHADER_API_METAL
                 float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
                 float depth = DecodeFloatRGBA(encodeDepth);
+                float depthEye = depth * _ProjectionParams.z;
                 #else
                 float depth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
+                float depthEye = LinearEyeDepth(depth);
                 #endif
-                float depthEye = depth * _ProjectionParams.z;
                 half3 n = DecodeViewNormalStereo(normal_metallic_mask);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;

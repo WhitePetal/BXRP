@@ -1,6 +1,4 @@
 1. 资源导入流
-https://note.nxcloud.club:12270/blog/post/agile/【Unity】使用Compute-Shader实现Hi-z遮挡剔除（Occlusion-Culling）
-https://zhuanlan.zhihu.com/p/47615677
 2. [SRP](\SRP.txt)
 3. UI
 4. InputSystem

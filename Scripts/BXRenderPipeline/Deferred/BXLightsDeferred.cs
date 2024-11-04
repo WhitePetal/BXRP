@@ -259,7 +259,7 @@ namespace BXRenderPipelineDeferred
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightThresholds_ID, otherLightThresholds);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightColors_ID, otherLightColors);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowDatas_ID, otherShadowDatas);
-                clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
+                //clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
 			}
             else
             {
