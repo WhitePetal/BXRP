@@ -167,6 +167,9 @@ namespace BXRenderPipelineDeferred
 
 			ExecuteCommand();
 
+#if UNITY_STANDALONE_OSX
+
+#endif
             var albeod_roughness = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var normal_metallic_mask = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var indirectLighting = new AttachmentDescriptor(RenderTextureFormat.RGB111110Float);
@@ -235,10 +238,11 @@ namespace BXRenderPipelineDeferred
             // Render Lighting Sub Pass
             var lightingBuffers = new NativeArray<int>(1, Allocator.Temp);
             lightingBuffers[0] = framebufferIndex;
-            var lightingInputs = new NativeArray<int>(3, Allocator.Temp);
+            var lightingInputs = new NativeArray<int>(4, Allocator.Temp);
             lightingInputs[0] = albedo_roughnessIndex;
             lightingInputs[1] = normal_metallic_maskIndex;
             lightingInputs[2] = indirectLightingIndex;
+            lightingInputs[3] = depthIndex;
             context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
@@ -246,10 +250,37 @@ namespace BXRenderPipelineDeferred
 			int deferredStartPass = commonSettings.msaa > 1 ? 1 : 0;
 			// Deferred Base Lighting: Directional Lighting + Indirect Lighting
 			commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, deferredStartPass, MeshTopology.Triangles, 6);
-
-			for(int i = 0; i < lights.otherLightCount; ++i)
+            Material otherLightMat = commonSettings.deferredOtherLightMaterial;
+            int otherLightShadingPass = deferredStartPass + 1;
+            for (int i = 0; i < lights.otherLightCount; ++i)
 			{
 				commandBuffer.SetGlobalInt("_OtherLightIndex", i);
+                var visibleLight = lights.otherLights[i];
+                switch (visibleLight.lightType)
+                {
+                    case LightType.Point:
+                        float range = visibleLight.range;
+                        Vector3 lightSphere = lights.otherLightSpheres[i];
+                        Matrix4x4 localToWorld = Matrix4x4.TRS(lightSphere, Quaternion.identity, Vector3.one * range);
+                        if(Vector3.SqrMagnitude(camera.transform.position - lightSphere) <= range * range)
+                        {
+                            otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
+                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                        }
+                        else
+                        {
+                            otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
+                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
+                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
+                            commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                        }
+                        commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, otherLightShadingPass, MeshTopology.Triangles, 6);
+                        break;
+                    case LightType.Spot:
+
+                        break;
+                }
 			}
 
 			ExecuteCommand();

@@ -85,6 +85,7 @@ Material:
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _Emission: 0
     - _EmissionStrength: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.59999996
@@ -106,5 +107,5 @@ Material:
     - _Fresnel: {r: 0.089999996, g: 0.089999996, b: 0.089999996, a: 1}
     - _KdsExpoureClampMinMax: {r: 1, g: 0, b: 0, a: 1}
     - _MetallicRoughnessAO: {r: 0, g: 1, b: 0.5, a: 0}
-    - _NormalScales: {r: 1, g: 1, b: 1, a: 0}
+    - _NormalScales: {r: 1.5, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []

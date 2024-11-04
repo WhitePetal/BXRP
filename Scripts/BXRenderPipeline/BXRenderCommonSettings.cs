@@ -95,6 +95,9 @@ namespace BXRenderPipeline
 
 		[Header("Deferred Shading")]
 		public Material deferredMaterial;
+        public Material deferredOtherLightMaterial;
+        public Mesh pointLightMesh;
+        public Mesh spotLightMesh;
 
         [Header("地形")]
         public bool gpuDrive;
