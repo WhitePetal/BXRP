@@ -116,7 +116,7 @@ namespace BXRenderPipelineDeferred
         private void GenerateGraphicsBuffe()
 		{
             commandBuffer.SetKeyword(framebufferfetch_msaa, commonSettings.msaa > 1);
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA, false);
 
             var renderSettings = BXVolumeManager.instance.renderSettings;
             var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
@@ -160,13 +160,13 @@ namespace BXRenderPipelineDeferred
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
             List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeature, List<BXRenderFeature> onPostProcessRenderFeatures)
 		{
-            var lighting = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
-            var albeod_roughness = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
-            var normal_metallic_mask = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
+            var lighting = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.B10G11R11_UFloatPack32);
+            var albeod_roughness = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
+            var normal_metallic_mask = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
             var depth = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.D24_UNorm_S8_UInt);
-            // for metal can't framefetch depth buffer, so Encode Depth to a external attachments
+            // for metal can't framefetch depth buffer, so Encode Depth to a external attachment
 #if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            var depth_metal = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
+            var depth_metal = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
 #endif
             albeod_roughness.ConfigureClear(Color.clear);
 			normal_metallic_mask.ConfigureClear(Color.clear);
@@ -177,6 +177,12 @@ namespace BXRenderPipelineDeferred
 #endif
 
             lighting.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
+            if(commonSettings.msaa > 1)
+            {
+                lighting.ConfigureResolveTarget(BXShaderPropertyIDs._FrameBuffer_TargetID);
+                
+            }
+            // loadExisitingContents = false may be useless in subpass if not do this
             lighting.loadAction = RenderBufferLoadAction.DontCare;
 
 #if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
@@ -287,14 +293,14 @@ namespace BXRenderPipelineDeferred
                             Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, Quaternion.identity, Vector3.one * range);
                             if (Vector3.SqrMagnitude(lightSphere) <= range * range)
                             {
-                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
-                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
                                 commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
                             else
                             {
-                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
-                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
                                 commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
                                 commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
@@ -316,14 +322,14 @@ namespace BXRenderPipelineDeferred
                             Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, visibleLight.light.transform.rotation, scale);
                             if (Vector3.SqrMagnitude(lightSphere) <= range * range && angleDst < 1f)
                             {
-                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
-                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
                                 commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
                             else
                             {
-                                otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Equal);
-                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Keep);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
+                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
                                 commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 0);
                                 commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
@@ -364,7 +370,7 @@ namespace BXRenderPipelineDeferred
             context.EndSubPass();
 
             context.EndRenderPass();
-            context.SubmitForRenderPassValidation();
+            //context.SubmitForRenderPassValidation();
 
 			DrawPostProcess(onPostProcessRenderFeatures);
 		}

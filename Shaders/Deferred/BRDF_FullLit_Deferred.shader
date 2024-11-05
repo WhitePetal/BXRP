@@ -26,7 +26,7 @@ Shader "Test/BRDF_FullLit_Deferred"
         Pass
         {
             Tags { "LightMode"="BXDeferredBase"}
-            Blend [_SrcBlend] [_DstBlend]
+            // Blend [_SrcBlend] [_DstBlend]
             HLSLPROGRAM
             #pragma target 4.5
             #pragma vertex vert

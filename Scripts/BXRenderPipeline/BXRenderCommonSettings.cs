@@ -40,6 +40,8 @@ namespace BXRenderPipeline
         [Header("必要文件")]
         public Shader coreBlitPS;
         public Shader coreBlitColorAndDepthPS;
+        public ComputeShader clusterLightCompute;
+        public ComputeShader hizCompute;
 
         [Header("分辨率")]
         [Range(0.1f, 4f)]
@@ -66,7 +68,6 @@ namespace BXRenderPipeline
         public float cascadeFade = 0.1f;
 
         [Header("Other光源设置")]
-        public ComputeShader clusterLightCompute;
         public int otherLightShadowMapSize = 1024;
         public int otherLightShadowMapBits = 24;
 

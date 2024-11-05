@@ -1,0 +1,46 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel HizGenerator
+
+Texture2D<float4> _DepthMap;
+RWTexture2D<float> _HizMap;
+
+groupshared float groupshadredDepths[8 * 8];
+
+
+[numthreads(8,8,1)]
+void HizGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    // >> 1
+    if((groupThreadID.x % 2) == 0 && (groupThreadID.y % 2) == 0)
+    {
+        float4 encodeDepth0 = _DepthMap[id.xy];
+        float4 encodeDepth1 = _DepthMap[id.xy + uint(1, 0)];
+        float4 encodeDepth2 = _DepthMap[id.xy + uint(0, 1)];
+        float4 encodeDepth3 = _DepthMap[id.xy + uint(1, 1)];
+        float depth0 = EncodeFloatRGBA(encodeDepth0);
+        float depth1 = EncodeFloatRGBA(encodeDepth1);
+        float depth2 = EncodeFloatRGBA(encodeDepth2);
+        float depth3 = EncodeFloatRGBA(encodeDepth3);
+        groupshadredDepths[groupIndex] = min(depth0, min(depth1, min(depth2, depth3)));
+    }
+    GroupMemoryBarrierWithGroupSync();
+    // >> 2
+    if((groupThreadID.x % 4) == 0 && (groupThreadID.y % 4) == 0)
+    {
+        float depth0 = groupshadredDepths[groupIndex];
+        float depth1 = groupshadredDepths[groupIndex + 2];
+        float depth2 = groupshadredDepths[groupIndex + 16];
+        float depth3 = groupshadredDepths[groupIndex + 16 + 2];
+        groupshadredDepths[groupIndex] = min(depth0, min(depth1, min(depth2, depth3)));
+    }
+    GroupMemoryBarrierWithGroupSync();
+    // >> 3 is real store
+    if((groupThreadID.x % 8) == 0 && (groupThreadID.y % 8) == 0)
+    {
+        float depth0 = groupshadredDepths[groupIndex];
+        float depth1 = groupshadredDepths[groupIndex + 4];
+        float depth2 = groupshadredDepths[groupIndex + 32];
+        float depth3 = groupshadredDepths[groupIndex + 32 + 4];
+        _HizMap[groupId.xy] = min(depth0, min(depth1, min(depth2, depth3)));
+    }
+}

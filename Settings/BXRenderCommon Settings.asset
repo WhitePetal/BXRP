@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   coreBlitPS: {fileID: 4800000, guid: bdc1d85bac1101d4aaffe5fdab67b8e8, type: 3}
   coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9, type: 3}
-  downSample: 0.6
-  minHeight: 1080
+  downSample: 1
+  minHeight: 640
   maxHeight: 1440
   msaa: 1
   aaType: 1
@@ -29,7 +29,7 @@ MonoBehaviour:
   cascadeRatio2: 0.2
   cascadeRatio3: 0.5
   cascadeFade: 0.5
-  clusterLightCompute: {fileID: 0}
+  clusterLightCompute: {fileID: 7200000, guid: 600204642eed34254966b742580d1a7e, type: 3}
   otherLightShadowMapSize: 1024
   otherLightShadowMapBits: 24
   drawShadows: 1

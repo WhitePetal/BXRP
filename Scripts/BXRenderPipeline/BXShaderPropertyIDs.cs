@@ -24,6 +24,9 @@ namespace BXRenderPipeline
         public static int _OtherShadowTiles_ID = Shader.PropertyToID("_OtherShadowTiles");
         public static int _OtherShadowMatrices_ID = Shader.PropertyToID("_OtherShadowMatrices");
 
+        public static int _StencilComp_ID = Shader.PropertyToID("_StencilComp");
+        public static int _StencilOp_ID = Shader.PropertyToID("_StencilOp");
+
 
         public static int _DirectionalLightCount_ID = Shader.PropertyToID("_DirectionalLightCount");
         public static int _DirectionalLightDirections_ID = Shader.PropertyToID("_DirectionalLightDirections");
