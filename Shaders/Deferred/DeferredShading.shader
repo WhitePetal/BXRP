@@ -10,9 +10,10 @@ Shader "DeferredShading"
         ZWrite Off
         ZTest Always
 
-        // 0 Base: Dirctioal Lighting + Indirect Lighting for msaa
+        // 0 Base: Dirctioal Lighting
         Pass
         {
+            Blend One One
             HLSLPROGRAM
             #pragma target 4.5
             #pragma editor_sync_compilation
@@ -29,7 +30,6 @@ Shader "DeferredShading"
 
             DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
             DEFINE_FRAMEBUFFER_INPUT_HALF(1); // dept_normal
-            DEFINE_FRAMEBUFFER_INPUT_HALF(2); // indirect
 
             struct v2f
             {
@@ -69,41 +69,40 @@ Shader "DeferredShading"
             {
                 half4 color;
                 color.a = half(1.0);
-                half3 indirect = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).rgb;
                 half3 diffuseLighting = half(0.0);
                 half3 specularLighting = half(0.0);
-                #ifdef DIRECTIONAL_LIGHT
-                    half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
-                    half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
-                    half3 n = DecodeViewNormalStereo(normal_metallic_mask);
-                    half oneMinusMetallic = normal_metallic_mask.z;
-                    half reflectance = normal_metallic_mask.w;
 
-                    half perceptRoughness = albedo_roughness.a;
-                    half3 albedo = albedo_roughness.rgb;
+                half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
+                half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
+                half3 n = DecodeViewNormalStereo(normal_metallic_mask);
+                half oneMinusMetallic = normal_metallic_mask.z;
+                half reflectance = normal_metallic_mask.w;
 
-                    half3 f0 = lerp(albedo, half(0.16) * reflectance, oneMinusMetallic);
-                    half f90 = half(1.0);
-                    albedo *= oneMinusMetallic;
+                half perceptRoughness = albedo_roughness.a;
+                half3 albedo = albedo_roughness.rgb;
 
-                    half3 v = normalize(i.vray);
-                    v = -v;
-                    half3 l = _DirectionalLightDirections[0].xyz;
+                half3 f0 = lerp(albedo, half(0.16) * reflectance, oneMinusMetallic);
+                half f90 = half(1.0);
+                albedo *= oneMinusMetallic;
 
-                    half ndotv = max(half(0.0), dot(n, v));
-                    half ndotl = max(half(0.0), dot(n, l));
+                half3 v = normalize(i.vray);
+                v = -v;
+                half3 l = _DirectionalLightDirections[0].xyz;
 
-                    half3 h = SafeNormalize(l + v);
-                    half ldoth = max(half(0.0), dot(l, h));
-                    half ndoth = max(half(0.0), dot(n, h));
-                    half3 F = F_Schlick(f0, f90, ldoth);
-                    half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
-                    half D = D_GGX(ndoth, perceptRoughness);
-                    half3 lightStrength = _DirectionalLightColors[0].rgb * ndotl;
-                    diffuseLighting = albedo * Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength * pi_inv;
-                    specularLighting = D * F * Vis * lightStrength;
-                #endif
-                color.rgb = (diffuseLighting + specularLighting) * _ReleateExpourse + indirect;
+                half ndotv = max(half(0.0), dot(n, v));
+                half ndotl = max(half(0.0), dot(n, l));
+
+                half3 h = SafeNormalize(l + v);
+                half ldoth = max(half(0.0), dot(l, h));
+                half ndoth = max(half(0.0), dot(n, h));
+                half3 F = F_Schlick(f0, f90, ldoth);
+                half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
+                half D = D_GGX(ndoth, perceptRoughness);
+                half3 lightStrength = _DirectionalLightColors[0].rgb * ndotl;
+                diffuseLighting = albedo * Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength * pi_inv;
+                specularLighting = D * F * Vis * lightStrength;
+                
+                    color.rgb = (diffuseLighting + specularLighting) * _ReleateExpourse;
                 // color.rgb = 
 				return color;
             }
@@ -136,7 +135,7 @@ Shader "DeferredShading"
 
             DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
             DEFINE_FRAMEBUFFER_INPUT_HALF(1); // dept_normal
-            DEFINE_FRAMEBUFFER_INPUT_HALF(3); // depth
+            DEFINE_FRAMEBUFFER_INPUT_HALF(2); // depth
 
             CBUFFER_START(_DEFERRED_OTHER_LIGHT)
                 int _OtherLightIndex;
@@ -184,14 +183,14 @@ Shader "DeferredShading"
                 color.a = half(1.0);
                 half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
                 half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
-                #if SHADER_API_METAL
-                float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
+                // #if SHADER_API_METAL
+                float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
                 float depth = DecodeFloatRGBA(encodeDepth);
                 float depthEye = depth * _ProjectionParams.z;
-                #else
-                float depth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
-                float depthEye = LinearEyeDepth(depth);
-                #endif
+                // #else
+                // float depth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
+                // float depthEye = LinearEyeDepth(depth);
+                // #endif
                 half3 n = DecodeViewNormalStereo(normal_metallic_mask);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;

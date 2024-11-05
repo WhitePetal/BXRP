@@ -192,8 +192,8 @@ Camera:
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
   m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
+  m_HDR: 0
+  m_AllowMSAA: 0
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
   m_OcclusionCulling: 1
@@ -610,6 +610,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 23.91, y: 181.672, z: 218.557}
+--- !u!1 &622991462 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3641988971136493347, guid: f00138f557c42164c8d4f5b60344826f, type: 3}
+  m_PrefabInstance: {fileID: 5579801067941332343}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &622991466
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 622991462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0443958bd5afc40f28ec8e4d16b04014, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &855131808
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -624,11 +641,31 @@ PrefabInstance:
       objectReference: {fileID: 4603949415366630984, guid: c0bd9755642c4cd46b51a44b3906a129, type: 3}
     - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: ev100
-      value: 8.091036
+      value: 11.727921
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: luminance
+      value: 424
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: illuminance
+      value: 424
       objectReference: {fileID: 0}
     - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: intensityType
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: radiant_power
+      value: 497.58957
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: luminous_power
+      value: 5328.141
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: luminous_intensity
+      value: 424
       objectReference: {fileID: 0}
     - target: {fileID: 1674206388102560493, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: m_Enabled
@@ -1068,7 +1105,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3641988971136493347, guid: f00138f557c42164c8d4f5b60344826f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 622991466}
   m_SourcePrefab: {fileID: 100100000, guid: f00138f557c42164c8d4f5b60344826f, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

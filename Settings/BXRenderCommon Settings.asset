@@ -13,9 +13,8 @@ MonoBehaviour:
   m_Name: BXRenderCommon Settings
   m_EditorClassIdentifier: 
   coreBlitPS: {fileID: 4800000, guid: bdc1d85bac1101d4aaffe5fdab67b8e8, type: 3}
-  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9,
-    type: 3}
-  downSample: 1
+  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9, type: 3}
+  downSample: 0.6
   minHeight: 1080
   maxHeight: 1440
   msaa: 1
@@ -45,12 +44,9 @@ MonoBehaviour:
   postProcessMaterial: {fileID: 2100000, guid: 1b0810ca95c784d9f8b779b7b083e65f, type: 2}
   enablBloom: 1
   deferredMaterial: {fileID: 2100000, guid: c6894ffc7d3f42b4d984004f87fee8c8, type: 2}
-  deferredOtherLightMaterial: {fileID: 2100000, guid: d0648e237c3534d47912763c4469c199,
-    type: 2}
-  pointLightMesh: {fileID: 289301614986012343, guid: 38fe681fa13f84164a017b74cf46f119,
-    type: 3}
-  spotLightMesh: {fileID: 3613567641014311022, guid: f3b0802e9b54b42c289ffa8b29891659,
-    type: 3}
+  deferredOtherLightMaterial: {fileID: 2100000, guid: d0648e237c3534d47912763c4469c199, type: 2}
+  pointLightMesh: {fileID: 289301614986012343, guid: 38fe681fa13f84164a017b74cf46f119, type: 3}
+  spotLightMesh: {fileID: 3613567641014311022, guid: f3b0802e9b54b42c289ffa8b29891659, type: 3}
   gpuDrive: 0
   terrShadow: 0
   terrGrass: 0
