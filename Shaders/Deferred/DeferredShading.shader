@@ -85,7 +85,7 @@ Shader "DeferredShading"
                 half f90 = half(1.0);
                 albedo *= oneMinusMetallic;
 
-                half3 v = normalize(i.vray);
+                half3 v = normalize(i.vray.xyz);
                 v = -v;
                 half3 l = _DirectionalLightDirections[0].xyz;
 
@@ -102,7 +102,7 @@ Shader "DeferredShading"
                 diffuseLighting = albedo * Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength * pi_inv;
                 specularLighting = D * F * Vis * lightStrength;
                 
-                    color.rgb = (diffuseLighting + specularLighting) * _ReleateExpourse;
+                color.rgb = (diffuseLighting + specularLighting) * _ReleateExpourse;
                 // color.rgb = 
 				return color;
             }
@@ -183,14 +183,14 @@ Shader "DeferredShading"
                 color.a = half(1.0);
                 half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
                 half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
-                // #if SHADER_API_METAL
+                #if SHADER_API_METAL
                 float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
                 float depth = DecodeFloatRGBA(encodeDepth);
                 float depthEye = depth * _ProjectionParams.z;
-                // #else
-                // float depth = FRAMEBUFFER_INPUT_LOAD(3, sampleID, i.vertex);
-                // float depthEye = LinearEyeDepth(depth);
-                // #endif
+                #else
+                float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
+                float depthEye = LinearEyeDepth(depth);
+                #endif
                 half3 n = DecodeViewNormalStereo(normal_metallic_mask);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;

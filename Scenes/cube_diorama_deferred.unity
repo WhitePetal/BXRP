@@ -657,11 +657,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: radiant_power
-      value: 497.58957
+      value: 27.367426
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: light_efficacy
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: luminous_power
       value: 5328.141
+      objectReference: {fileID: 0}
+    - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
+      propertyPath: luminous_efficacy
+      value: 0.28505
       objectReference: {fileID: 0}
     - target: {fileID: 458832313786699558, guid: 6383b11c6e966413db22fb93e0547317, type: 3}
       propertyPath: luminous_intensity

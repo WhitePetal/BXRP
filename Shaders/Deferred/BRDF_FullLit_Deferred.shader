@@ -64,9 +64,9 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 lighting : SV_TARGET0;
                 half4 albedo_roughness : SV_TARGET1;
                 half4 normal_metallic_mask : SV_TARGET2;
-                // #if SHADER_API_METAL
+                #if SHADER_API_METAL
                 half4 depth_metal : SV_TARGET3;
-                // #endif
+                #endif
             };
 
             UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
@@ -143,9 +143,9 @@ Shader "Test/BRDF_FullLit_Deferred"
                     #endif
                 ;
                 gbuffer.lighting.a = half(1.0);
-                // #if SHADER_API_METAL
+                #if SHADER_API_METAL
                 gbuffer.depth_metal = EncodeFloatRGBA(Linear01Depth(i.vertex.z));
-                // #endif
+                #endif
                 
                 return gbuffer;
             }

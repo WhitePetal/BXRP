@@ -116,7 +116,7 @@ namespace BXRenderPipelineDeferred
         private void GenerateGraphicsBuffe()
 		{
             commandBuffer.SetKeyword(framebufferfetch_msaa, commonSettings.msaa > 1);
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA);
 
             var renderSettings = BXVolumeManager.instance.renderSettings;
             var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
@@ -165,50 +165,51 @@ namespace BXRenderPipelineDeferred
             var normal_metallic_mask = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
             var depth = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.D24_UNorm_S8_UInt);
             // for metal can't framefetch depth buffer, so Encode Depth to a external attachments
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var depth_metal = new AttachmentDescriptor(RenderTextureFormat.ARGB32);
-//#endif
+#endif
             albeod_roughness.ConfigureClear(Color.clear);
 			normal_metallic_mask.ConfigureClear(Color.clear);
             lighting.ConfigureClear(Color.clear);
             depth.ConfigureClear(Color.clear, 1f, 0);
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             depth_metal.ConfigureClear(Color.clear);
-//#endif
+#endif
 
             lighting.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
+            lighting.loadAction = RenderBufferLoadAction.DontCare;
 
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
-//#else
-//            var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
-//#endif
+#else
+            var attachments = new NativeArray<AttachmentDescriptor>(4, Allocator.Temp);
+#endif
             const int depthIndex = 0, lightingIndex = 1, albedo_roughnessIndex = 2, normal_metallic_maskIndex = 3;
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             const int depth_metalIndex = 4;
-//#endif
+#endif
             attachments[depthIndex] = depth;
             attachments[lightingIndex] = lighting;
             attachments[albedo_roughnessIndex] = albeod_roughness;
             attachments[normal_metallic_maskIndex] = normal_metallic_mask;
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             attachments[depth_metalIndex] = depth_metal;
-//#endif
+#endif
             context.BeginRenderPass(width, height, 1, commonSettings.msaa, attachments, depthIndex);
             attachments.Dispose();
 
             // RenderGbuffer Sub Pass
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var gbuffers = new NativeArray<int>(4, Allocator.Temp);
-            //#else
-            //            var gbuffers = new NativeArray<int>(3, Allocator.Temp);
-            //#endif
+#else
+            var gbuffers = new NativeArray<int>(3, Allocator.Temp);
+#endif
             gbuffers[0] = lightingIndex;
             gbuffers[1] = albedo_roughnessIndex;
             gbuffers[2] = normal_metallic_maskIndex;
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             gbuffers[3] = depth_metalIndex;
-//#endif
+#endif
             context.BeginSubPass(gbuffers);
             gbuffers.Dispose();
 
@@ -251,16 +252,16 @@ namespace BXRenderPipelineDeferred
             var lightingInputs = new NativeArray<int>(3, Allocator.Temp);
             lightingInputs[0] = albedo_roughnessIndex;
             lightingInputs[1] = normal_metallic_maskIndex;
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             lightingInputs[2] = depth_metalIndex;
-//#else
-//            lightingInputs[3] = depthIndex;
-//#endif
-//#if UNITY_STANDALONE_OSX || UNITY_IOS
+#else
+            lightingInputs[2] = depthIndex;
+#endif
+#if UNITY_STANDALONE_OSX || UNITY_IOS
             context.BeginSubPass(lightingBuffers, lightingInputs);
-//#else
-//            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
-//#endif
+#else
+            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
+#endif
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
 
@@ -268,7 +269,6 @@ namespace BXRenderPipelineDeferred
             if(lights.dirLightCount > 0)
             {
                 commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 0, MeshTopology.Triangles, 6);
-                ExecuteCommand();
             }
 
             // Deferred Other Light Lighting
@@ -317,8 +317,8 @@ namespace BXRenderPipelineDeferred
                             if (Vector3.SqrMagnitude(lightSphere) <= range * range && angleDst < 1f)
                             {
                                 otherLightMat.SetInt("_StencilComp", (int)CompareFunction.Always);
-                            otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
-                            commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
+                                otherLightMat.SetInt("_StencilOp", (int)StencilOp.Replace);
+                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
                             else
                             {
@@ -331,8 +331,9 @@ namespace BXRenderPipelineDeferred
                         }
                         break;
                 }
-                ExecuteCommand();
 			}
+            ExecuteCommand();
+            
             // Draw SkyBox
             context.DrawSkybox(camera);
             ExecuteRenderFeatures(beforeTransparentRenderFeatures);

@@ -298,16 +298,16 @@ inline void DecodeDepthNormal( half4 enc, out float depth, out half3 normal )
 
 inline half4 EncodeFloatRGBA( float v )
 {
-    half4 kEncodeMul = half4(half(1.0), half(255.0), half(65025.0), half(16581375.0));
-    half kEncodeBit = 1.0/255.0;
-    half4 enc = kEncodeMul * v;
+    float4 kEncodeMul = float4(1.0, 255.0, 65025.0, 16581375.0);
+    float kEncodeBit = 1.0/255.0;
+    float4 enc = kEncodeMul * v;
     enc = frac (enc);
     enc -= enc.yzww * kEncodeBit;
     return enc;
 }
 inline float DecodeFloatRGBA( float4 enc )
 {
-    float4 kDecodeDot = float4(1.0, 1/255.0, 1/65025.0, 1/16581375.0);
+    float4 kDecodeDot = float4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0);
     return dot( enc, kDecodeDot );
 }
 
