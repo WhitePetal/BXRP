@@ -186,11 +186,10 @@ Shader "DeferredShading"
                 #if SHADER_API_METAL
                 float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
                 float depth = DecodeFloatRGBA(encodeDepth);
-                float depthEye = depth * _ProjectionParams.z;
                 #else
                 float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
-                float depthEye = LinearEyeDepth(depth);
                 #endif
+                float depthEye = LinearEyeDepth(depth);
                 half3 n = DecodeViewNormalStereo(normal_metallic_mask);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;
@@ -236,6 +235,7 @@ Shader "DeferredShading"
                 specularLighting = D * F * Vis * lightStrength;
                 color.rgb = (diffuseLighting + specularLighting) * _ReleateExpourse;
                 // color.rgb = lightStrength;
+                // return depth;
 				return color;
             }
             ENDHLSL

@@ -3,23 +3,23 @@ using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
 public class ObjectRenderTest : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    private void OnEnable()
     {
-        
+
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnDisable()
     {
         
     }
 
     private void OnWillRenderObject()
     {
+        BXHiZManager.instance.Register(this);
         // OnWillRenderObject calling in Renderpipeline Cull()
         // 0 means dont render
         //GetComponent<MeshRenderer>().renderingLayerMask = 0;

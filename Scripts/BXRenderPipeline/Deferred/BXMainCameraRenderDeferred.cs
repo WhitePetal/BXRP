@@ -40,6 +40,7 @@ namespace BXRenderPipelineDeferred
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
+            BXHiZManager.instance.Setup(this);
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
             SetupRenderFeatures(beforeRenderRenderFeatures);
@@ -71,6 +72,8 @@ namespace BXRenderPipelineDeferred
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
             GenerateGraphicsBuffe();
             DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures, onPostProcessRenderFeatures);
+
+            BXHiZManager.instance.Render(commandBuffer);
 
             CleanUp();
             Submit();
@@ -117,6 +120,7 @@ namespace BXRenderPipelineDeferred
 		{
             commandBuffer.SetKeyword(framebufferfetch_msaa, commonSettings.msaa > 1);
             commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA, false);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._EncodeDepthBuffer_ID, width, height, 0, FilterMode.Point, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, commonSettings.msaa, false, RenderTextureMemoryless.MSAA, false);
 
             var renderSettings = BXVolumeManager.instance.renderSettings;
             var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
@@ -174,6 +178,13 @@ namespace BXRenderPipelineDeferred
             depth.ConfigureClear(Color.clear, 1f, 0);
 #if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             depth_metal.ConfigureClear(Color.clear);
+            depth_metal.ConfigureTarget(BXShaderPropertyIDs._EncodeDepthBuffer_TargetID, false, true);
+            if (commonSettings.msaa > 1)
+            {
+                depth_metal.ConfigureResolveTarget(BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
+
+            }
+            depth_metal.loadAction = RenderBufferLoadAction.DontCare;
 #endif
 
             lighting.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
@@ -394,6 +405,7 @@ namespace BXRenderPipelineDeferred
             DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
 #endif
             ReleaseBloom();
+            ExecuteCommand();
         }
 
         private void DrawBloom()
@@ -488,7 +500,7 @@ namespace BXRenderPipelineDeferred
 		{
             lights.CleanUp();
             commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID);
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._DepthBuffer_ID);
+            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._EncodeDepthBuffer_ID);
 		}
 
         private void Submit()

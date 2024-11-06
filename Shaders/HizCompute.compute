@@ -6,6 +6,11 @@ RWTexture2D<float> _HizMap;
 
 groupshared float groupshadredDepths[8 * 8];
 
+inline float DecodeFloatRGBA( float4 enc )
+{
+    float4 kDecodeDot = float4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0);
+    return dot( enc, kDecodeDot );
+}
 
 [numthreads(8,8,1)]
 void HizGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID, uint3 groupThreadID : SV_GroupThreadID)
@@ -14,13 +19,13 @@ void HizGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDE
     if((groupThreadID.x % 2) == 0 && (groupThreadID.y % 2) == 0)
     {
         float4 encodeDepth0 = _DepthMap[id.xy];
-        float4 encodeDepth1 = _DepthMap[id.xy + uint(1, 0)];
-        float4 encodeDepth2 = _DepthMap[id.xy + uint(0, 1)];
-        float4 encodeDepth3 = _DepthMap[id.xy + uint(1, 1)];
-        float depth0 = EncodeFloatRGBA(encodeDepth0);
-        float depth1 = EncodeFloatRGBA(encodeDepth1);
-        float depth2 = EncodeFloatRGBA(encodeDepth2);
-        float depth3 = EncodeFloatRGBA(encodeDepth3);
+        float4 encodeDepth1 = _DepthMap[id.xy + uint2(1, 0)];
+        float4 encodeDepth2 = _DepthMap[id.xy + uint2(0, 1)];
+        float4 encodeDepth3 = _DepthMap[id.xy + uint2(1, 1)];
+        float depth0 = DecodeFloatRGBA(encodeDepth0);
+        float depth1 = DecodeFloatRGBA(encodeDepth1);
+        float depth2 = DecodeFloatRGBA(encodeDepth2);
+        float depth3 = DecodeFloatRGBA(encodeDepth3);
         groupshadredDepths[groupIndex] = min(depth0, min(depth1, min(depth2, depth3)));
     }
     GroupMemoryBarrierWithGroupSync();
@@ -42,5 +47,56 @@ void HizGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDE
         float depth2 = groupshadredDepths[groupIndex + 32];
         float depth3 = groupshadredDepths[groupIndex + 32 + 4];
         _HizMap[groupId.xy] = min(depth0, min(depth1, min(depth2, depth3)));
+    }
+}
+
+#pragma kernel HizMipGenerator
+
+float4 _MipOffset;
+
+[numthreads(8,8,1)]
+void HizMipGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    uint2 pos = id.xy + _MipOffset.xy;
+    float2 mipSize = _MipOffset.zw;
+    float2 offset = _MipOffset.xy + float2(mipSize.x, 0.0);
+    // >> 1
+    if((groupThreadID.x % 2) == 0 && (groupThreadID.y % 2) == 0)
+    {
+        float depth0 = _HizMap[pos];
+        float depth1 = _HizMap[pos + uint2(1, 0)];
+        float depth2 = _HizMap[pos + uint2(0, 1)];
+        float depth3 = _HizMap[pos + uint2(1, 1)];
+        float minDepth = min(depth0, min(depth1, min(depth2, depth3)));
+        groupshadredDepths[groupIndex] = minDepth;
+        _HizMap[id.xy / 2 + ceil(offset)] = minDepth;
+    }
+    GroupMemoryBarrierWithGroupSync();
+    mipSize *= 0.5;
+    if(any(mipSize <= 1)) return;
+    offset += float2(0, mipSize.y);
+    // >> 2
+    if((groupThreadID.x % 4) == 0 && (groupThreadID.y % 4) == 0)
+    {
+        float depth0 = groupshadredDepths[groupIndex];
+        float depth1 = groupshadredDepths[groupIndex + 2];
+        float depth2 = groupshadredDepths[groupIndex + 16];
+        float depth3 = groupshadredDepths[groupIndex + 16 + 2];
+        float minDepth = min(depth0, min(depth1, min(depth2, depth3)));
+        groupshadredDepths[groupIndex] = minDepth;
+        _HizMap[id.xy / 4 + ceil(offset)] = minDepth;
+    }
+    GroupMemoryBarrierWithGroupSync();
+    mipSize *= 0.5;
+    if(any(mipSize <= 1)) return;
+    offset += float2(mipSize.x, 0);
+    // >> 3 is real store
+    if((groupThreadID.x % 8) == 0 && (groupThreadID.y % 8) == 0)
+    {
+        float depth0 = groupshadredDepths[groupIndex];
+        float depth1 = groupshadredDepths[groupIndex + 4];
+        float depth2 = groupshadredDepths[groupIndex + 32];
+        float depth3 = groupshadredDepths[groupIndex + 32 + 4];
+        _HizMap[groupId.xy + ceil(offset)] = min(depth0, min(depth1, min(depth2, depth3)));
     }
 }

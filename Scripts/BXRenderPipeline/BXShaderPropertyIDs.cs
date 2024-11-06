@@ -45,8 +45,10 @@ namespace BXRenderPipeline
 
         public static int _FrameBuffer_ID = Shader.PropertyToID("_FrameBuffer");
         public static int _DepthBuffer_ID = Shader.PropertyToID("_DepthBuffer");
+        public static int _EncodeDepthBuffer_ID = Shader.PropertyToID("_EncodeDepthBuffer");
         public static RenderTargetIdentifier _FrameBuffer_TargetID = new RenderTargetIdentifier(_FrameBuffer_ID);
         public static RenderTargetIdentifier _DepthBuffer_TargetID = new RenderTargetIdentifier(_DepthBuffer_ID);
+        public static RenderTargetIdentifier _EncodeDepthBuffer_TargetID = new RenderTargetIdentifier(_EncodeDepthBuffer_ID);
         public static int _PostProcessInput_ID = Shader.PropertyToID("_PostProcessInput");
         public static int _ClusterSize_ID = Shader.PropertyToID("_ClusterSize");
         public static int _ClusterLightingIndices_ID = Shader.PropertyToID("_ClusterLightingIndices");
