@@ -59,7 +59,7 @@ namespace BXRenderPipeline
 			this.cs = mainRender.commonSettings.hizCompute;
 			this.screenSize = new Vector2Int(mainRender.width, mainRender.height);
 			this.projectionMatrix = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix, false) * mainRender.camera.worldToCameraMatrix;
-			int texW = (mainRender.width >> 3) + (mainRender.width >> 4);
+			int texW = ((mainRender.width >> 3) + (mainRender.width >> 4)) + 1;
 			int texH = mainRender.height >> 3;
 			//texW = Mathf.IsPowerOfTwo(texW) ? texW : Mathf.NextPowerOfTwo(texW);
 			//texH = Mathf.IsPowerOfTwo(texH) ? texH : Mathf.NextPowerOfTwo(texH);
@@ -223,13 +223,13 @@ namespace BXRenderPipeline
 					float d3 = hizReadbackData[index3];
 					Debug.Log("d0: " + d0 + " === " + d1 + " === " + d2 + " === " + d3);
 					float minD = Mathf.Min(d0, Mathf.Min(d1, Mathf.Min(d2, d3)));
-					if (minD > aabbMin.z)
+					if (minD > aabbMax.z)
 					{
-						Debug.Log("Be Culled: " + minD + " === " + aabbMin.z);
+						Debug.Log("Be Culled: " + minD + " === " + aabbMax.z);
 					}
 					else
 					{
-						Debug.Log("Not Culled: " + minD + " === " + aabbMin.z);
+						Debug.Log("Not Culled: " + minD + " === " + aabbMax.z);
 					}
 				}
 
