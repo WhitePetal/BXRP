@@ -71,6 +71,7 @@ namespace BXRenderPipelineDeferred
             context.SetupCameraProperties(camera);
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
             GenerateGraphicsBuffe();
+            BXHiZManager.instance.CompleteCull();
             DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures, onPostProcessRenderFeatures);
 
             BXHiZManager.instance.Render(commandBuffer);

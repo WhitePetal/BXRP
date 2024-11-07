@@ -2,19 +2,29 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity.Mathematics;
+using Unity.Burst;
 
 namespace BXRenderPipeline
 {
 	public class BXHiZManager : IDisposable
 	{
+		private Dictionary<int, Renderer> rendererDic = new Dictionary<int, Renderer>(2048);
+
 		private struct CullingObjectData
         {
-			public Vector4 boundCenter;
-			public Vector4 boundSize;
-			//public ObjectRenderTest component;
-        };
+			public float3 boundCenter;
+			public float3 boundSize;
+			public uint renderLayerMask;
+			[ReadOnly]
+			public int instanceID;
+
+			public Renderer renderer => instance.rendererDic[instanceID];
+		};
 
 		private static readonly Lazy<BXHiZManager> s_Instance = new Lazy<BXHiZManager>(() => new BXHiZManager());
 
@@ -26,9 +36,9 @@ namespace BXRenderPipeline
 
 		public int frameIndex;
 
-		private Vector2Int screenSize;
-		private Vector2Int texSize;
-		private Vector4[] mipSizes; // x,y offset, z,w mip size
+		private int2 screenSize;
+		private int2 texSize;
+		private NativeArray<float4> mipSizes; // x,y offset, z,w mip size
 
 		private Matrix4x4 projectionMatrix;
 
@@ -36,28 +46,48 @@ namespace BXRenderPipeline
 		private int cullingObjectCount;
 
 		private ComputeShader cs;
-		private NativeArray<float> hizReadbackData;
+		private NativeArray<float>[] hizReadbackDatas;
 
-		private NativeArray<CullingObjectData> cullingObjects = new NativeArray<CullingObjectData>(1024, Allocator.Persistent);
+		private NativeArray<CullingObjectData> cullingObjects;
 
-		private bool isReadbacking;
+		private Action<AsyncGPUReadbackRequest>[] readBackActions;
+
+		private bool[] isReadbacking;
+		private int[] readBackStartTime;
+
+		private int willReadBackIndex;
+		private int lastReadBackStartTime;
+		private int compeleteReadBackCount;
+		private int validReadBackIndex;
 
 		private bool isViewCamera;
 
 		public void Initialize()
 		{
+			if (isInitialized) return;
 			hizBuffers = new RenderTexture[3];
-			mipSizes = new Vector4[16];
+			isReadbacking = new bool[3];
+			readBackStartTime = new int[3];
+			hizReadbackDatas = new NativeArray<float>[3];
+			readBackActions = new Action<AsyncGPUReadbackRequest>[]
+			{
+				ReadBack0, ReadBack1, ReadBack2
+			};
+			mipSizes = new NativeArray<float4>(16, Allocator.Persistent);
+			cullingObjects = new NativeArray<CullingObjectData>(2048, Allocator.Persistent);
 			frameIndex = 0;
+			willReadBackIndex = 0;
+			validReadBackIndex = -1;
+			lastReadBackStartTime = 0;
+			compeleteReadBackCount = 0;
 		}
 
 		public void Setup(BXMainCameraRenderBase mainRender)
         {
 			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
-
 			if (isViewCamera) return;
 			this.cs = mainRender.commonSettings.hizCompute;
-			this.screenSize = new Vector2Int(mainRender.width, mainRender.height);
+			this.screenSize = math.int2(mainRender.width, mainRender.height);
 			this.projectionMatrix = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix, false) * mainRender.camera.worldToCameraMatrix;
 			int texW = ((mainRender.width >> 3) + (mainRender.width >> 4)) + 1;
 			int texH = mainRender.height >> 3;
@@ -76,78 +106,112 @@ namespace BXRenderPipeline
         {
 			if (isViewCamera) return;
 			commandBuffer.BeginSample("Hi-Z");
-			commandBuffer.SetComputeTextureParam(cs, 0, "_DepthMap", BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
-			commandBuffer.SetComputeTextureParam(cs, 0, "_HizMap", hizBuffers[0]);
-			commandBuffer.DispatchCompute(cs, 0, Mathf.CeilToInt(screenSize.x / 8), Mathf.CeilToInt(screenSize.y / 8), 1);
-
-			Vector2 mipSize = new Vector2(screenSize.x >> 3, texSize.y);
-			Vector4 mipOffset = new Vector4(0, 0, mipSize.x, mipSize.y);
-			mipSizes[mipCount++] = mipOffset;
-			while (mipSize.x > 1 && mipSize.y > 1)
+            if (!isReadbacking[willReadBackIndex])
             {
-				commandBuffer.SetComputeVectorParam(cs, "_MipOffset", mipOffset);
-				commandBuffer.SetComputeTextureParam(cs, 1, "_HizMap", hizBuffers[0]);
-				commandBuffer.DispatchCompute(cs, 1, Mathf.CeilToInt(mipSize.x / 8f), Mathf.CeilToInt(mipSize.y / 8f), 1);
-				mipOffset += new Vector4(mipSize.x, 0, 0, 0);
-				mipSize *= 0.5f;
-				mipSizes[mipCount++] = new Vector4(mipOffset.x, mipOffset.y, mipSize.x, mipSize.y);
-				if (mipSize.x <= 1 || mipSize.y <= 1) break;
-				mipOffset += new Vector4(0, mipSize.y, 0, 0);
-				mipSize *= 0.5f;
-				mipSizes[mipCount++] = new Vector4(mipOffset.x, mipOffset.y, mipSize.x, mipSize.y);
-				if (mipSize.x <= 1 || mipSize.y <= 1) break;
-				mipOffset += new Vector4(mipSize.x, 0, 0, 0);
-				mipSize *= 0.5f;
-				mipOffset.z = mipSize.x;
-				mipOffset.w = mipSize.y;
-				mipSizes[mipCount++] = new Vector4(mipOffset.x, mipOffset.y, mipSize.x, mipSize.y);
-			}
+				commandBuffer.SetComputeTextureParam(cs, 0, "_DepthMap", BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
+				commandBuffer.SetComputeTextureParam(cs, 0, "_HizMap", hizBuffers[willReadBackIndex]);
+				commandBuffer.DispatchCompute(cs, 0, Mathf.CeilToInt(screenSize.x / 8), Mathf.CeilToInt(screenSize.y / 8), 1);
 
-            if (!isReadbacking)
-            {
-				hizReadbackData = new NativeArray<float>(texSize.x * texSize.y, Allocator.Persistent);
-				commandBuffer.RequestAsyncReadbackIntoNativeArray<float>(ref hizReadbackData, hizBuffers[0], ReadBack);
-				isReadbacking = true;
+				float2 mipSize = math.float2(screenSize.x >> 3, texSize.y);
+				float4 mipOffset = math.float4(0, 0, mipSize.x, mipSize.y);
+				mipSizes[mipCount++] = mipOffset;
+				while (mipSize.x > 1 && mipSize.y > 1)
+				{
+					commandBuffer.SetComputeVectorParam(cs, "_MipOffset", mipOffset);
+					commandBuffer.SetComputeTextureParam(cs, 1, "_HizMap", hizBuffers[willReadBackIndex]);
+					commandBuffer.DispatchCompute(cs, 1, Mathf.CeilToInt(mipSize.x / 8f), Mathf.CeilToInt(mipSize.y / 8f), 1);
+					mipOffset += math.float4(mipSize.x, 0, 0, 0);
+					mipSize *= 0.5f;
+					mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
+					if (mipSize.x <= 1 || mipSize.y <= 1) break;
+					mipOffset += math.float4(0, mipSize.y, 0, 0);
+					mipSize *= 0.5f;
+					mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
+					if (mipSize.x <= 1 || mipSize.y <= 1) break;
+					mipOffset += math.float4(mipSize.x, 0, 0, 0);
+					mipSize *= 0.5f;
+					mipOffset.z = mipSize.x;
+					mipOffset.w = mipSize.y;
+					mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
+				}
+
+				hizReadbackDatas[willReadBackIndex] = new NativeArray<float>(texSize.x * texSize.y, Allocator.Persistent);
+				commandBuffer.RequestAsyncReadbackIntoNativeArray<float>(ref hizReadbackDatas[willReadBackIndex], hizBuffers[willReadBackIndex], readBackActions[willReadBackIndex]);
+				isReadbacking[willReadBackIndex] = true;
+				readBackStartTime[willReadBackIndex] = Time.frameCount;
+				//willReadBackIndex = willReadBackIndex == 2 ? 0 : (willReadBackIndex + 1);
 			}
 			commandBuffer.EndSample("Hi-Z");
         }
 
-		public void Register(ObjectRenderTest obj)
+		public void Register(Renderer renderer, int instanceID)
         {
 			if (isViewCamera) return;
-			MeshRenderer mr = obj.GetComponent<MeshRenderer>();
+			rendererDic[instanceID] = renderer;
 			CullingObjectData data = new CullingObjectData()
 			{
-				boundCenter = mr.bounds.center,
-				boundSize = mr.bounds.size,
-				//component = obj
-			};
+				boundCenter = renderer.bounds.center,
+				boundSize = renderer.bounds.size,
+				instanceID = instanceID
+            };
 			cullingObjects[cullingObjectCount++] = data;
+		}
+
+		public void CompleteCull()
+        {
+			if (isViewCamera || validReadBackIndex == -1 || isReadbacking[validReadBackIndex]) return;
+			HizCullJob cullJob = new HizCullJob()
+			{
+				hizData = hizReadbackDatas[validReadBackIndex],
+				cullingObjectDatas = cullingObjects,
+				projectionMatrix = projectionMatrix,
+				screenSize = screenSize,
+				texSize = texSize,
+				mipCount = mipCount,
+				mipSizes = mipSizes
+			};
+			JobHandle handle = cullJob.Schedule(cullingObjectCount, 8);
+			handle.Complete();
+			hizReadbackDatas[validReadBackIndex].Dispose();
+			for(int i = 0; i < cullingObjectCount; ++i)
+            {
+				var data = cullingObjects[i];
+				data.renderer.renderingLayerMask = data.renderLayerMask;
+            }
+			--compeleteReadBackCount;
 		}
 
 		public void Dispose()
 		{
-			if (isReadbacking)
-			{
-				AsyncGPUReadback.WaitAllRequests();
-				isReadbacking = false;
+			for(int i = 0; i < 3; ++i)
+            {
+				if (isReadbacking[i])
+				{
+					AsyncGPUReadback.WaitAllRequests();
+					isReadbacking[i] = false;
+				}
 			}
 			if (isInitialized)
             {
 				for(int i = 0; i < 3; ++i)
                 {
 					hizBuffers[i].Release();
-                }
+					if (hizReadbackDatas[i].IsCreated) hizReadbackDatas[i].Dispose();
+				}
+				mipSizes.Dispose();
+				cullingObjects.Dispose();
 				hizBuffers = null;
 				isInitialized = false;
 			}
-			cullingObjects.Dispose();
-            mipSizes = null;
+			rendererDic = null;
+			isReadbacking = null;
+			hizReadbackDatas = null;
+			readBackActions = null;
 		}
 
 		private void GenerateHizBuffers(int texW, int texH)
         {
-			texSize = new Vector2Int(texW, texH);
+			texSize = math.int2(texW, texH);
 			//Vector2 mipSize = new Vector2(texW >> 1, texH);
 			//while(mipSize.x > 1)
 			RenderTextureDescriptor rd = new RenderTextureDescriptor(texW, texH, UnityEngine.Experimental.Rendering.GraphicsFormat.R32_SFloat, 0);
@@ -161,7 +225,7 @@ namespace BXRenderPipeline
 			}
 		}
 
-		private void ReadBack(AsyncGPUReadbackRequest obj)
+		private void ReadBack0(AsyncGPUReadbackRequest obj)
 		{
 			if (obj.done)
 			{
@@ -169,81 +233,141 @@ namespace BXRenderPipeline
 				{
 					throw new Exception("Hi-Z Readback Error");
 				}
-				for (int i = 0; i < cullingObjectCount; ++i)
+				Cull(ref obj, 0);
+			}
+		}
+		private void ReadBack1(AsyncGPUReadbackRequest obj)
+		{
+			if (obj.done)
+			{
+				if (obj.hasError)
 				{
-					var data = cullingObjects[i];
-					Vector3 center = data.boundCenter;
-					Vector3 size = data.boundSize;
-					Vector3 p0 = center + size;
-					Vector3 p1 = center - size;
-					Vector3 p2 = center + new Vector3(size.x, size.y, -size.z);
-					Vector3 p3 = center + new Vector3(size.x, -size.y, -size.z);
-					Vector3 p4 = center + new Vector3(-size.x, -size.y, size.z);
-					Vector3 p5 = center + new Vector3(-size.x, size.y, -size.z);
-					Vector3 p6 = center + new Vector3(size.x, -size.y, size.z);
-					Vector3 p7 = center + new Vector3(-size.x, size.y, size.z);
-					Debug.Log("p0: " + p0);
-
-					p0 = GetNDCPos(p0);
-					Debug.Log("p0 ndc: " + p0);
-					p1 = GetNDCPos(p1);
-					p2 = GetNDCPos(p2);
-					p3 = GetNDCPos(p3);
-					p4 = GetNDCPos(p4);
-					p5 = GetNDCPos(p5);
-					p6 = GetNDCPos(p6);
-					p7 = GetNDCPos(p7);
-
-					Vector3 aabbMin = Vector3.Min(p0, Vector3.Min(p1, Vector3.Min(p2, Vector3.Min(p3, Vector3.Min(p4, Vector3.Min(p5, Vector3.Min(p6, p7)))))));
-					Vector3 aabbMax = Vector3.Max(p0, Vector3.Max(p1, Vector3.Max(p2, Vector3.Max(p3, Vector3.Max(p4, Vector3.Max(p5, Vector3.Max(p6, p7)))))));
-					Debug.Log("aabb: " + aabbMin + " === " + aabbMax);
-
-					Vector2 ndcSize = new Vector2(aabbMax.x - aabbMin.x, aabbMax.y - aabbMin.y) * screenSize;
-					float radius = Mathf.Max(ndcSize.x, ndcSize.y);
-					Debug.Log("radius: " + radius + " === " + ndcSize + " === " + screenSize);
-					int mip = Mathf.CeilToInt(Mathf.Log(radius, 2));
-					mip = Mathf.Clamp(mip, 0, mipCount - 1);
-					Vector4 mipSize = mipSizes[mip];
-					Debug.Log("mip: " + mip + " === " + mipSize + " === " + mipCount);
-
-					Vector2 minPx = new Vector2(aabbMin.x * mipSize.z, aabbMin.y * mipSize.w) + new Vector2(mipSize.x, mipSize.y);
-					Vector2 maxPx = new Vector2(aabbMax.x * mipSize.z, aabbMax.y * mipSize.w) + new Vector2(mipSize.x, mipSize.y);
-
-					Debug.Log("minPx: " + minPx);
-					Debug.Log("mipStart: " + new Vector2(mipSize.x, mipSize.y) + "mipEnd: " + new Vector2(mipSize.x + mipSize.z, mipSize.y + mipSize.w));
-					int index0 = Mathf.CeilToInt(minPx.x + minPx.y * texSize.x);
-					Debug.Log("index0: " + index0);
-					int index1 = Mathf.CeilToInt(minPx.x + maxPx.y * texSize.x);
-					int index2 = Mathf.CeilToInt(maxPx.x + maxPx.y * texSize.x);
-					int index3 = Mathf.CeilToInt(maxPx.x + minPx.y * texSize.x);
-
-					float d0 = hizReadbackData[index0];
-					float d1 = hizReadbackData[index1];
-					float d2 = hizReadbackData[index2];
-					float d3 = hizReadbackData[index3];
-					Debug.Log("d0: " + d0 + " === " + d1 + " === " + d2 + " === " + d3);
-					float minD = Mathf.Min(d0, Mathf.Min(d1, Mathf.Min(d2, d3)));
-					if (minD > aabbMax.z)
-					{
-						Debug.Log("Be Culled: " + minD + " === " + aabbMax.z);
-					}
-					else
-					{
-						Debug.Log("Not Culled: " + minD + " === " + aabbMax.z);
-					}
+					throw new Exception("Hi-Z Readback Error");
 				}
-
-				isReadbacking = false;
-				hizReadbackData.Dispose();
+				Cull(ref obj, 1);
+			}
+		}
+		private void ReadBack2(AsyncGPUReadbackRequest obj)
+		{
+			if (obj.done)
+			{
+				if (obj.hasError)
+				{
+					throw new Exception("Hi-Z Readback Error");
+				}
+				Cull(ref obj, 2);
 			}
 		}
 
-		private Vector3 GetNDCPos(Vector3 pos)
-		{
-			Vector4 p = projectionMatrix * new Vector4(pos.x, pos.y, pos.z, 1f);
-			p = new Vector4(p.x / p.w, p.y / p.w, p.z / p.w, 1f);
-			p = new Vector4(p.x * 0.5f + 0.5f, 1f - (p.y * 0.5f + 0.5f), p.z, 1f);
-			return p;
+		//[BurstCompile]
+        private struct HizCullJob : IJobParallelFor
+        {
+			public NativeArray<CullingObjectData> cullingObjectDatas;
+			[ReadOnly]
+			public NativeArray<float> hizData;
+			[ReadOnly]
+			public Matrix4x4 projectionMatrix;
+			[ReadOnly]
+			public int2 screenSize;
+			[ReadOnly]
+			public int mipCount;
+			[ReadOnly]
+			public NativeArray<float4> mipSizes;
+			[ReadOnly]
+			public int2 texSize;
+
+			private float3 GetNDCPos(float3 pos)
+			{
+				float4 p = projectionMatrix * math.float4(pos.x, pos.y, pos.z, 1f);
+				p.xyz /= p.w;
+				p.xy = p.xy * 0.5f + 0.5f;
+				//p.y = 1.0f - p.y;
+				return p.xyz;
+			}
+
+			public void Execute(int i)
+            {
+				var data = cullingObjectDatas[i];
+				float3 center = data.boundCenter;
+				float3 size = data.boundSize;
+		
+				float3 p0 = center + size;
+				float3 p1 = center - size;
+				float3 p2 = math.float3(p0.xy, p1.z);     // + + -
+				float3 p3 = math.float3(p0.x, p1.yz);     // + - -
+				float3 p4 = math.float3(p1.xy, p0.z);     // - - +
+				float3 p5 = math.float3(p1.x, p0.y, p1.z);// - + -
+				float3 p6 = math.float3(p0.x, p1.y, p0.z);// + - +
+				float3 p7 = math.float3(p1.x, p0.yz);	  // - + +
+
+				p0 = GetNDCPos(p0);
+				p1 = GetNDCPos(p1);
+				p2 = GetNDCPos(p2);
+				p3 = GetNDCPos(p3);
+				p4 = GetNDCPos(p4);
+				p5 = GetNDCPos(p5);
+				p6 = GetNDCPos(p6);
+				p7 = GetNDCPos(p7);
+
+				float3 aabbMin = math.min(p0, math.min(p1, math.min(p2, math.min(p3, math.min(p4, math.min(p5, math.min(p6, p7)))))));
+				float3 aabbMax = math.max(p0, math.max(p1, math.max(p2, math.max(p3, math.max(p4, math.max(p5, math.max(p6, p7)))))));
+
+				if(math.any(aabbMax < math.float3(0f)))
+                {
+					data.renderLayerMask = 0;
+					return;
+				}
+				if(math.any(aabbMin > math.float3(1f)))
+                {
+					data.renderLayerMask = 0;
+					return;
+				}
+
+				float2 ndcSize = (aabbMax.xy - aabbMin.xy) * screenSize;
+				float radius = math.max(ndcSize.x, ndcSize.y);
+				int mip = (int)math.floor(math.log2(radius));
+				mip = math.clamp(mip-2, 0, mipCount - 1);
+				float4 mipSize = mipSizes[mip];
+
+				int2 minPx = (int2)math.ceil(aabbMin.xy * mipSize.zw + mipSize.xy);
+				int2 maxPx = (int2)math.ceil(aabbMax.xy * mipSize.zw + mipSize.xy);
+
+				int index0 = minPx.x + minPx.y * texSize.x;
+				int index1 = minPx.x + maxPx.y * texSize.x;
+				int index2 = maxPx.x + maxPx.y * texSize.x;
+				int index3 = maxPx.x + minPx.y * texSize.x;
+
+				float d0 = hizData[index0];
+				float d1 = hizData[index1];
+				float d2 = hizData[index2];
+				float d3 = hizData[index3];
+				float minD = math.min(d0, math.min(d1, math.min(d2, d3)));
+				if (minD > aabbMax.z)
+				{
+					data.renderLayerMask = 0;
+				}
+				else
+				{
+					data.renderLayerMask = 1;
+				}
+				cullingObjectDatas[i] = data;
+			}
+        }
+
+        private void Cull(ref AsyncGPUReadbackRequest obj, int index)
+        {
+			isReadbacking[index] = false;
+			int startTime = readBackStartTime[index];
+			// 有更晚开启的回读任务提前完成了，那就丢弃这个更早开始的任务
+			// 有多个回读任务同时完成了，则使用最早被调用的那个任务
+			if(startTime < lastReadBackStartTime || compeleteReadBackCount > 0)
+            {
+				hizReadbackDatas[index].Dispose();
+				return;
+            }
+			++compeleteReadBackCount;
+			validReadBackIndex = index;
+			lastReadBackStartTime = startTime;
 		}
 	}
 }
