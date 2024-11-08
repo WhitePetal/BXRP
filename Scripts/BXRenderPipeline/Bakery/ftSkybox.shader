@@ -17,14 +17,16 @@ SubShader {
     Cull Off ZWrite Off
 
     Pass {
-
-        CGPROGRAM
+        // Tags { "LightMode"="BXDeferredBase"}
+        // Blend [_SrcBlend] [_DstBlend]
+        HLSLPROGRAM
+        #pragma target 4.5
         #pragma vertex vert
         #pragma fragment frag
+        #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
 
-        #include "UnityCG.cginc"
-
-        samplerCUBE _Tex;
+        TextureCube _Tex;
+        SamplerState sampler_Tex;
         half4 _Tex_HDR;
         half4 _Tint;
         half _Exposure;
@@ -34,41 +36,53 @@ SubShader {
 
         struct appdata_t {
             float4 vertex : POSITION;
-            UNITY_VERTEX_INPUT_INSTANCE_ID
         };
 
         struct v2f {
             float4 vertex : SV_POSITION;
             float3 texcoord : TEXCOORD0;
-            UNITY_VERTEX_OUTPUT_STEREO
+        };
+
+        struct GBuffer
+        {
+            half4 lighting : SV_TARGET0;
+            half4 albedo_roughness : SV_TARGET1;
+            half4 normal_metallic_mask : SV_TARGET2;
+            #if SHADER_API_METAL
+            half4 depth_metal : SV_TARGET3;
+            #endif
         };
 
         v2f vert (appdata_t v)
         {
             v2f o;
-            UNITY_SETUP_INSTANCE_ID(v);
-            UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
             float3x3 tform = float3x3(_MatrixRight, _MatrixUp, _MatrixForward);
             float3 pos = mul(tform, v.vertex.xyz);
-            o.vertex = UnityObjectToClipPos(pos);
+            o.vertex = TransformObjectToHClip(pos);
             o.texcoord = mul((float3x3)reflection2World, v.vertex.xyz);
             return o;
         }
 
-        fixed4 frag (v2f i) : SV_Target
+        GBuffer frag (v2f i)
         {
-            half4 tex = _NoTexture < 0.5 ? texCUBE (_Tex, i.texcoord) : half4(1,1,1,1);
+            GBuffer o;
+            half4 tex = _NoTexture < 0.5 ? _Tex.Sample(sampler_Tex, i.texcoord) : half4(1,1,1,1);
             half3 c = DecodeHDR (tex, _Tex_HDR);
-            if (unity_ColorSpaceDouble.x < 3) c = pow(c, 2.2f);
+            // if (unity_ColorSpaceDouble.x < 3) c = pow(c, 2.2f);
             c = c * _Tint.rgb;
             c *= _Exposure;
 
             if (_Hemispherical > 0.0f) c *= i.texcoord.y < 0 ? 0 : 1;
-            if (unity_ColorSpaceDouble.x < 3) c = pow(c, 1/2.2f);
+            // if (unity_ColorSpaceDouble.x < 3) c = pow(c, 1/2.2f);
+            o.lighting = half4(c, half(1.0));
+            o.albedo_roughness = half(0.0);
+            o.normal_metallic_mask = half(0.0);
+            o.depth_metal = half(0.0);
 
-            return half4(c, 1);
+
+            return o;
         }
-        ENDCG
+        ENDHLSL
     }
 }
 
