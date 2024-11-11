@@ -11,7 +11,7 @@ using Unity.Burst;
 
 namespace BXRenderPipeline
 {
-	public class BXHiZManagerComputeShader : IDisposable
+	public class BXHiZManagerPixelShader : IDisposable
 	{
 		private Dictionary<int, Renderer> rendererDic = new Dictionary<int, Renderer>(2048);
 
@@ -27,9 +27,9 @@ namespace BXRenderPipeline
 			public Renderer renderer => instance.rendererDic[instanceID];
 		};
 
-		private static readonly Lazy<BXHiZManagerComputeShader> s_Instance = new Lazy<BXHiZManagerComputeShader>(() => new BXHiZManagerComputeShader());
+		private static readonly Lazy<BXHiZManagerPixelShader> s_Instance = new Lazy<BXHiZManagerPixelShader>(() => new BXHiZManagerPixelShader());
 
-		public static BXHiZManagerComputeShader instance = s_Instance.Value;
+		public static BXHiZManagerPixelShader instance = s_Instance.Value;
 
 		public bool isInitialized { get; private set; }
 
@@ -70,7 +70,6 @@ namespace BXRenderPipeline
 			rtd.sRGB = false;
 			hizCullResultRT = new RenderTexture(rtd);
 			hizCullResultRT.enableRandomWrite = true;
-			hizCullResultRT.filterMode = FilterMode.Point;
 			hizCullResultRT.Create();
 			boundCentersTex.filterMode = FilterMode.Point;
 			boundSizesTex.filterMode = FilterMode.Point;
@@ -83,7 +82,7 @@ namespace BXRenderPipeline
 			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
 			if (isViewCamera) return;
             this.cs = mainRender.commonSettings.hizCompute;
-			this.projectionMatrix = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix, false) * mainRender.camera.worldToCameraMatrix;
+			this.projectionMatrix = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix * mainRender.camera.worldToCameraMatrix, false);
 			mipCount = 0;
 			this.screenSize = math.int2(mainRender.width, mainRender.height);
 			int texW = ((mainRender.width >> 3) + (mainRender.width >> 4)) + 1;
@@ -174,7 +173,6 @@ namespace BXRenderPipeline
 
 		public void ApplyCollectDatas()
         {
-			if (isViewCamera || isReadbacking) return;
 			boundCentersTex.Apply();
 			boundSizesTex.Apply();
 		}
@@ -228,7 +226,6 @@ namespace BXRenderPipeline
 
 				for (int i = 0; i < cullingObjectCount; ++i)
 				{
-					Debug.Log("data: " + hizReadbackDatas[i]);
 					if (hizReadbackDatas[i] <= 0f)
 						cullingObjects[i].renderer.renderingLayerMask = 0;
 					else

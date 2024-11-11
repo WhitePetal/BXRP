@@ -45,8 +45,8 @@ namespace BXRenderPipeline
 
 		private NativeArray<Matrix4x4> projectionMatrixs;
 
-		private int mipCount;
-		private int cullingObjectCount;
+		private NativeArray<int> mipCounts;
+		private NativeArray<int> cullingObjectCounts;
 
 		private ComputeShader cs;
 		private NativeArray<float>[] hizReadbackDatas;
@@ -83,8 +83,11 @@ namespace BXRenderPipeline
 			projectionMatrixs = new NativeArray<Matrix4x4>(3, Allocator.Persistent);
 			screenSizes = new NativeArray<int2>(3, Allocator.Persistent);
 			texSizes = new NativeArray<int2>(3, Allocator.Persistent);
+			mipCounts = new NativeArray<int>(3, Allocator.Persistent);
+			cullingObjectCounts = new NativeArray<int>(3, Allocator.Persistent);
 			for (int i = 0; i < 3; ++i)
 			{
+				isDone[i] = true;
 				mipSizeses[i] = new NativeArray<float4>(16, Allocator.Persistent);
 				cullingObjects[i] = new NativeArray<CullingObjectData>(2048, Allocator.Persistent);
 
@@ -99,13 +102,12 @@ namespace BXRenderPipeline
 
 		public void Setup(BXMainCameraRenderBase mainRender)
 		{
-			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
 			if (isViewCamera) return;
 			if (!isReadbacking[willReadBackIndex])
 			{
 				this.cs = mainRender.commonSettings.hizCompute;
-				mipCount = 0;
-				cullingObjectCount = 0;
+				mipCounts[willReadBackIndex] = 0;
+				cullingObjectCounts[willReadBackIndex] = 0;
 
 				this.projectionMatrixs[willReadBackIndex] = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix, false) * mainRender.camera.worldToCameraMatrix;
 				this.screenSizes[willReadBackIndex] = math.int2(mainRender.width, mainRender.height);
@@ -136,6 +138,7 @@ namespace BXRenderPipeline
 				float2 mipSize = math.float2(screenSize.x >> 3, texSize.y);
 				float4 mipOffset = math.float4(0, 0, mipSize.x, mipSize.y);
 				ref var mipSizes = ref mipSizeses[willReadBackIndex];
+				ref int mipCount = ref mipCounts.UnsafeElementAtMutable(willReadBackIndex);
 				mipSizes[mipCount++] = mipOffset;
 				while (mipSize.x > 1 && mipSize.y > 1)
 				{
@@ -177,11 +180,14 @@ namespace BXRenderPipeline
 				boundSize = renderer.bounds.size,
 				instanceID = instanceID
 			};
-			cullingObjects[willReadBackIndex][cullingObjectCount++] = data;
+			ref var cullingObjectCount = ref cullingObjectCounts.UnsafeElementAtMutable(willReadBackIndex);
+			ref var cullingObject = ref cullingObjects[willReadBackIndex];
+			cullingObject[cullingObjectCount++] = data;
 		}
 
-		public void CompleteCull()
+		public void CompleteCull(BXMainCameraRenderBase mainRender)
 		{
+			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
 			if (isViewCamera || validReadBackIndex == -1 || isReadbacking[validReadBackIndex] || isDone[validReadBackIndex]) return;
 			HizCullJob cullJob = new HizCullJob()
 			{
@@ -190,13 +196,14 @@ namespace BXRenderPipeline
 				projectionMatrix = projectionMatrixs[validReadBackIndex],
 				screenSize = screenSizes[validReadBackIndex],
 				texSize = texSizes[validReadBackIndex],
-				mipCount = mipCount,
+				mipCount = mipCounts[validReadBackIndex],
 				mipSizes = mipSizeses[validReadBackIndex]
 			};
-			JobHandle handle = cullJob.Schedule(cullingObjectCount, 8);
+			int count = cullingObjectCounts[validReadBackIndex];
+			JobHandle handle = cullJob.Schedule(count, 8);
 			handle.Complete();
 			hizReadbackDatas[validReadBackIndex].Dispose();
-			for(int i = 0; i < cullingObjectCount; ++i)
+			for(int i = 0; i < count; ++i)
             {
 				ref var data = ref cullingObjects[validReadBackIndex].UnsafeElementAt(i);
 				data.renderer.renderingLayerMask = data.renderLayerMask;
@@ -227,6 +234,8 @@ namespace BXRenderPipeline
 				screenSizes.Dispose();
 				texSizes.Dispose();
 				projectionMatrixs.Dispose();
+				mipCounts.Dispose();
+				cullingObjectCounts.Dispose();
 				mipSizeses = null;
 				cullingObjects = null;
 				hizBuffers = null;

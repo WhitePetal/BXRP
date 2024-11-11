@@ -40,6 +40,7 @@ namespace BXRenderPipelineDeferred
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
+            BXHiZManagerJobSystem.instance.CompleteCull(this);
             BXHiZManagerJobSystem.instance.Setup(this);
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
@@ -72,7 +73,6 @@ namespace BXRenderPipelineDeferred
             context.SetupCameraProperties(camera);
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
             GenerateGraphicsBuffe();
-            BXHiZManagerJobSystem.instance.CompleteCull();
             DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures, onPostProcessRenderFeatures);
 
             BXHiZManagerJobSystem.instance.Render(commandBuffer);
