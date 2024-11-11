@@ -1,7 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel HizGenerator
 
-Texture2D<float4> _DepthMap;
+Texture2D<float4> _EncodeDepthBuffer;
 RWTexture2D<float> _HizMap;
 
 groupshared float groupshadredDepths[8 * 8];
@@ -18,10 +18,10 @@ void HizGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDE
     // >> 1
     if((groupThreadID.x % 2) == 0 && (groupThreadID.y % 2) == 0)
     {
-        float4 encodeDepth0 = _DepthMap[id.xy];
-        float4 encodeDepth1 = _DepthMap[id.xy + uint2(1, 0)];
-        float4 encodeDepth2 = _DepthMap[id.xy + uint2(0, 1)];
-        float4 encodeDepth3 = _DepthMap[id.xy + uint2(1, 1)];
+        float4 encodeDepth0 = _EncodeDepthBuffer[id.xy];
+        float4 encodeDepth1 = _EncodeDepthBuffer[id.xy + uint2(1, 0)];
+        float4 encodeDepth2 = _EncodeDepthBuffer[id.xy + uint2(0, 1)];
+        float4 encodeDepth3 = _EncodeDepthBuffer[id.xy + uint2(1, 1)];
         float depth0 = DecodeFloatRGBA(encodeDepth0);
         float depth1 = DecodeFloatRGBA(encodeDepth1);
         float depth2 = DecodeFloatRGBA(encodeDepth2);
@@ -98,5 +98,84 @@ void HizMipGenerator(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPI
         float depth2 = groupshadredDepths[groupIndex + 32];
         float depth3 = groupshadredDepths[groupIndex + 32 + 4];
         _HizMap[groupId.xy + ceil(offset)] = min(depth0, min(depth1, min(depth2, depth3)));
+    }
+}
+
+
+#pragma kernel HizCulling
+
+Texture2D<float4> _BoundCentersTex;
+Texture2D<float4> _BoundSizesTex;
+Texture2D<float> _HizMapInput;
+int4 _HizParams;
+float4 _HizMipSize[16];
+float4x4 unity_MatrixVP;
+RWTexture2D<float> _HizResultRT;
+
+
+inline float4 GetNDCPos(float4 pos)
+{
+    float4 p = mul(unity_MatrixVP, pos);
+    p.xyz /= p.w;
+    p.xy = p.xy * 0.5 + 0.5;
+    // p.y = 1.0f - p.y;
+    return p;
+}
+
+[numthreads(8,8,1)]
+void HizCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    float3 size = _BoundSizesTex[id.xy].xyz;
+    // if(all(size <= 0.0))
+    if(id.x + id.y * 8 >= (uint)_HizParams.w) 
+    {
+        _HizResultRT[id.xy] = 0.0;
+        return;
+    }
+    float3 center = _BoundCentersTex[id.xy].xyz;
+
+    float4 p0 = float4(center + size, 1.0);
+    float4 p1 = float4(center - size, 1.0);
+    float4 p2 = float4(p0.x, p0.y, p1.z, 1.0); // + + -
+    float4 p3 = float4(p0.x, p1.y, p1.z, 1.0); // + - -
+    float4 p4 = float4(p1.x, p0.y, p0.z, 1.0); // - + +
+    float4 p5 = float4(p1.x, p1.y, p0.z, 1.0); // - - +
+    float4 p6 = float4(p1.x, p0.y, p1.z, 1.0); // - + -
+    float4 p7 = float4(p0.x, p1.y, p0.z, 1.0); // + - +
+
+    p0 = GetNDCPos(p0);
+    p1 = GetNDCPos(p1);
+    p2 = GetNDCPos(p2);
+    p3 = GetNDCPos(p3);
+    p4 = GetNDCPos(p4);
+    p5 = GetNDCPos(p5);
+    p6 = GetNDCPos(p6);
+    p7 = GetNDCPos(p7);
+
+    float3 aabbMin = min(p0, min(p1, min(p2, min(p3, min(p4, min(p5, min(p6, p7))))))).xyz;
+    float3 aabbMax = max(p0, max(p1, max(p2, max(p3, max(p4, max(p5, max(p6, p7))))))).xyz;
+
+    float2 ndcSize = (aabbMax.xy - aabbMin.xy) * _HizParams.xy;
+    float radius = min(ndcSize.x, ndcSize.y);
+    int mip = (int)floor(log2(radius));
+    // or not mip - 2 for more safe culling
+    mip = clamp(mip-2, 0, _HizParams.z);
+    float4 mipSize = _HizMipSize[mip];
+
+    int2 minPx = ceil(aabbMin.xy * mipSize.zw + mipSize.xy);
+    int2 maxPx = ceil(aabbMax.xy * mipSize.zw + mipSize.xy);
+
+    float d0 = _HizMapInput[minPx];
+    float d1 = _HizMapInput[maxPx];
+    float d2 = _HizMapInput[int2(minPx.x, maxPx.y)];
+    float d3 = _HizMapInput[int2(maxPx.x, minPx.y)];
+    float minD = min(d0, min(d1, min(d2, d3)));
+    if (minD > aabbMax.z)
+    {
+        _HizResultRT[id.xy] = 0.0;
+    }
+    else
+    {
+        _HizResultRT[id.xy] = 1.0;
     }
 }

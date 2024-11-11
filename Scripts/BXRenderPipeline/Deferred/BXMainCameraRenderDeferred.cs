@@ -40,7 +40,7 @@ namespace BXRenderPipelineDeferred
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
-            BXHiZManager.instance.Setup(this);
+            BXHiZManagerJobSystem.instance.Setup(this);
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
             SetupRenderFeatures(beforeRenderRenderFeatures);
@@ -58,6 +58,7 @@ namespace BXRenderPipelineDeferred
 
             maxShadowDistance = Mathf.Min(camera.farClipPlane, commonSettings.maxShadowDistance);
             if (!Cull(maxShadowDistance)) return;
+            //BXHiZManager.instance.ApplyCollectDatas();
 
             worldToViewMatrix = camera.worldToCameraMatrix;
             viewToWorldMatrix = camera.cameraToWorldMatrix;
@@ -71,10 +72,10 @@ namespace BXRenderPipelineDeferred
             context.SetupCameraProperties(camera);
             ExecuteRenderFeatures(beforeRenderRenderFeatures);
             GenerateGraphicsBuffe();
-            BXHiZManager.instance.CompleteCull();
+            BXHiZManagerJobSystem.instance.CompleteCull();
             DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures, onPostProcessRenderFeatures);
 
-            BXHiZManager.instance.Render(commandBuffer);
+            BXHiZManagerJobSystem.instance.Render(commandBuffer);
 
             CleanUp();
             Submit();

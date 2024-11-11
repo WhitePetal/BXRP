@@ -82,7 +82,7 @@ namespace BXRenderPipeline
 			Assert.IsTrue(commonSettings.coreBlitColorAndDepthPS != null, "CommonSettings CoreBlitColorAndDepth Shader is null");
 			Blitter.Initialize(commonSettings.coreBlitPS, commonSettings.coreBlitColorAndDepthPS);
 			BXVolumeManager.instance.Initialize();
-			BXHiZManager.instance.Initialize();
+			BXHiZManagerJobSystem.instance.Initialize();
 		}
 
 		protected override void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -107,7 +107,7 @@ namespace BXRenderPipeline
 
 		protected override void Dispose(bool disposing)
 		{
-			BXHiZManager.instance.Dispose();
+			BXHiZManagerJobSystem.instance.Dispose();
 			mainCameraRender.Dispose();
 			mainCameraRender = null;
 			otherCameraRender.Dispose();

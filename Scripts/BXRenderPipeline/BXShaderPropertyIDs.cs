@@ -113,5 +113,8 @@ namespace BXRenderPipeline
             new RenderTargetIdentifier(_BloomTempRT_IDs[8]),
             new RenderTargetIdentifier(_BloomTempRT_IDs[9]),
         };
+
+        public static int _HiZMap_ID = Shader.PropertyToID("_HizMap");
+        public static int _MipOffset_ID = Shader.PropertyToID("_MipOffset");
     }
 }

@@ -11,7 +11,7 @@ using Unity.Burst;
 
 namespace BXRenderPipeline
 {
-	public class BXHiZManager : IDisposable
+	public class BXHiZManagerJobSystem : IDisposable
 	{
 		private Dictionary<int, Renderer> rendererDic = new Dictionary<int, Renderer>(2048);
 
@@ -29,9 +29,9 @@ namespace BXRenderPipeline
 			public Renderer renderer => instance.rendererDic[instanceID];
 		};
 
-		private static readonly Lazy<BXHiZManager> s_Instance = new Lazy<BXHiZManager>(() => new BXHiZManager());
+		private static readonly Lazy<BXHiZManagerJobSystem> s_Instance = new Lazy<BXHiZManagerJobSystem>(() => new BXHiZManagerJobSystem());
 
-		public static BXHiZManager instance = s_Instance.Value;
+		public static BXHiZManagerJobSystem instance = s_Instance.Value;
 
 		public RenderTexture[] hizBuffers;
 
@@ -127,7 +127,7 @@ namespace BXRenderPipeline
 			commandBuffer.BeginSample("Hi-Z");
 			if (!isReadbacking[willReadBackIndex])
 			{
-				commandBuffer.SetComputeTextureParam(cs, 0, "_DepthMap", BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
+				commandBuffer.SetComputeTextureParam(cs, 0, BXShaderPropertyIDs._EncodeDepthBuffer_ID, BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
 				commandBuffer.SetComputeTextureParam(cs, 0, "_HizMap", hizBuffers[willReadBackIndex]);
 				int2 screenSize = screenSizes[willReadBackIndex];
 				commandBuffer.DispatchCompute(cs, 0, Mathf.CeilToInt(screenSize.x / 8), Mathf.CeilToInt(screenSize.y / 8), 1);
