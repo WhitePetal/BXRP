@@ -42,6 +42,7 @@ namespace BXRenderPipeline
         public Shader coreBlitColorAndDepthPS;
         public ComputeShader clusterLightCompute;
         public ComputeShader hizCompute;
+        public Material hizPixelMat;
 
         [Header("分辨率")]
         [Range(0.1f, 4f)]

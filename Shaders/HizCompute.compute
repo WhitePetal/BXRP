@@ -108,6 +108,7 @@ Texture2D<float4> _BoundCentersTex;
 Texture2D<float4> _BoundSizesTex;
 Texture2D<float> _HizMapInput;
 int4 _HizParams;
+int2 _HizTexSize;
 float4 _HizMipSize[16];
 float4x4 _HizProjectionMatrix;
 RWTexture2D<float> _HizResultRT;
@@ -127,7 +128,7 @@ void HizCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX,
 {
     float3 size = _BoundSizesTex[id.xy].xyz;
     // if(all(size <= 0.0))
-    if(id.x + id.y * 8 >= (uint)_HizParams.w) 
+    if(id.x + id.y * 64 > (uint)_HizParams.w) 
     {
         _HizResultRT[id.xy] = 0.0;
         return;
@@ -161,15 +162,15 @@ void HizCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX,
     // or not mip - 2 for more safe culling
     mip = clamp(mip-2, 0, _HizParams.z);
     float4 mipSize = _HizMipSize[mip];
-    int2 minPx = ceil(aabbMin.xy * mipSize.zw + mipSize.xy);
-    int2 maxPx = ceil(aabbMax.xy * mipSize.zw + mipSize.xy);
+    int2 minPx = clamp(ceil(aabbMin.xy * mipSize.zw + mipSize.xy), 0, _HizTexSize);
+    int2 maxPx = clamp(ceil(aabbMax.xy * mipSize.zw + mipSize.xy), 0, _HizTexSize);
 
     float d0 = _HizMapInput[minPx];
     float d1 = _HizMapInput[maxPx];
     float d2 = _HizMapInput[int2(minPx.x, maxPx.y)];
     float d3 = _HizMapInput[int2(maxPx.x, minPx.y)];
     float minD = min(d0, min(d1, min(d2, d3)));
-    if (minD >= aabbMax.z)
+    if (minD > aabbMax.z)
     {
         _HizResultRT[id.xy] = 0.0;
     }

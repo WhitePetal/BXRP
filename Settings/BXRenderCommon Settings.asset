@@ -16,6 +16,7 @@ MonoBehaviour:
   coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9, type: 3}
   clusterLightCompute: {fileID: 7200000, guid: 600204642eed34254966b742580d1a7e, type: 3}
   hizCompute: {fileID: 7200000, guid: e19639bdb5fe64b1bb75db41e7513670, type: 3}
+  hizPixelMat: {fileID: 2100000, guid: cf9148e57aff34531a362f08fdad8924, type: 2}
   downSample: 1
   minHeight: 640
   maxHeight: 1440

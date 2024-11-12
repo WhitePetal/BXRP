@@ -11,9 +11,9 @@ using Unity.Burst;
 
 namespace BXRenderPipeline
 {
-	public class BXHiZManagerPixelShader : IDisposable
+	public class BXHiZManagerPixelShader : BXHiZModuleBase
 	{
-		private Dictionary<int, Renderer> rendererDic = new Dictionary<int, Renderer>(2048);
+		private static Dictionary<int, Renderer> rendererDic;
 
 		private struct CullingObjectData
 		{
@@ -24,12 +24,8 @@ namespace BXRenderPipeline
 			[ReadOnly]
 			public int instanceID;
 
-			public Renderer renderer => instance.rendererDic[instanceID];
+			public Renderer renderer => rendererDic[instanceID];
 		};
-
-		private static readonly Lazy<BXHiZManagerPixelShader> s_Instance = new Lazy<BXHiZManagerPixelShader>(() => new BXHiZManagerPixelShader());
-
-		public static BXHiZManagerPixelShader instance = s_Instance.Value;
 
 		public bool isInitialized { get; private set; }
 
@@ -49,7 +45,7 @@ namespace BXRenderPipeline
         private int mipCount;
 		private int cullingObjectCount;
 
-		private ComputeShader cs;
+		private Material mat;
 		private NativeArray<float> hizReadbackDatas;
 
 		private NativeArray<CullingObjectData> cullingObjects;
@@ -58,18 +54,50 @@ namespace BXRenderPipeline
 
 		private bool isViewCamera;
 
-		public void Initialize()
+		private static int[] _HiZTempMaps_ID =
+		{
+			Shader.PropertyToID("_HiZTempMap0"),
+			Shader.PropertyToID("_HiZTempMap1"),
+			Shader.PropertyToID("_HiZTempMap2"),
+			Shader.PropertyToID("_HiZTempMap3"),
+			Shader.PropertyToID("_HiZTempMap4"),
+			Shader.PropertyToID("_HiZTempMap5"),
+			Shader.PropertyToID("_HiZTempMap6"),
+			Shader.PropertyToID("_HiZTempMap7"),
+			Shader.PropertyToID("_HiZTempMap8"),
+			Shader.PropertyToID("_HiZTempMap9"),
+			Shader.PropertyToID("_HiZTempMap10"),
+			Shader.PropertyToID("_HiZTempMap11"),
+		};
+		private static RenderTargetIdentifier[] _HiZTempMaps_TargetID =
+		{
+			new RenderTargetIdentifier(_HiZTempMaps_ID[0]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[1]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[2]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[3]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[4]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[5]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[6]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[7]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[8]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[9]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[10]),
+			new RenderTargetIdentifier(_HiZTempMaps_ID[11]),
+		};
+
+		public override void Initialize()
 		{
 			if (isInitialized) return;
+			rendererDic = new Dictionary<int, Renderer>(2048);
 			texSize = math.int2(0, 0);
 			cullingObjects = new NativeArray<CullingObjectData>(dataTexWidth * dataTexHeight, Allocator.Persistent);
 			mipSizes = new Vector4[16];
 			boundCentersTex = new Texture2D(dataTexWidth, dataTexHeight, TextureFormat.RGBAFloat, 0, true);
 			boundSizesTex = new Texture2D(dataTexWidth, dataTexHeight, TextureFormat.RGBAFloat, 0, true);
-			RenderTextureDescriptor rtd = new RenderTextureDescriptor(dataTexWidth, dataTexHeight, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm, 0, 0);
+			RenderTextureDescriptor rtd = new RenderTextureDescriptor(dataTexWidth, dataTexHeight, UnityEngine.Experimental.Rendering.GraphicsFormat.R32_SFloat, 0, 0);
 			rtd.sRGB = false;
 			hizCullResultRT = new RenderTexture(rtd);
-			hizCullResultRT.enableRandomWrite = true;
+			hizCullResultRT.enableRandomWrite = false;
 			hizCullResultRT.Create();
 			boundCentersTex.filterMode = FilterMode.Point;
 			boundSizesTex.filterMode = FilterMode.Point;
@@ -77,11 +105,11 @@ namespace BXRenderPipeline
 			isInitialized = true;
 		}
 
-		public void Setup(BXMainCameraRenderBase mainRender)
+		private void Setup(BXMainCameraRenderBase mainRender)
 		{
 			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
 			if (isViewCamera) return;
-            this.cs = mainRender.commonSettings.hizCompute;
+            this.mat = mainRender.commonSettings.hizPixelMat;
 			this.projectionMatrix = GL.GetGPUProjectionMatrix(mainRender.camera.projectionMatrix * mainRender.camera.worldToCameraMatrix, false);
 			mipCount = 0;
 			this.screenSize = math.int2(mainRender.width, mainRender.height);
@@ -100,49 +128,66 @@ namespace BXRenderPipeline
             }
         }
 
-		public void Render(CommandBuffer commandBuffer)
+		private void Render(CommandBuffer commandBuffer)
 		{
 			if (isViewCamera) return;
 			commandBuffer.BeginSample("Hi-Z");
-            commandBuffer.SetComputeTextureParam(cs, 0, BXShaderPropertyIDs._EncodeDepthBuffer_ID, BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
-			commandBuffer.SetComputeTextureParam(cs, 0, BXShaderPropertyIDs._HiZMap_ID, hizMap);
-			commandBuffer.DispatchCompute(cs, 0, Mathf.CeilToInt(screenSize.x / 8), Mathf.CeilToInt(screenSize.y / 8), 1);
-
-			float2 mipSize = math.float2(screenSize.x >> 3, texSize.y);
+			float2 mipSize = math.float2(screenSize.x >> 1, screenSize.y >> 1);
+			commandBuffer.GetTemporaryRT(_HiZTempMaps_ID[0], (int)mipSize.x, (int)mipSize.y, 0, FilterMode.Point, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear, 1);
+			DrawPostProcess(commandBuffer, BXShaderPropertyIDs._EncodeDepthBuffer_TargetID, _HiZTempMaps_TargetID[0], mat, 0);
 			float4 mipOffset = math.float4(0, 0, mipSize.x, mipSize.y);
 			mipSizes[mipCount++] = mipOffset;
+			int index = 1;
+			bool row = true;
 			while (mipSize.x > 1 && mipSize.y > 1)
 			{
-				commandBuffer.SetComputeVectorParam(cs, BXShaderPropertyIDs._MipOffset_ID, mipOffset);
-				commandBuffer.SetComputeTextureParam(cs, 1, BXShaderPropertyIDs._HiZMap_ID, hizMap);
-				commandBuffer.DispatchCompute(cs, 1, Mathf.CeilToInt(mipSize.x / 8f), Mathf.CeilToInt(mipSize.y / 8f), 1);
-				mipOffset += math.float4(mipSize.x, 0, 0, 0);
-				mipSize *= 0.5f;
-				mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
 				if (mipSize.x <= 1 || mipSize.y <= 1) break;
-				mipOffset += math.float4(0, mipSize.y, 0, 0);
+                if (row)
+                {
+					mipOffset += math.float4(mipSize.x, 0, 0, 0);
+				}
+                else
+                {
+					mipOffset += math.float4(0, mipSize.y, 0, 0);
+                }
+				row = !row;
 				mipSize *= 0.5f;
+				commandBuffer.GetTemporaryRT(_HiZTempMaps_ID[index], Mathf.CeilToInt(mipSize.x), Mathf.CeilToInt(mipSize.y), 0, FilterMode.Point, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear, 1);
+				DrawPostProcess(commandBuffer, _HiZTempMaps_TargetID[index-1], _HiZTempMaps_TargetID[index], mat, 1);
 				mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
-				if (mipSize.x <= 1 || mipSize.y <= 1) break;
-				mipOffset += math.float4(mipSize.x, 0, 0, 0);
-				mipSize *= 0.5f;
-				mipOffset.z = mipSize.x;
-				mipOffset.w = mipSize.y;
-				mipSizes[mipCount++] = math.float4(mipOffset.xy, mipSize.xy);
+				++index;
+			}
+			commandBuffer.SetRenderTarget(hizMap, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+			commandBuffer.ClearRenderTarget(false, true, Color.clear);
+			Vector2 baseOffset = mipSizes[2];
+			for (int i = 2; i < mipCount; ++i)
+            {
+				float4 mipPort = mipSizes[i];
+				Vector2 offset = mipPort.xy;
+				offset = offset - baseOffset;
+				mipSizes[i - 2] = new Vector4(offset.x, offset.y, mipPort.z, mipPort.w);
+				commandBuffer.SetViewport(new Rect(offset, mipPort.zw));
+				commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._PostProcessInput_ID, _HiZTempMaps_TargetID[i]);
+				commandBuffer.DrawProcedural(Matrix4x4.identity, mat, 2, MeshTopology.Triangles, 3);
+			}
+			for(int i = 0; i < mipCount; ++i)
+            {
+				commandBuffer.ReleaseTemporaryRT(_HiZTempMaps_ID[i]);
 			}
 
 			if (!isReadbacking && cullingObjectCount > 0)
 			{
-				commandBuffer.SetComputeTextureParam(cs, 2, "_BoundCentersTex", boundCentersTex);
-				commandBuffer.SetComputeTextureParam(cs, 2, "_BoundSizesTex", boundSizesTex);
-				commandBuffer.SetComputeTextureParam(cs, 2, "_HizMapInput", hizMap);
-				commandBuffer.SetComputeVectorParam(cs, "_HizParams", new Vector4(screenSize.x, screenSize.y, mipCount - 1, cullingObjectCount));
-				commandBuffer.SetComputeMatrixParam(cs, "_HizProjectionMatrix", projectionMatrix);
-				commandBuffer.SetComputeVectorArrayParam(cs, "_HizMipSize", mipSizes);
-				commandBuffer.SetComputeTextureParam(cs, 2, "_HizResultRT", hizCullResultRT);
-				float xgroup = cullingObjectCount / 8f;
-				float ygroup = xgroup / 8f;
-				commandBuffer.DispatchCompute(cs, 2, Mathf.CeilToInt(xgroup), Mathf.CeilToInt(ygroup), 1);
+				commandBuffer.SetRenderTarget(hizCullResultRT, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+				commandBuffer.ClearRenderTarget(false, true, Color.clear);
+				commandBuffer.SetGlobalTexture("_BoundCentersTex", boundCentersTex);
+				commandBuffer.SetGlobalTexture("_BoundSizesTex", boundSizesTex);
+				commandBuffer.SetGlobalVector("_HizTexSize", new Vector4(texSize.x, texSize.y));
+				commandBuffer.SetGlobalTexture("_HizMapInput", hizMap);
+				commandBuffer.SetGlobalVector("_HizParams", new Vector4(screenSize.x, screenSize.y, mipCount - 3, cullingObjectCount));
+				commandBuffer.SetGlobalMatrix("_HizProjectionMatrix", projectionMatrix);
+				commandBuffer.SetGlobalVectorArray("_HizMipSize", mipSizes);
+				commandBuffer.DrawProcedural(Matrix4x4.identity, mat, 3, MeshTopology.Triangles, 3);
+
 
 				hizReadbackDatas = new NativeArray<float>(dataTexWidth * dataTexHeight, Allocator.Persistent);
 				commandBuffer.RequestAsyncReadbackIntoNativeArray(ref hizReadbackDatas, hizCullResultRT, ReadBack);
@@ -151,7 +196,7 @@ namespace BXRenderPipeline
 			commandBuffer.EndSample("Hi-Z");
 		}
 
-		public void Register(Renderer renderer, int instanceID)
+		public override void Register(Renderer renderer, int instanceID)
 		{
 			if (isViewCamera || isReadbacking) return;
 			rendererDic[instanceID] = renderer;
@@ -171,13 +216,13 @@ namespace BXRenderPipeline
 			cullingObjects[cullingObjectCount++] = data;
 		}
 
-		public void ApplyCollectDatas()
+		private void ApplyCollectDatas()
         {
 			boundCentersTex.Apply();
 			boundSizesTex.Apply();
 		}
 
-		public void Dispose()
+		public override void Dispose()
 		{
 			if (isReadbacking)
 			{
@@ -188,6 +233,7 @@ namespace BXRenderPipeline
 			cullingObjects.Dispose();
 			hizCullResultRT.Release();
 			hizMap.Release();
+			rendererDic.Clear();
 			mipSizes = null;
 			boundCentersTex = null;
 			boundSizesTex = null;
@@ -195,6 +241,17 @@ namespace BXRenderPipeline
 			hizMap = null;
 			rendererDic = null;
 			isInitialized = false;
+		}
+
+		private void DrawPostProcess(CommandBuffer cmd, RenderTargetIdentifier source, RenderTargetIdentifier destination, Material mat, int pass, bool clear = false)
+		{
+			cmd.SetRenderTarget(destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+			cmd.SetGlobalTexture(BXShaderPropertyIDs._PostProcessInput_ID, source);
+			if (clear)
+			{
+				cmd.ClearRenderTarget(false, true, Color.clear);
+			}
+			cmd.DrawProcedural(Matrix4x4.identity, mat, pass, MeshTopology.Triangles, 3);
 		}
 
 		private void GenerateHizBuffers(int texW, int texH)
@@ -210,11 +267,11 @@ namespace BXRenderPipeline
 			rd.sRGB = false;
 			hizMap = new RenderTexture(rd);
 			hizMap.filterMode = FilterMode.Point;
-			hizMap.enableRandomWrite = true;
+			hizMap.enableRandomWrite = false;
 			hizMap.Create();
 		}
 
-			private void ReadBack(AsyncGPUReadbackRequest obj)
+		private void ReadBack(AsyncGPUReadbackRequest obj)
 		{
 			if (obj.done)
 			{
@@ -235,5 +292,20 @@ namespace BXRenderPipeline
 				isReadbacking = false;
 			}
 		}
-	}
+
+        public override void BeforeSRPCull(BXMainCameraRenderBase mainRender)
+        {
+			Setup(mainRender);
+        }
+
+        public override void AfterSRPCull()
+        {
+			ApplyCollectDatas();
+        }
+
+        public override void AfterSRPRender(CommandBuffer commandBuffer)
+        {
+			Render(commandBuffer);
+        }
+    }
 }

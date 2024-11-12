@@ -11,9 +11,9 @@ using Unity.Burst;
 
 namespace BXRenderPipeline
 {
-	public class BXHiZManagerJobSystem : IDisposable
+	public class BXHiZManagerJobSystem : BXHiZModuleBase
 	{
-		private Dictionary<int, Renderer> rendererDic = new Dictionary<int, Renderer>(2048);
+		private static Dictionary<int, Renderer> rendererDic;
 
 		private struct CullingObjectData
 		{
@@ -26,12 +26,8 @@ namespace BXRenderPipeline
 
 			public uint renderLayerMask;
 
-			public Renderer renderer => instance.rendererDic[instanceID];
+			public Renderer renderer => rendererDic[instanceID];
 		};
-
-		private static readonly Lazy<BXHiZManagerJobSystem> s_Instance = new Lazy<BXHiZManagerJobSystem>(() => new BXHiZManagerJobSystem());
-
-		public static BXHiZManagerJobSystem instance = s_Instance.Value;
 
 		public RenderTexture[] hizBuffers;
 
@@ -66,9 +62,10 @@ namespace BXRenderPipeline
 
 		private bool isViewCamera;
 
-		public void Initialize()
+		public override void Initialize()
 		{
 			if (isInitialized) return;
+			rendererDic = new Dictionary<int, Renderer>(2048);
 			hizBuffers = new RenderTexture[3];
 			isReadbacking = new bool[3];
 			isDone = new bool[3];
@@ -100,7 +97,7 @@ namespace BXRenderPipeline
 			compeleteReadBackCount = 0;
 		}
 
-		public void Setup(BXMainCameraRenderBase mainRender)
+		private void Setup(BXMainCameraRenderBase mainRender)
 		{
 			if (isViewCamera) return;
 			if (!isReadbacking[willReadBackIndex])
@@ -123,7 +120,7 @@ namespace BXRenderPipeline
 			}
 		}
 
-		public void Render(CommandBuffer commandBuffer)
+		private void Render(CommandBuffer commandBuffer)
 		{
 			if (isViewCamera) return;
 			commandBuffer.BeginSample("Hi-Z");
@@ -170,7 +167,7 @@ namespace BXRenderPipeline
 			commandBuffer.EndSample("Hi-Z");
 		}
 
-		public void Register(Renderer renderer, int instanceID)
+		public override void Register(Renderer renderer, int instanceID)
 		{
 			if (isViewCamera || isReadbacking[willReadBackIndex]) return;
 			rendererDic[instanceID] = renderer;
@@ -185,7 +182,7 @@ namespace BXRenderPipeline
 			cullingObject[cullingObjectCount++] = data;
 		}
 
-		public void CompleteCull(BXMainCameraRenderBase mainRender)
+		private void CompleteCull(BXMainCameraRenderBase mainRender)
 		{
 			isViewCamera = mainRender.camera.cameraType == CameraType.SceneView;
 			if (isViewCamera || validReadBackIndex == -1 || isReadbacking[validReadBackIndex] || isDone[validReadBackIndex]) return;
@@ -212,7 +209,7 @@ namespace BXRenderPipeline
 			isDone[validReadBackIndex] = true;
 		}
 
-		public void Dispose()
+		public override void Dispose()
 		{
 			for(int i = 0; i < 3; ++i)
             {
@@ -241,6 +238,7 @@ namespace BXRenderPipeline
 				hizBuffers = null;
 				isInitialized = false;
 			}
+			rendererDic.Clear();
 			rendererDic = null;
 			isReadbacking = null;
 			isDone = null;
@@ -302,7 +300,7 @@ namespace BXRenderPipeline
 			}
 		}
 
-		[BurstCompile]
+		//[BurstCompile]
         private struct HizCullJob : IJobParallelFor
         {
 			public NativeArray<CullingObjectData> cullingObjectDatas;
@@ -377,10 +375,12 @@ namespace BXRenderPipeline
 					int2 minPx = (int2)math.ceil(aabbMin.xy * mipSize.zw + mipSize.xy);
 					int2 maxPx = (int2)math.ceil(aabbMax.xy * mipSize.zw + mipSize.xy);
 
-					int index0 = minPx.x + minPx.y * texSize.x;
-					int index1 = minPx.x + maxPx.y * texSize.x;
-					int index2 = maxPx.x + maxPx.y * texSize.x;
-					int index3 = maxPx.x + minPx.y * texSize.x;
+					int maxIndex = texSize.x * texSize.y - 1;
+					int index0 = math.clamp(minPx.x + minPx.y * texSize.x, 0, maxIndex);
+					int index1 = math.clamp(minPx.x + maxPx.y * texSize.x, 0, maxIndex);
+					int index2 = math.clamp(maxPx.x + maxPx.y * texSize.x, 0, maxIndex);
+					int index3 = math.clamp(maxPx.x + minPx.y * texSize.x, 0, maxIndex);
+
 
 					float d0 = hizData[index0];
 					float d1 = hizData[index1];
@@ -414,5 +414,21 @@ namespace BXRenderPipeline
 			validReadBackIndex = index;
 			lastReadBackStartTime = startTime;
 		}
-	}
+
+        public override void BeforeSRPCull(BXMainCameraRenderBase mainRender)
+        {
+			CompleteCull(mainRender);
+			Setup(mainRender);
+        }
+
+        public override void AfterSRPCull()
+        {
+            
+        }
+
+        public override void AfterSRPRender(CommandBuffer commandBuffer)
+        {
+			Render(commandBuffer);
+        }
+    }
 }

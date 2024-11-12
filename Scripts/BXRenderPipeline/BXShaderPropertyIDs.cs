@@ -115,6 +115,7 @@ namespace BXRenderPipeline
         };
 
         public static int _HiZMap_ID = Shader.PropertyToID("_HizMap");
+        public static RenderTargetIdentifier _HiZMap_TargetID = new RenderTargetIdentifier(_HiZMap_ID);
         public static int _MipOffset_ID = Shader.PropertyToID("_MipOffset");
     }
 }

@@ -21,7 +21,7 @@ namespace BXRenderPipeline
         // OnWillRenderObject calling in Renderpipeline Cull()
         private void OnWillRenderObject()
         {
-            BXHiZManagerJobSystem.instance.Register(m_Renderer, m_InstanceID);
+            BXHiZManager.instance.Register(m_Renderer, m_InstanceID);
         }
     }
 }

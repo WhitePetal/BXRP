@@ -27,6 +27,8 @@
 8. HDR
 9. Virtual Texture
     6.1 Runtime Virtual Texture (RVT)
+    https://github.com/ACskyline/PVTUT/tree/master/PVTUT/Assets
+    https://github.com/haolange/InfinityTexture
     6.2 Stream Virtual Texture (SVT)
 10. Deferred Render
     9.1 PC Deferred
