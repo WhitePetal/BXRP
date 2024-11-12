@@ -375,17 +375,17 @@ namespace BXRenderPipelineDeferred
             DrawGizmosBeforePostProcess();
 #endif
 
-#if UNITY_EDITOR
-            DrawGizmosAfterPostProcess();
-#endif
-
             context.EndSubPass();
 
             context.EndRenderPass();
             //context.SubmitForRenderPassValidation();
 
 			DrawPostProcess(onPostProcessRenderFeatures);
-		}
+
+#if UNITY_EDITOR
+            DrawGizmosAfterPostProcess();
+#endif
+        }
 
         private void DrawPostProcess(List<BXRenderFeature> onPostProcessRenderFeatures)
 		{

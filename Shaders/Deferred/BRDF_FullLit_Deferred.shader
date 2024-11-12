@@ -129,15 +129,16 @@ Shader "Test/BRDF_FullLit_Deferred"
 
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
-                ambient = SampleLightMap(i.uv.zw) * albedo;
+                ambient = SampleLightMap(i.uv.zw);
                 #endif
+                ambient += SampleSH(n);
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
                 #endif
                 gbuffer.albedo_roughness = half4(albedo, roughness);
                 gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
                 gbuffer.lighting.rgb = 
-                    ambient * ao
+                    ambient * ao * albedo
                     #ifdef _EMISSION_ON
                     + emission.rgb
                     #endif
