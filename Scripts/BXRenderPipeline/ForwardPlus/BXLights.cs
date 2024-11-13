@@ -88,7 +88,7 @@ namespace BXRenderPipelineForward
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
-            lightCookie.Setup(commandBuffer, this, commonSettings);
+            lightCookie.Setup(commandBuffer, this, mainCameraRender);
             shadows.Render(useShadowMask, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();

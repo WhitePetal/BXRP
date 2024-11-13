@@ -10,18 +10,11 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Version.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/GlobalSamplers.hlsl"
 #include "UnityInput.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+#include "Assets/Shaders/ShaderLibrarys/DOTSInstancing.hlsl"
 
 #define pi half(3.141592)
 #define pi_inv half(0.318309)
-
-#define UNITY_MATRIX_M unity_ObjectToWorld
-#define UNITY_MATRIX_I_M unity_WorldToObject
-#define UNITY_MATRIX_V unity_MatrixV
-#define UNITY_MATRIX_I_V unity_MatrixInvV
-#define UNITY_MATRIX_VP unity_MatrixVP
-#define UNITY_MATRIX_P glstate_matrix_projection
-#define UNITY_PREV_MATRIX_M   unity_MatrixPreviousM
-#define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI
 
 #if UNITY_REVERSED_Z
     // TODO: workaround. There's a bug where SHADER_API_GL_CORE gets erroneously defined on switch.

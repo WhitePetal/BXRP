@@ -228,6 +228,8 @@ namespace BXRenderPipeline
 
         private GlobalKeyword cookieEnableKeyword = GlobalKeyword.Create("COOKIE");
 
+        private Matrix4x4 viewToWorldMatrix;
+
         private void InitOtherLights(int size)
 		{
             m_OtherLightsCookieAtlas = new Texture2DAtlas(
@@ -256,17 +258,18 @@ namespace BXRenderPipeline
   //          return m_VisibleLightIndexToShaderDataIndex[visibleLightIndex];
 		//}
 
-        public void Setup(CommandBuffer cmd, BXLightsBase lights, BXRenderCommonSettings commonSettings)
+        public void Setup(CommandBuffer cmd, BXLightsBase lights, BXMainCameraRenderBase mainCameraRender)
 		{
             using var profScope = new ProfilingScope(cmd, ProfilingSampler.Get(BXProfileId.LightCookies));
 
-            this.commonSettings = commonSettings;
-   //         bool isMainLightAvailable = lights.dirLightCount > 0;
-			//if (isMainLightAvailable)
-			//{
-   //             var mainLight = lights.dirLights[0];
-   //             isMainLightAvailable = SetupMainLight(cmd, ref mainLight);
-			//}
+            this.commonSettings = mainCameraRender.commonSettings;
+            this.viewToWorldMatrix = mainCameraRender.viewToWorldMatrix;
+            //         bool isMainLightAvailable = lights.dirLightCount > 0;
+            //if (isMainLightAvailable)
+            //{
+            //             var mainLight = lights.dirLights[0];
+            //             isMainLightAvailable = SetupMainLight(cmd, ref mainLight);
+            //}
 
             bool isOtherLightsAvaliable = lights.importedOtherLightCount > 0;
 			if (isOtherLightsAvaliable)
@@ -687,7 +690,7 @@ namespace BXRenderPipeline
 				//atlasUVRects[bufIndex] = validUvRects[i];
 				//cookieEnableBits[bufIndex] = true;
 				lightTypes[lightIndex] = (int)visLight.lightType;
-				worldToLights[lightIndex] = visLight.localToWorldMatrix.inverse;
+				worldToLights[lightIndex] = visLight.localToWorldMatrix.inverse * viewToWorldMatrix;
 				atlasUVRects[lightIndex] = validUvRects[i];
 				cookieEnableBits[lightIndex] = true;
 

@@ -48,6 +48,7 @@ namespace BXRenderPipelineDeferred
             clusterLightCount = 0;
             stencilLightCount = 0;
             otherLightCount = 0;
+            importedOtherLightCount = 0;
             useShadowMask = false;
 
             for(int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
@@ -73,6 +74,7 @@ namespace BXRenderPipelineDeferred
 						{
                             SetupStencilPointLight(otherLightCount++, visbileLightIndex, ref visibleLight);
                             ++stencilLightCount;
+                            ++importedOtherLightCount;
 						}
                         else if(clusterLightCount < maxClusterLightCount)
                         {
@@ -84,6 +86,7 @@ namespace BXRenderPipelineDeferred
 						{
                             SetupStencilSpotLight(otherLightCount++, visbileLightIndex, ref visibleLight);
                             ++stencilLightCount;
+                            ++importedOtherLightCount;
                         }
                         else if(clusterLightCount < maxClusterLightCount)
                         {
@@ -106,7 +109,7 @@ namespace BXRenderPipelineDeferred
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
-            lightCookie.Setup(commandBuffer, this, commonSettings);
+            lightCookie.Setup(commandBuffer, this, mainCameraRender);
             shadows.Render(useShadowMask, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();

@@ -6,7 +6,7 @@ Shader "DeferredShading"
     }
     SubShader
     {
-        Cull Back
+        Cull Off
         ZWrite Off
         ZTest Always
 
@@ -176,7 +176,7 @@ Shader "DeferredShading"
                 return o;
             }
 
-            [earlydepthstencil]
+            // [earlydepthstencil]
             half4 frag (v2f i, uint sampleID : SV_SampleIndex) : SV_Target0
             {
                 half4 color;
@@ -222,7 +222,7 @@ Shader "DeferredShading"
                 atten *= spotAtten * spotAtten;
                 atten *= ndotl * GetOtherShadow(_OtherLightIndex, lightFwd, vPos, n);
                 half3 lightStrength = _OtherLightColors[_OtherLightIndex].rgb * atten;
-                // lightStrength *= SampleOtherLightCookie(lightIndex, pos_world);
+                lightStrength *= SampleOtherLightCookie(_OtherLightIndex, vPos);
 
                 half3 h = SafeNormalize(l + v);
                 half ldoth = max(half(0.0), dot(l, h));

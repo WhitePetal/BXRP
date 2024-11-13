@@ -1,6 +1,15 @@
 #ifndef CUSTOME_UNITY_INPUT_INCLUDE
 #define CUSTOME_UNITY_INPUT_INCLUDE
 
+#define UNITY_MATRIX_M unity_ObjectToWorld
+#define UNITY_MATRIX_I_M unity_WorldToObject
+#define UNITY_MATRIX_V unity_MatrixV
+#define UNITY_MATRIX_I_V unity_MatrixInvV
+#define UNITY_MATRIX_VP unity_MatrixVP
+#define UNITY_MATRIX_P glstate_matrix_projection
+#define UNITY_PREV_MATRIX_M   unity_MatrixPreviousM
+#define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI
+
 CBUFFER_START(UnityPerFrame)
     half4 glstate_lightmodel_ambient;
     half4 unity_AmbientSky;
@@ -79,6 +88,7 @@ CBUFFER_START(UnityPerCamera)
     half _ReleateExpourse;
 CBUFFER_END
 
+#ifndef DOTS_INSTANCING_ON // UnityPerDraw cbuffer doesn't exist with hybrid renderer
 CBUFFER_START(UnityPerDraw)
     float4x4 unity_ObjectToWorld;
     float4x4 unity_WorldToObject;
@@ -142,5 +152,6 @@ CBUFFER_START(UnityPerDraw)
     float3 unity_ProbeVolumeSizeInv;
     float3 unity_ProbeVolumeMin;
 CBUFFER_END
+#endif
 
 #endif

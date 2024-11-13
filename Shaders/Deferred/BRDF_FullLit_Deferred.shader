@@ -28,10 +28,11 @@ Shader "Test/BRDF_FullLit_Deferred"
             Tags { "LightMode"="BXDeferredBase"}
             // Blend [_SrcBlend] [_DstBlend]
             HLSLPROGRAM
-            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_instancing
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+            #pragma target 4.5 DOTS_INSTANCING_ON
+            // #pragma multi_compile_instancing
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_local __ _EMISSION_ON
 
@@ -46,6 +47,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 tangent : TANGENT;
                 half2 texcoord : TEXCOORD0;
                 half2 texcoord1 : TEXCOORD1;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
@@ -57,6 +59,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half3 normal_world : TEXCOORD3;
                 half3 tangent_world : TEXCOORD4;
                 half3 binormal_world : TEXCOORD5;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct GBuffer
@@ -69,17 +72,24 @@ Shader "Test/BRDF_FullLit_Deferred"
                 #endif
             };
 
-            UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
-                UNITY_DEFINE_INSTANCED_PROP(half, _EmissionStrength)
-                UNITY_DEFINE_INSTANCED_PROP(half, _Reflectance)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _MainTex_ST)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexA_ST)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _DetilTexB_ST)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _DiffuseColor)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _MetallicRoughnessAO)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _NormalScales)
-                UNITY_DEFINE_INSTANCED_PROP(half4, _KdsExpoureClampMinMax)
-            UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
+            CBUFFER_START(UnityPerMaterial)
+                half _EmissionStrength;
+                half _Reflectance;
+                half4 _MainTex_ST;
+                half4 _DetilTexA_ST;
+                half4 _DetilTexB_ST;
+                half4 _DiffuseColor;
+                half4 _MetallicRoughnessAO;
+                half4 _NormalScales;
+                half4 _KdsExpoureClampMinMax;
+            CBUFFER_END
+
+            #if defined(DOTS_INSTANCING_ON)
+            UNITY_DOTS_INSTANCING_START(UserPropertyMetadata)
+                UNITY_DOTS_INSTANCED_PROP_OVERRIDE_SUPPORTED(half4, _DiffuseColor)
+            UNITY_DOTS_INSTANCING_END(UserPropertyMetadata)
+            #define _DiffuseColor UNITY_ACCESS_DOTS_INSTANCED_PROP(half4, _DiffuseColor)
+            #endif
 
             Texture2D<half4> _MainTex, _MRATex, _DetilMask;
             SamplerState sampler_MainTex;
@@ -90,11 +100,13 @@ Shader "Test/BRDF_FullLit_Deferred"
             v2f vert (appdata v)
             {
                 v2f o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
                 o.pos_world = TransformObjectToWorld(v.vertex.xyz);
                 o.vertex = mul(UNITY_MATRIX_VP, float4(o.pos_world, 1.0));
-                o.uv.xy = v.texcoord * GET_PROP(_MainTex_ST).xy + GET_PROP(_MainTex_ST).zw; // main map
+                o.uv.xy = v.texcoord * _MainTex_ST.xy + _MainTex_ST.zw; // main map
                 o.uv.zw = v.texcoord1 * unity_LightmapST.xy + unity_LightmapST.zw;
-                o.uv_detil = float4(v.texcoord * GET_PROP(_DetilTexA_ST).xy + GET_PROP(_DetilTexA_ST).zw, v.texcoord * GET_PROP(_DetilTexB_ST).xy + GET_PROP(_DetilTexB_ST).zw); // detil map
+                o.uv_detil = float4(v.texcoord * _DetilTexA_ST.xy + _DetilTexA_ST.zw, v.texcoord * _DetilTexB_ST.xy + _DetilTexB_ST.zw); // detil map
                 o.normal_world = TransformObjectToWorldNormal(v.normal);
                 o.tangent_world = TransformObjectToWorldDir(v.tangent.xyz);
                 o.binormal_world = cross(o.normal_world, o.tangent_world) * v.tangent.w * unity_WorldTransformParams.w;
@@ -104,6 +116,7 @@ Shader "Test/BRDF_FullLit_Deferred"
             GBuffer frag (v2f i)
             {
                 GBuffer gbuffer;
+                UNITY_SETUP_INSTANCE_ID(i);
                 half4 mainTex = _MainTex.Sample(sampler_MainTex, i.uv.xy);
                 half4 normalMap = _NormalTex.Sample(sampler_NormalTex, i.uv.xy);
                 half4 MRA = _MRATex.Sample(sampler_MainTex, i.uv.xy);
@@ -114,18 +127,17 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
-                half4 normalScales = GET_PROP(_NormalScales);
-                half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, normalScales.x, normalScales.y, normalScales.z, detilMask);
+                half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, _NormalScales.x, _NormalScales.y, _NormalScales.z, detilMask);
                 half3 n_view = TransformWorldToViewDir(n);
 
-                half4 mraValues = GET_PROP(_MetallicRoughnessAO);
+                half4 mraValues = _MetallicRoughnessAO;
                 half roughness = mraValues.y * MRA.g;
                 half perceptRoughness = roughness * roughness;
                 half oneMinusMetallic = half(1.0) - MRA.r * mraValues.x;
                 half ao = (half(1.0) - (half(1.0) - MRA.b) * mraValues.z);
-                half3 albedo = mainTex.rgb * GET_PROP(_DiffuseColor).rgb;
+                half3 albedo = mainTex.rgb * _DiffuseColor.rgb;
                 // albedo *= oneMinusMetallic;
-                half reflectance = GET_PROP(_Reflectance);
+                half reflectance = _Reflectance;
 
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
@@ -133,7 +145,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                 #endif
                 ambient += SampleSH(n);
                 #ifdef _EMISSION_ON
-                emission.rgb *= emission.a * GET_PROP(_EmissionStrength);
+                emission.rgb *= emission.a * _EmissionStrength;
                 #endif
                 gbuffer.albedo_roughness = half4(albedo, roughness);
                 gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
@@ -144,6 +156,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                     #endif
                 ;
                 gbuffer.lighting.a = half(1.0);
+                gbuffer.lighting.rgb *= _ReleateExpourse;
                 #if SHADER_API_METAL
                 gbuffer.depth_metal = EncodeFloatRGBA(i.vertex.z);
                 #endif
@@ -158,9 +171,10 @@ Shader "Test/BRDF_FullLit_Deferred"
 			Tags {"RenderType"="Opaque" "Queue"="Geometry" "LightMode" = "ShadowCaster"}
             
 			HLSLPROGRAM
-			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+            #pragma target 4.5 DOTS_INSTANCING_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
@@ -169,17 +183,21 @@ Shader "Test/BRDF_FullLit_Deferred"
             struct appdata
             {
                 float4 vertex : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
             {
                 float4 vertex : SV_POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
 
             v2f vert (appdata v)
             {
                 v2f o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
                 float3 pos_world = TransformObjectToWorld(v.vertex.xyz);
                 o.vertex = TransformWorldToHClip(pos_world);
                 if(_ShadowPancaking)
@@ -197,6 +215,7 @@ Shader "Test/BRDF_FullLit_Deferred"
 
             void frag (v2f i)
             {
+                UNITY_SETUP_INSTANCE_ID(i);
                 // return 0.0;
             }
 			ENDHLSL
