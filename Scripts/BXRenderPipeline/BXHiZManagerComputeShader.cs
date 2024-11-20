@@ -178,6 +178,9 @@ namespace BXRenderPipeline
 			hizMap.Release();
 			rendererDic.Clear();
 			mipSizes = null;
+			GameObject.DestroyImmediate(hizCullResultRT);
+			GameObject.DestroyImmediate(boundCentersTex);
+			GameObject.DestroyImmediate(boundSizesTex);
 			boundCentersTex = null;
 			boundSizesTex = null;
 			hizCullResultRT = null;

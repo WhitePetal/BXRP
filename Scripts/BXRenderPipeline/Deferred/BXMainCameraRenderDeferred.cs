@@ -537,6 +537,10 @@ namespace BXRenderPipelineDeferred
             commonSettings = null;
             lights.Dispose();
             lights = null;
+            for (int i = 0; i < BXLightsDeferred.maxStencilLightCount; ++i)
+            {
+                GameObject.DestroyImmediate(stencilLightMats[i]);
+            }
             stencilLightMats = null;
         }
     }
