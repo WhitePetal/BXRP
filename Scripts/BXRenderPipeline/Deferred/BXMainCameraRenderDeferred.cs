@@ -13,7 +13,21 @@ namespace BXRenderPipelineDeferred
 
         private GlobalKeyword framebufferfetch_msaa = GlobalKeyword.Create("FRAMEBUFFERFETCH_MSAA");
 
-        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
+        private Material[] stencilLightMats = new Material[BXLightsDeferred.maxStencilLightCount];
+
+        public void Init(BXRenderCommonSettings commonSettings)
+        {
+            this.commonSettings = commonSettings;
+            this.postProcessMat = commonSettings.postProcessMaterial;
+            for (int i = 0; i < BXLightsDeferred.maxStencilLightCount; ++i)
+            {
+                stencilLightMats[i] = new Material(commonSettings.deferredOtherLightMaterial);
+                stencilLightMats[i].hideFlags = HideFlags.DontSave;
+                GameObject.DontDestroyOnLoad(stencilLightMats[i]);
+            }
+        }
+
+        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
             List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeatures,
@@ -21,8 +35,6 @@ namespace BXRenderPipelineDeferred
 		{
             this.context = context;
             this.camera = camera;
-            this.commonSettings = commonSettings;
-            this.postProcessMat = commonSettings.postProcessMaterial;
 
             width_screen = camera.pixelWidth;
             height_screen = camera.pixelHeight;
@@ -289,11 +301,12 @@ namespace BXRenderPipelineDeferred
                 commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 0, MeshTopology.Triangles, 6);
             }
 
+            Material deferredMaterial = commonSettings.deferredMaterial;
             // Deferred Other Light Lighting
-            Material otherLightMat = commonSettings.deferredOtherLightMaterial;
             for (int i = 0; i < lights.stencilLightCount; ++i)
 			{
-				commandBuffer.SetGlobalInt("_OtherLightIndex", i);
+                Material otherLightMat = stencilLightMats[i];
+                commandBuffer.SetGlobalInteger("_OtherLightIndex", i);
                 var visibleLight = lights.otherLights[i];
                 switch (visibleLight.lightType)
                 {
@@ -303,7 +316,7 @@ namespace BXRenderPipelineDeferred
                             Vector3 lightSphere = lights.otherLightSpheres[i];
                             Vector3 lightPos = visibleLight.light.transform.position;
                             Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, Quaternion.identity, Vector3.one * range);
-                            if (Vector3.SqrMagnitude(lightSphere) <= range * range)
+                            if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane))
                             {
                                 otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
                                 otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
@@ -316,7 +329,7 @@ namespace BXRenderPipelineDeferred
                                 commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
                                 commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
-                            commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 1, MeshTopology.Triangles, 6);
+                            commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
                         }
                         break;
                     case LightType.Spot:
@@ -332,7 +345,7 @@ namespace BXRenderPipelineDeferred
                             scale.x *= visibleLight.spotAngle / 30f;
                             scale.y *= visibleLight.spotAngle / 30f;
                             Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, visibleLight.light.transform.rotation, scale);
-                            if (Vector3.SqrMagnitude(lightSphere) <= range * range && angleDst < 1f)
+                            if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane) && angleDst < 1f)
                             {
                                 otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
                                 otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
@@ -345,7 +358,7 @@ namespace BXRenderPipelineDeferred
                                 commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 0);
                                 commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
                             }
-                            commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 1, MeshTopology.Triangles, 6);
+                            commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
                         }
                         break;
                 }
@@ -524,6 +537,7 @@ namespace BXRenderPipelineDeferred
             commonSettings = null;
             lights.Dispose();
             lights = null;
-		}
+            stencilLightMats = null;
+        }
     }
 }

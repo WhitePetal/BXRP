@@ -144,13 +144,14 @@ CBUFFER_START(UnityPerDraw)
     //W : Reserved for future use.
     float4 unity_SpriteProps;
 
+    // Light Probe Proxy Volume is deprecated in the latest srp
     // x = Disabled(0)/Enable(1)
     // y = Computation are done in global space(0) or local space(1)
     // z = Texel size on U texture coordinate
-    float4 unity_ProbeVolumeParams;
-    float4x4 unity_ProbeVolumeWorldToObject;
-    float3 unity_ProbeVolumeSizeInv;
-    float3 unity_ProbeVolumeMin;
+    // float4 unity_ProbeVolumeParams;
+    // float4x4 unity_ProbeVolumeWorldToObject;
+    // float3 unity_ProbeVolumeSizeInv;
+    // float3 unity_ProbeVolumeMin;
 CBUFFER_END
 #endif
 

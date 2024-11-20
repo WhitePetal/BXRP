@@ -58,6 +58,7 @@ namespace BXRenderPipeline
 
         [Header(("方向光设置"))]
         public float maxShadowDistance = 20f;
+        [Range(1, 4)]
         public int cascadeCount = 3;
         public int shadowMapSize = 2048;
         public int shadowMapBits = 24;

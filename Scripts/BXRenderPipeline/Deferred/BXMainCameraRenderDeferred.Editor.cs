@@ -30,7 +30,7 @@ namespace BXRenderPipelineDeferred
 
         private void DrawUnsupportShader()
         {
-            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[0], new SortingSettings(camera))
+            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds[0], new SortingSettings(camera))
             {
                 overrideMaterial = material_error
             };

@@ -42,6 +42,7 @@ namespace BXRenderPipeline
         public void Deinitialize()
 		{
             Debug.Assert(isInitialized);
+            m_RenderSettings.Dispose();
             m_RenderSettings = null;
             isInitialized = false;
 		}

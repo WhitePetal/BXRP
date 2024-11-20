@@ -24,16 +24,16 @@ MonoBehaviour:
   aaType: 1
   targetFrameRate: 120
   maxShadowDistance: 100
-  cascadeCount: 2
-  shadowMapSize: 4096
+  cascadeCount: 4
+  shadowMapSize: 2048
   shadowMapBits: 24
   distanceFade: 0.5
-  cascadeRatio1: 0.06
+  cascadeRatio1: 0.1
   cascadeRatio2: 0.2
   cascadeRatio3: 0.5
-  cascadeFade: 0.5
+  cascadeFade: 0.1
   otherLightShadowMapSize: 1024
-  otherLightShadowMapBits: 24
+  otherLightShadowMapBits: 16
   drawShadows: 1
   cookieAtlas:
     resolution: {x: 1024, y: 1024}

@@ -66,6 +66,7 @@ namespace BXRenderPipeline
 			RenderTextureDescriptor rtd = new RenderTextureDescriptor(dataTexWidth, dataTexHeight, UnityEngine.Experimental.Rendering.GraphicsFormat.R32_SFloat, 0, 0);
 			rtd.sRGB = false;
 			hizCullResultRT = new RenderTexture(rtd);
+			hizCullResultRT.hideFlags = HideFlags.DontSave;
 			hizCullResultRT.enableRandomWrite = true;
 			hizCullResultRT.filterMode = FilterMode.Point;
 			hizCullResultRT.Create();
@@ -73,6 +74,11 @@ namespace BXRenderPipeline
 			boundSizesTex.filterMode = FilterMode.Point;
 			isReadbacking = false;
 			isInitialized = true;
+			boundCentersTex.hideFlags = HideFlags.DontSave;
+			boundSizesTex.hideFlags = HideFlags.DontSave;
+			GameObject.DontDestroyOnLoad(boundCentersTex);
+			GameObject.DontDestroyOnLoad(boundSizesTex);
+			GameObject.DontDestroyOnLoad(hizCullResultRT);
 		}
 
 		private void Setup(BXMainCameraRenderBase mainRender)
@@ -159,6 +165,8 @@ namespace BXRenderPipeline
 
 		public override void Dispose()
 		{
+			Debug.Log("Dispose: " + isInitialized);
+			if (!isInitialized) return;
 			if (isReadbacking)
 			{
 				AsyncGPUReadback.WaitAllRequests();

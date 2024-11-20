@@ -33,11 +33,29 @@ namespace BXRenderPipeline
 
         public enum IntensityType
         {
+            /// <summary>
+            /// W
+            /// </summary>
             RadiantPower,
+            /// <summary>
+            /// lm
+            /// </summary>
             LuminousPower,
+            /// <summary>
+            /// cd
+            /// </summary>
             LuminousIntensity,
+            /// <summary>
+            /// lx/lux
+            /// </summary>
             Illuminance,
+            /// <summary>
+            /// cd/m^2
+            /// </summary>
             Luminance,
+            /// <summary>
+            /// 
+            /// </summary>
             EV100
         }
 

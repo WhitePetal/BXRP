@@ -11,7 +11,13 @@ namespace BXRenderPipelineForward
     {
         public BXLights lights = new BXLights();
 
-        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings,
+        public void Init(BXRenderCommonSettings commonSettings)
+        {
+            this.commonSettings = commonSettings;
+            this.postProcessMat = commonSettings.postProcessMaterial;
+        }
+
+        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,
             List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
             List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeatures,
@@ -19,8 +25,6 @@ namespace BXRenderPipelineForward
 		{
             this.context = context;
             this.camera = camera;
-            this.commonSettings = commonSettings;
-            this.postProcessMat = commonSettings.postProcessMaterial;
 
             width_screen = camera.pixelWidth;
             height_screen = camera.pixelHeight;

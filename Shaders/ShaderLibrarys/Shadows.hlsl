@@ -5,6 +5,7 @@
 
 #define _DIRECTIONAL_PCF3 1
 #define _OTHER_PCF7 1
+#define _CASCADE_BLEND_DITHER 1
 
 #if defined(_DIRECTIONAL_PCF3)
 	#define DIRECTIONAL_FILTER_SAMPLES 4
@@ -132,20 +133,22 @@ half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, hal
     half4 shadowData = _DirectionalShadowDatas[lightIndex];
     half shadowStrength = shadowData.x * shadowDistanceStrength;
     if(shadowStrength <= half(0.0)) return half(1.0);
+    // else return half(0.0);
     int cascadeIndex;
     half cascadeBlend = half(1.0);
     int cascadeCount = _CascadeCount;
-    for(cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+    int i;
+    for(i = 0; i < cascadeCount; ++i)
     {
-        float4 sphere = _CascadeCullingSpheres[cascadeIndex];
+        float4 sphere = _CascadeCullingSpheres[i];
         float3 dir = pos_world - sphere.xyz;
         float dstSqr = dot(dir, dir);
         if(dstSqr < sphere.w)
         {
-            half fade = FadeShadowsStrength(dstSqr, _CascadeDatas[cascadeIndex].x, _ShadowsDistanceFade.z);
-            if(cascadeIndex == (cascadeCount - half(1)))
+            half fade = FadeShadowsStrength(dstSqr, _CascadeDatas[i].x, _ShadowsDistanceFade.z);
+            if(i == (cascadeCount - 1))
             {
-                // shadowStrength *= fade;
+                shadowStrength *= fade;
             }
             else
             {
@@ -154,13 +157,15 @@ half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, hal
             break;
         }
     }
+    if(i == cascadeCount) shadowStrength = half(0.0);
     #if defined(_CASCADE_BLEND_DITHER)
-        half dither = InterleavedGradientNoise(pos_clip.xy, half(0.0));
-        if (cascadeBlend < dither) 
-        {
-            cascadeIndex += 1;
-        }
+    half dither = InterleavedGradientNoise(pos_clip.xy, half(0.0));
+    if (cascadeBlend < dither) 
+    {
+        i += 1;
+    }
     #endif
+    cascadeIndex = i;
 
     int shadowIndex = shadowData.y + cascadeIndex;
     float3 normalBias = normal_world * _CascadeDatas[cascadeIndex].y * shadowData.z;

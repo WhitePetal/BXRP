@@ -86,8 +86,7 @@ namespace BXRenderPipeline
                     slopeScaleBias = light.shadowBias,
                     nearPlaneOffst = light.shadowNearPlane
                 };
-                shadowData = new Vector4(light.shadowStrength, commonSettings.cascadeCount * shadowedDirLightCount, light.shadowNormalBias);
-                ++shadowedDirLightCount;
+                shadowData = new Vector4(light.shadowStrength, commonSettings.cascadeCount * shadowedDirLightCount++, light.shadowNormalBias);
             }
             else
             {
@@ -194,7 +193,7 @@ namespace BXRenderPipeline
         private void RenderDirectionalShadows(List<BXRenderFeature> onDirShadowsRenderFeatures)
         {
             int shadowMapSize = commonSettings.shadowMapSize;
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._DirectionalShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.shadowMapBits, FilterMode.Point, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._DirectionalShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.shadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
             commandBuffer.SetRenderTarget(BXShaderPropertyIDs._DirectionalShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             commandBuffer.ClearRenderTarget(true, false, Color.clear);
             commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ShadowPancaking_ID, 1);
@@ -215,8 +214,8 @@ namespace BXRenderPipeline
                 ShadowedDirectionalLight light = shadowedDirLights[i];
                 for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
                 {
-                    ShadowDrawingSettings dirShadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Perspective);
-                    cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(light.visibleLightIndex, cascadeIndex, cascadeCount, cascadeRatios, tileSize, light.nearPlaneOffst,
+                    ShadowDrawingSettings dirShadowSettings = new ShadowDrawingSettings(cullingResults, light.visibleLightIndex, BatchCullingProjectionType.Orthographic);
+                    cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(light.visibleLightIndex, cascadeIndex, cascadeCount, cascadeRatios, tileSize, 0f,
                         out Matrix4x4 viewMatrix, out Matrix4x4 projMatrix, out ShadowSplitData shadowSplitData);
                     shadowSplitData.shadowCascadeBlendCullingFactor = cullingFactor;
                     dirShadowSettings.splitData = shadowSplitData;
@@ -225,8 +224,8 @@ namespace BXRenderPipeline
                     {
                         SetCascadeData(cascadeIndex, shadowSplitData.cullingSphere, tileSize);
                     }
-                    int tileIndex = cascadeIndex * tileIndexOffset;
-                    dirShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, SetTileViewport(tileIndex, split, tileSize), 1f / split);
+                    int tileIndex = cascadeIndex + tileIndexOffset;
+                    dirShadowMatrixs[tileIndex] = ConvertToShadowMapTileMatrix(projMatrix * viewMatrix, SetTileViewport(tileIndex, split, tileSize), 1f / split) * viewToWorldMatrix;
                     commandBuffer.SetViewProjectionMatrices(viewMatrix, projMatrix);
                     commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
                     ExecuteCommandBuffer();
@@ -234,7 +233,7 @@ namespace BXRenderPipeline
                     ExecuteRenderFeatures(onDirShadowsRenderFeatures);
                 }
             }
-            commandBuffer.SetGlobalDepthBias(0f, 1f);
+            commandBuffer.SetGlobalDepthBias(0f, 0f);
             float f = 1f - commonSettings.cascadeFade;
             commandBuffer.SetGlobalVector(BXShaderPropertyIDs._ShadowsDistanceFade_ID, new Vector4(
                 1f / mainCameraRender.maxShadowDistance,
@@ -255,6 +254,8 @@ namespace BXRenderPipeline
             float filterSize = texelSize * (1 + 1f); // 1 means PCF3x3
             cullingSphere.w -= filterSize;
             cullingSphere.w *= cullingSphere.w;
+            Vector3 spherePos = mainCameraRender.worldToViewMatrix * new Vector4(cullingSphere.x, cullingSphere.y, cullingSphere.z, 1f);
+            cullingSphere = new Vector4(spherePos.x, spherePos.y, spherePos.z, cullingSphere.w);
             cascadeCullingSphere[cascadeIndex] = cullingSphere;
             cascadeDatas[cascadeIndex] = new Vector4(1f / cullingSphere.w, filterSize * 1.4142136f);
         }
@@ -296,7 +297,7 @@ namespace BXRenderPipeline
             int shadowMapSize = commonSettings.otherLightShadowMapSize;
             shadowMapSizes.z = shadowMapSize;
             shadowMapSizes.w = 1f / shadowMapSize;
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.otherLightShadowMapBits, FilterMode.Point, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
+            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.otherLightShadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
             commandBuffer.SetRenderTarget(BXShaderPropertyIDs._OtherLightShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             commandBuffer.ClearRenderTarget(true, false, Color.clear);
             commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ShadowPancaking_ID, 0);
@@ -304,7 +305,7 @@ namespace BXRenderPipeline
             ExecuteCommandBuffer();
 
             int tiles = shadowedOtherLightTileCount;
-            int split = tiles <= 1 ? 1 : tiles <= 4 ? 2 : 4;
+            int split = tiles <= 1 ? 1 : tiles <= 4 ? 2 : tiles <= 16 ? 4 : 8;
             int tileSize = shadowMapSize / split;
             for(int i = 0; i < shadowedOtherLightCount; ++i)
 			{

@@ -20,6 +20,7 @@ Shader "DeferredShading"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile __ DIRECTIONAL_LIGHT
+            #pragma multi_compile __ SHADOWS_DIR
             #pragma multi_compile __ FRAMEBUFFERFETCH_MSAA
 
             // #define _ACES_C 1
@@ -29,7 +30,8 @@ Shader "DeferredShading"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
             DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
-            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // dept_normal
+            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // normal_metallic_mask
+            DEFINE_FRAMEBUFFER_INPUT_HALF(2); // depth
 
             struct v2f
             {
@@ -78,6 +80,14 @@ Shader "DeferredShading"
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;
 
+                #if SHADER_API_METAL
+                float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
+                float depth = DecodeFloatRGBA(encodeDepth);
+                #else
+                float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
+                #endif
+                float depthEye = LinearEyeDepth(depth);
+
                 half perceptRoughness = albedo_roughness.a;
                 half3 albedo = albedo_roughness.rgb;
 
@@ -89,6 +99,8 @@ Shader "DeferredShading"
                 v = -v;
                 half3 l = _DirectionalLightDirections[0].xyz;
 
+                float3 vPos = i.vray.xyz * depthEye;
+
                 half ndotv = max(half(0.0), dot(n, v));
                 half ndotl = max(half(0.0), dot(n, l));
 
@@ -98,7 +110,8 @@ Shader "DeferredShading"
                 half3 F = F_Schlick(f0, f90, ldoth);
                 half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                 half D = D_GGX(ndoth, perceptRoughness);
-                half3 lightStrength = _DirectionalLightColors[0].rgb * ndotl;
+                half atten = GetDirectionalShadow(0, i.vertex.xy, vPos, n, GetShadowDistanceStrength(depthEye));
+                half3 lightStrength = _DirectionalLightColors[0].rgb * ndotl * atten;
                 diffuseLighting = albedo * Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength * pi_inv;
                 specularLighting = D * F * Vis * lightStrength;
                 
@@ -134,7 +147,7 @@ Shader "DeferredShading"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
             DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
-            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // dept_normal
+            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // normal_metallic_mask
             DEFINE_FRAMEBUFFER_INPUT_HALF(2); // depth
 
             CBUFFER_START(_DEFERRED_OTHER_LIGHT)

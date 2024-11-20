@@ -24,6 +24,10 @@ namespace BXRenderPipeline
 
             var componentTypes = CoreUtils.GetAllTypesDerivedFrom<BXVolumeComponment>();
             components = new Dictionary<Type, BXVolumeComponment>();
+            foreach(var type in componentTypes)
+            {
+                components.Add(type, ScriptableObject.CreateInstance(type) as BXVolumeComponment);
+            }
         }
 
         public void Override(BXRenderSettingsVolume volume, float interpFactor)
@@ -39,6 +43,11 @@ namespace BXRenderPipeline
                 components[componentType].OverrideData(willAdd, interpFactor);
             }
 		}
+
+        public void Dispose()
+        {
+            components = null;
+        }
 
         public void RefreshComponents()
         {

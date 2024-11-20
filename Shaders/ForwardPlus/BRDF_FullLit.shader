@@ -149,7 +149,7 @@ Shader "Test/BRDF_FullLit"
                         half3 F = F_Schlick(f0, f90, ldoth);
                         half Vis = V_SmithGGXCorrelated(ndotv, ndotl, perceptRoughness);
                         half D = D_GGX(ndoth, perceptRoughness);
-                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * ndotl;
+                        half3 lightStrength = _DirectionalLightColors[lightIndex].rgb * kds.x * ndotl * atten;
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
                     }
@@ -193,8 +193,11 @@ Shader "Test/BRDF_FullLit"
 
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
-                ambient = SampleLightMap(i.uv.zw) * albedo;
+                ambient = SampleLightMap(i.uv.zw);
                 #endif
+                ambient += SampleSH(n);
+                half3 F_ambient = F_Schlick(f0, f90, ndotv);
+                half3 ambientSpecular = SampleEnvironment(i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
                 #endif
@@ -202,7 +205,7 @@ Shader "Test/BRDF_FullLit"
                     (
                         diffuseLighting * albedo * pi_inv + 
                         specularLighting + 
-                        ambient * ao
+                        (ambient * albedo + ambientSpecular) * ao
                         #ifdef _EMISSION_ON
                         + emission.rgb
                         #endif

@@ -39,6 +39,7 @@ Shader "Test/BRDF_FullLit_Deferred"
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
+            #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
             struct appdata
             {
@@ -127,6 +128,8 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
+                float3 vSource = i.pos_world - _WorldSpaceCameraPos.xyz;
+                half3 v = normalize(vSource);
                 half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, _NormalScales.x, _NormalScales.y, _NormalScales.z, detilMask);
                 half3 n_view = TransformWorldToViewDir(n);
 
@@ -138,19 +141,25 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half3 albedo = mainTex.rgb * _DiffuseColor.rgb;
                 // albedo *= oneMinusMetallic;
                 half reflectance = _Reflectance;
+                reflectance *= reflectance;
+                half3 f0 = lerp(albedo, half(0.16) * reflectance, oneMinusMetallic);
+                half f90 = half(1.0);
+                half ndotv = max(half(0.0), dot(n, v));
+                half3 F = F_Schlick(f0, f90, ndotv);
 
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
                 ambient = SampleLightMap(i.uv.zw);
                 #endif
                 ambient += SampleSH(n);
+                half3 ambientSpecular = SampleEnvironment(i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * _EmissionStrength;
                 #endif
                 gbuffer.albedo_roughness = half4(albedo, roughness);
-                gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance * reflectance);
+                gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance);
                 gbuffer.lighting.rgb = 
-                    ambient * ao * albedo
+                    (ambient * albedo * oneMinusMetallic + ambientSpecular) * ao
                     #ifdef _EMISSION_ON
                     + emission.rgb
                     #endif

@@ -38,7 +38,8 @@ namespace BXRenderPipeline
         protected FilteringSettings filterSettings_opaue = new FilteringSettings(RenderQueueRange.opaque);
         protected FilteringSettings filterSettings_transparent = new FilteringSettings(RenderQueueRange.transparent);
         protected PerObjectData fullLightPerObjectFlags = PerObjectData.ReflectionProbes | PerObjectData.Lightmaps | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe |
-            PerObjectData.LightProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume | PerObjectData.None;
+            PerObjectData.LightProbe /** | PerObjectData.LightProbeProxyVolume **/ | PerObjectData.OcclusionProbeProxyVolume | PerObjectData.None;
+        // LightProbeProxyVolume is deprecated in the latest  srp
 
         protected Material postProcessMat;
 

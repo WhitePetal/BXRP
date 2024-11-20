@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering;
 using BXRenderPipelineDeferred;
+//using BXRenderPipelineForward;
 
 namespace BXRenderPipeline
 {
@@ -36,6 +37,7 @@ namespace BXRenderPipeline
 
 		private bool useDynamicBatching, useGPUInstancing;
 		private BXMainCameraRenderDeferred mainCameraRender = new BXMainCameraRenderDeferred();
+		// for reflection probe bake、preview window each other render
 		private BXOtherCameraRender otherCameraRender = new BXOtherCameraRender();
 		public BXRenderCommonSettings commonSettings;
 
@@ -47,7 +49,7 @@ namespace BXRenderPipeline
 		private List<BXRenderFeature> afterTransparentFeatures;
 		private List<BXRenderFeature> onPostProcessRenderFeatures;
 
-		public BXRenderPipeline(bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatching, BXRenderCommonSettings commonSettings,
+        public BXRenderPipeline(bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatching, BXRenderCommonSettings commonSettings,
 			List<BXRenderFeature> beforeRenderFeatures, List<BXRenderFeature> onDirShadowRenderFeatures, 
 			List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
 			List<BXRenderFeature> beforeTransparentFeatures, List<BXRenderFeature> afterTransparentFeatures,
@@ -62,6 +64,7 @@ namespace BXRenderPipeline
 			GraphicsSettings.useScriptableRenderPipelineBatching = useSRPBatching;
 			GraphicsSettings.lightsUseLinearIntensity = false;
 			QualitySettings.antiAliasing = 1;
+			QualitySettings.realtimeReflectionProbes = true;
 
 			this.beforeRenderFeatures = beforeRenderFeatures;
 			this.onDirShadowRenderFeatures = onDirShadowRenderFeatures;
@@ -78,6 +81,8 @@ namespace BXRenderPipeline
 			InitRenderFeatures(afterTransparentFeatures);
 			InitRenderFeatures(onPostProcessRenderFeatures);
 
+			mainCameraRender.Init(commonSettings);
+
 			Assert.IsTrue(commonSettings.coreBlitPS != null, "CommonSettings CoreBlitPS Shader is null");
 			Assert.IsTrue(commonSettings.coreBlitColorAndDepthPS != null, "CommonSettings CoreBlitColorAndDepth Shader is null");
 			Blitter.Initialize(commonSettings.coreBlitPS, commonSettings.coreBlitColorAndDepthPS);
@@ -92,7 +97,7 @@ namespace BXRenderPipeline
 				var camera = cameras[i];
 				if(camera.CompareTag("MainCamera") || camera.cameraType == CameraType.SceneView)
 				{
-					mainCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing, commonSettings,
+					mainCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing,
 						beforeRenderFeatures, onDirShadowRenderFeatures,
 						beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures,
 						beforeTransparentFeatures, afterTransparentFeatures,
@@ -100,7 +105,12 @@ namespace BXRenderPipeline
 				}
 				else
 				{
-
+					// other camera use forward path render always
+					// and only used in editor
+					// in runtime we always only use main camera
+#if UNITY_EDITOR
+					otherCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing, commonSettings);
+#endif
 				}
 			}
 		}
