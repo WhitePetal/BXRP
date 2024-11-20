@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using BXRenderPipelineForward;
 using UnityEngine;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
-namespace BXRenderPipeline
+namespace BXRenderPipelineForward
 {
     public partial class BXOtherCameraRender : BXMainCameraRenderBase
     {
@@ -111,8 +112,8 @@ namespace BXRenderPipeline
             };
             opaqueDrawingSettings.sortingSettings = sortingSettings;
             opaqueDrawingSettings.perObjectData = fullLightPerObjectFlags;
-            opaqueDrawingSettings.SetShaderPassName(0, BXRenderPipeline.forwardShaderTagIds[0]);
-            opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.forwardShaderTagIds[1]);
+            opaqueDrawingSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[0]);
+            opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref opaqueDrawingSettings, ref filterSettings_opaue);
 
             // Draw Alpha Test
@@ -123,7 +124,7 @@ namespace BXRenderPipeline
             };
             alphaTestDrawSettings.perObjectData = fullLightPerObjectFlags;
             alphaTestDrawSettings.sortingSettings = sortingSettings;
-            alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.forwardShaderTagIds[2]);
+            alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[2]);
             context.DrawRenderers(cullingResults, ref alphaTestDrawSettings, ref filterSettings_opaue);
 
             // Draw SkyBox
@@ -137,8 +138,8 @@ namespace BXRenderPipeline
             };
             alphaDrawSettings.perObjectData = fullLightPerObjectFlags;
             alphaDrawSettings.sortingSettings = sortingSettings;
-            alphaDrawSettings.SetShaderPassName(0, BXRenderPipeline.forwardShaderTagIds[0]);
-            alphaDrawSettings.SetShaderPassName(1, BXRenderPipeline.forwardShaderTagIds[1]);
+            alphaDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[0]);
+            alphaDrawSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref alphaDrawSettings, ref filterSettings_transparent);
 
             ExecuteCommand();

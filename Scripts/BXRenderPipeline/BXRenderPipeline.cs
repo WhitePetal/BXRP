@@ -38,7 +38,7 @@ namespace BXRenderPipeline
 		private bool useDynamicBatching, useGPUInstancing;
 		private BXMainCameraRenderDeferred mainCameraRender = new BXMainCameraRenderDeferred();
 		// for reflection probe bake、preview window each other render
-		private BXOtherCameraRender otherCameraRender = new BXOtherCameraRender();
+		private BXOtherCameraRenderDeferred otherCameraRender = new BXOtherCameraRenderDeferred();
 		public BXRenderCommonSettings commonSettings;
 
 		private List<BXRenderFeature> beforeRenderFeatures;
@@ -82,6 +82,7 @@ namespace BXRenderPipeline
 			InitRenderFeatures(onPostProcessRenderFeatures);
 
 			mainCameraRender.Init(commonSettings);
+			otherCameraRender.Init(commonSettings);
 
 			Assert.IsTrue(commonSettings.coreBlitPS != null, "CommonSettings CoreBlitPS Shader is null");
 			Assert.IsTrue(commonSettings.coreBlitColorAndDepthPS != null, "CommonSettings CoreBlitColorAndDepth Shader is null");
@@ -109,7 +110,7 @@ namespace BXRenderPipeline
 					// and only used in editor
 					// in runtime we always only use main camera
 #if UNITY_EDITOR
-					otherCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing, commonSettings);
+					otherCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing);
 #endif
 				}
 			}

@@ -97,7 +97,7 @@ namespace BXRenderPipelineDeferred
 			}
 		}
 
-        public void Setup(BXMainCameraRenderDeferred mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Setup(BXMainCameraRenderBase mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
 		{
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;

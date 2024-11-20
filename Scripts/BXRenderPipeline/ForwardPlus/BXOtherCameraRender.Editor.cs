@@ -5,8 +5,9 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
+using BXRenderPipeline;
 
-namespace BXRenderPipeline
+namespace BXRenderPipelineForward
 {
     public partial class BXOtherCameraRender
     {
@@ -29,14 +30,14 @@ namespace BXRenderPipeline
 
         private void DrawUnsupportShader()
         {
-            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.legacyShaderTagIds[0], new SortingSettings(camera))
+            DrawingSettings drawingSettings = new DrawingSettings(BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds[0], new SortingSettings(camera))
             {
                 overrideMaterial = material_error
             };
             FilteringSettings filteringSettings = FilteringSettings.defaultValue;
-            for (int i = 1; i < BXRenderPipeline.legacyShaderTagIds.Length; ++i)
+            for (int i = 1; i < BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds.Length; ++i)
             {
-                drawingSettings.SetShaderPassName(i, BXRenderPipeline.legacyShaderTagIds[i]);
+                drawingSettings.SetShaderPassName(i, BXRenderPipeline.BXRenderPipeline.legacyShaderTagIds[i]);
             }
             context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
         }

@@ -101,8 +101,8 @@ CBUFFER_START(UnityPerDraw)
 
     float4 unity_ProbesOcclusion;
 
-    half4 unity_SpecCube0_HDR;
-    half4 unity_SpecCube1_HDR;
+    float4 unity_SpecCube0_HDR;
+    float4 unity_SpecCube1_HDR;
 
     float4 unity_SpecCube0_BoxMax;
     float4 unity_SpecCube0_BoxMin;

@@ -128,7 +128,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
-                float3 vSource = i.pos_world - _WorldSpaceCameraPos.xyz;
+                float3 vSource = _WorldSpaceCameraPos.xyz - i.pos_world;
                 half3 v = normalize(vSource);
                 half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, _NormalScales.x, _NormalScales.y, _NormalScales.z, detilMask);
                 half3 n_view = TransformWorldToViewDir(n);
