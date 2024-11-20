@@ -364,11 +364,11 @@ namespace BXRenderPipelineDeferred
 #if UNITY_EDITOR
             if (camera.cameraType == CameraType.SceneView)
             {
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 0, true, true, width_screen, height_screen);
+                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 5, true, true, width_screen, height_screen);
             }
             else
             {
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, postProcessMat, 0, true, true, width_screen, height_screen);
+                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, postProcessMat, 5, true, true, width_screen, height_screen);
             }
 #else
             DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
