@@ -64,7 +64,7 @@ namespace BXRenderPipeline
 			GraphicsSettings.useScriptableRenderPipelineBatching = useSRPBatching;
 			GraphicsSettings.lightsUseLinearIntensity = false;
 			QualitySettings.antiAliasing = 1;
-			QualitySettings.realtimeReflectionProbes = true;
+			//QualitySettings.realtimeReflectionProbes = false;
 
 			this.beforeRenderFeatures = beforeRenderFeatures;
 			this.onDirShadowRenderFeatures = onDirShadowRenderFeatures;

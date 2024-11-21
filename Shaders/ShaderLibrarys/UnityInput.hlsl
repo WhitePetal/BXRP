@@ -100,17 +100,18 @@ CBUFFER_START(UnityPerDraw)
     half4 unity_LightIndices[2];
 
     float4 unity_ProbesOcclusion;
+    
+    // cube probe is deprecated, now use probe_atlas
+    // float4 unity_SpecCube0_HDR;
+    // float4 unity_SpecCube1_HDR;
 
-    float4 unity_SpecCube0_HDR;
-    float4 unity_SpecCube1_HDR;
+    // float4 unity_SpecCube0_BoxMax;
+    // float4 unity_SpecCube0_BoxMin;
+    // float4 unity_SpecCube0_ProbePosition;
 
-    float4 unity_SpecCube0_BoxMax;
-    float4 unity_SpecCube0_BoxMin;
-    float4 unity_SpecCube0_ProbePosition;
-
-    float4 unity_SpecCube1_BoxMax;
-    float4 unity_SpecCube1_BoxMin;
-    float4 unity_SpecCube1_ProbePosition;
+    // float4 unity_SpecCube1_BoxMax;
+    // float4 unity_SpecCube1_BoxMin;
+    // float4 unity_SpecCube1_ProbePosition;
 
     float4 unity_LightmapST;
     float4 unity_DynamicLightmapST;

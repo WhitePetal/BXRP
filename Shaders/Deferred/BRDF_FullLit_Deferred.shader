@@ -153,11 +153,12 @@ Shader "Test/BRDF_FullLit_Deferred"
                 #endif
                 ambient += SampleSH(n);
                 half3 ambientSpecular = SampleEnvironment(i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
+                // half3 ambientSpecular = 0.0;
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * _EmissionStrength;
                 #endif
                 gbuffer.albedo_roughness = half4(albedo, roughness);
-                gbuffer.normal_metallic_mask = half4(EncodeViewNormalStereo(n_view), oneMinusMetallic, reflectance);
+                gbuffer.normal_metallic_mask = half4(PackNormalOctQuadEncode(n_view), oneMinusMetallic, reflectance);
                 gbuffer.lighting.rgb = 
                     (ambient * albedo * oneMinusMetallic + ambientSpecular) * ao
                     #ifdef _EMISSION_ON

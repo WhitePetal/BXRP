@@ -43,6 +43,8 @@ namespace BXRenderPipeline
 
         protected Material postProcessMat;
 
+        protected BXReflectionProbeManager reflectionProbe;
+
         public abstract void Dispose();
     }
 }

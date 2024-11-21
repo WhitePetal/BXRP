@@ -223,23 +223,6 @@ half3 ToneMapping_ACES_To_sRGB(half3 color, half adapted_lum)
     #endif
 }
 
-// Ref: http://jcgt.org/published/0003/02/01/paper.pdf "A Survey of Efficient Representations for Independent Unit Vectors"
-// Encode with Oct, this function work with any size of output
-// return float between [-1, 1]
-half2 PackNormalOctQuadEncode(half3 n)
-{
-    //float l1norm    = dot(abs(n), 1.0);
-    //float2 res0     = n.xy * (1.0 / l1norm);
-
-    //float2 val      = 1.0 - abs(res0.yx);
-    //return (n.zz < float2(0.0, 0.0) ? (res0 >= 0.0 ? val : -val) : res0);
-
-    // Optimized version of above code:
-    n *= rcp(max(dot(abs(n), half(1.0)), half(0.0001)));
-    half t = saturate(-n.z);
-    return n.xy + half2(n.x >= half(0.0) ? t : -t, n.y >= half(0.0) ? t : -t);
-}
-
 inline half2 EncodeViewNormalStereo( half3 n )
 {
     half kScale = half(1.7777);
@@ -258,6 +241,38 @@ inline half3 DecodeViewNormalStereo( half4 enc4 )
     n.xy = g*nn.xy;
     n.z = g-half(1);
     return n;
+}
+
+// Ref: http://jcgt.org/published/0003/02/01/paper.pdf "A Survey of Efficient Representations for Independent Unit Vectors"
+// Encode with Oct, this function work with any size of output
+// return float between [-1, 1]
+half2 PackNormalOctQuadEncode(half3 n)
+{
+    //float l1norm    = dot(abs(n), 1.0);
+    //float2 res0     = n.xy * (1.0 / l1norm);
+
+    //float2 val      = 1.0 - abs(res0.yx);
+    //return (n.zz < float2(0.0, 0.0) ? (res0 >= 0.0 ? val : -val) : res0);
+
+    // Optimized version of above code:
+    n *= rcp(max(dot(abs(n), 1.0), half(1e-6)));
+    half t = saturate(-n.z);
+    return n.xy + half2(n.x >= half(0.0) ? t : -t, n.y >= half(0.0) ? t : -t);
+}
+
+half3 UnpackNormalOctQuadEncode(half2 f)
+{
+    // NOTE: Do NOT use abs() in this line. It causes miscompilations. (UUM-62216, UUM-70600)
+    half3 n = half3(f.x, f.y, half(1.0) - (f.x < half(0) ? -f.x : f.x) - (f.y < half(0) ? -f.y : f.y));
+
+    //float2 val = 1.0 - abs(n.yx);
+    //n.xy = (n.zz < float2(0.0, 0.0) ? (n.xy >= 0.0 ? val : -val) : n.xy);
+
+    // Optimized version of above code:
+    half t = max(-n.z, half(0.0));
+    n.xy += half2(n.x >= half(0.0) ? -t : t, n.y >= half(0.0) ? -t : t);
+
+    return normalize(n);
 }
 
 inline half2 EncodeFloatRG( float v )

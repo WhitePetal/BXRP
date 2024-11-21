@@ -3,15 +3,29 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 
+#define MAX_REFLECTION_PROBE_COUNT 4
+
 TEXTURE2D(unity_Lightmap);
 SAMPLER(samplerunity_Lightmap);
 
-TEXTURECUBE(unity_SpecCube0);
-SAMPLER(samplerunity_SpecCube0);
+// cube probe is deprecated, now use probe_atlas
+// TEXTURECUBE(unity_SpecCube0);
+// SAMPLER(samplerunity_SpecCube0);
+
+TEXTURE2D(bx_ReflProbes_Atlas);
+#define samplerurp_ReflProbes_Atlas sampler_LinearClamp
 
 // Light Probe Proxy Volume is deprecated in the latest srp
 // TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
 // SAMPLER(samplerunity_ProbeVolumeSH);
+
+CBUFFER_START(bx_ReflectionProbeBuffer)
+	float bx_ReflProbes_Count;
+	float4 bx_ReflProbes_BoxMax[MAX_REFLECTION_PROBE_COUNT]; // w is the blend distance
+    float4 bx_ReflProbes_BoxMin[MAX_REFLECTION_PROBE_COUNT]; // w is the importance
+	float4 bx_ReflProbes_ProbePosition[MAX_REFLECTION_PROBE_COUNT]; // w is positive for box projection, |w| is max mip level
+	float4 bx_ReflProbes_MipScaleOffset[MAX_REFLECTION_PROBE_COUNT * 7];
+CBUFFER_END
 
 half3 SampleLightMap (half2 lightMapUV) {
 	#if defined(LIGHTMAP_ON)
@@ -60,13 +74,57 @@ half3 SampleSH(half3 normalWS /**, float3 pos_world **/)
 
 }
 
-half3 SampleEnvironment(float3 pos_world, half3 v, half3 n, half roughness) {
-	half3 uvw = reflect(-v, n);
-	half4 environment = SAMPLE_TEXTURECUBE_LOD(
-		unity_SpecCube0, samplerunity_SpecCube0, uvw, roughness * 16
+#define _REFLECTION_PROBE_BOX_PROJECTION 1
+
+half CalculateProbeWeight(float3 positionWS, float4 probeBoxMin, float4 probeBoxMax)
+{
+    half blendDistance = half(probeBoxMax.w);
+    half3 weightDir = min(half3(positionWS - probeBoxMin.xyz), half3(probeBoxMax.xyz - positionWS)) / blendDistance;
+    return saturate(min(weightDir.x, min(weightDir.y, weightDir.z)));
+}
+
+half3 BoxProjectedCubemapDirection(half3 reflectionWS, float3 positionWS, float4 cubemapPositionWS, float4 boxMin, float4 boxMax)
+{
+    // Is this probe using box projection?
+    if (cubemapPositionWS.w > 0.0f)
+    {
+        float3 boxMinMax = (reflectionWS > 0.0f) ? boxMax.xyz : boxMin.xyz;
+        half3 rbMinMax = half3(boxMinMax - positionWS) / reflectionWS;
+
+        half fa = half(min(min(rbMinMax.x, rbMinMax.y), rbMinMax.z));
+
+        half3 worldPos = half3(positionWS - cubemapPositionWS.xyz);
+
+        half3 result = worldPos + reflectionWS * fa;
+        return result;
+    }
+    else
+    {
+        return reflectionWS;
+    }
+}
+
+half3 SampleEnvironment(float3 pos_world, half3 v, half3 n, half roughness) 
+{
+	half weight = CalculateProbeWeight(pos_world, bx_ReflProbes_BoxMin[0], bx_ReflProbes_BoxMax[0]);
+	half3 reflectVector = reflect(-v, n);
+
+	#ifdef _REFLECTION_PROBE_BOX_PROJECTION
+		reflectVector = BoxProjectedCubemapDirection(reflectVector, pos_world, bx_ReflProbes_ProbePosition[0], bx_ReflProbes_BoxMin[0], bx_ReflProbes_BoxMax[0]);
+	#endif
+
+	half mip = roughness * half(16);
+	half maxMip = abs(bx_ReflProbes_ProbePosition[0].w) - half(1);
+	mip = min(mip, maxMip);
+	half2 uv = saturate(PackNormalOctQuadEncode(reflectVector) * half(0.5) + half(0.5));
+	float4 scaleOffset = bx_ReflProbes_MipScaleOffset[0 * 7 + (int)mip];
+
+	half4 environment = SAMPLE_TEXTURE2D_LOD(
+		bx_ReflProbes_Atlas, samplerurp_ReflProbes_Atlas, uv * scaleOffset.xy + scaleOffset.zw, 0 
 	);
-	// return uvw;
-	return DecodeHDREnvironment(environment, unity_SpecCube0_HDR);
+	// // return uvw;
+	return environment.rgb * weight;
+	// return DecodeHDREnvironment(environment, unity_SpecCube0_HDR);
 }
 
 #endif

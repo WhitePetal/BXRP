@@ -76,7 +76,7 @@ Shader "DeferredShading"
 
                 half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
                 half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
-                half3 n = DecodeViewNormalStereo(normal_metallic_mask);
+                half3 n = UnpackNormalOctQuadEncode(normal_metallic_mask.xy);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;
 
@@ -203,7 +203,7 @@ Shader "DeferredShading"
                 float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
                 #endif
                 float depthEye = LinearEyeDepth(depth);
-                half3 n = DecodeViewNormalStereo(normal_metallic_mask);
+                half3 n = UnpackNormalOctQuadEncode(normal_metallic_mask.xy);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;
                 half perceptRoughness = albedo_roughness.a;
