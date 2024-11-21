@@ -257,11 +257,13 @@ half2 PackNormalOctQuadEncode(half3 n)
     // Optimized version of above code:
     n *= rcp(max(dot(abs(n), 1.0), half(1e-6)));
     half t = saturate(-n.z);
-    return n.xy + half2(n.x >= half(0.0) ? t : -t, n.y >= half(0.0) ? t : -t);
+    half2 encode = n.xy + half2(n.x >= half(0.0) ? t : -t, n.y >= half(0.0) ? t : -t);
+    return encode * half(0.5) + half(0.5);
 }
 
 half3 UnpackNormalOctQuadEncode(half2 f)
 {
+    f = f * half(2.0) - half(1.0);
     // NOTE: Do NOT use abs() in this line. It causes miscompilations. (UUM-62216, UUM-70600)
     half3 n = half3(f.x, f.y, half(1.0) - (f.x < half(0) ? -f.x : f.x) - (f.y < half(0) ? -f.y : f.y));
 
