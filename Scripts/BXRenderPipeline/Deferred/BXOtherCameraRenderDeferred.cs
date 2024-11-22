@@ -211,71 +211,75 @@ namespace BXRenderPipelineDeferred
             commandBuffer.SetGlobalTexture(_NormalMetallicMaskRT_ID, _NormalMetallicMaskRT_TargetID);
             commandBuffer.SetGlobalTexture(_EncodeDepthRT_ID, _EncodeDepthRT_TargetID);
 
-            // Deferred Base Lighting: Directional Lighting + Indirect Lighting
-            if (lights.dirLightCount > 0)
+            // baked not render realtime light
+            if(camera.cameraType != CameraType.Reflection)
             {
-                commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 0, MeshTopology.Triangles, 6);
-            }
-
-            // Deferred Other Light Lighting
-            for (int i = 0; i < lights.stencilLightCount; ++i)
-            {
-                Material otherLightMat = stencilLightMats[i];
-                commandBuffer.SetGlobalInteger(BXShaderPropertyIDs._OtherLightIndex_ID, i);
-                var visibleLight = lights.otherLights[i];
-                switch (visibleLight.lightType)
+                // Deferred Base Lighting: Directional Lighting + Indirect Lighting
+                if (lights.dirLightCount > 0)
                 {
-                    case LightType.Point:
-                        {
-                            float range = visibleLight.range;
-                            Vector3 lightSphere = lights.otherLightSpheres[i];
-                            Vector3 lightPos = visibleLight.light.transform.position;
-                            Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, Quaternion.identity, Vector3.one * range);
-                            if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane))
+                    commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 0, MeshTopology.Triangles, 6);
+                }
+
+                // Deferred Other Light Lighting
+                for (int i = 0; i < lights.stencilLightCount; ++i)
+                {
+                    Material otherLightMat = stencilLightMats[i];
+                    commandBuffer.SetGlobalInteger(BXShaderPropertyIDs._OtherLightIndex_ID, i);
+                    var visibleLight = lights.otherLights[i];
+                    switch (visibleLight.lightType)
+                    {
+                        case LightType.Point:
                             {
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
-                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                                float range = visibleLight.range;
+                                Vector3 lightSphere = lights.otherLightSpheres[i];
+                                Vector3 lightPos = visibleLight.light.transform.position;
+                                Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, Quaternion.identity, Vector3.one * range);
+                                if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane))
+                                {
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
+                                    commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                                }
+                                else
+                                {
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
+                                    commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
+                                    commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                                }
+                                commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
                             }
-                            else
+                            break;
+                        case LightType.Spot:
                             {
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
-                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 0);
-                                commandBuffer.DrawMesh(commonSettings.pointLightMesh, localToWorld, otherLightMat, 0, 1);
+                                float range = visibleLight.range;
+                                Vector3 lightSphere = lights.otherLightSpheres[i];
+                                float angleRangeInv = lights.otherLightThresholds[i].z;
+                                Vector3 lightPos = visibleLight.light.transform.position;
+                                Vector3 toLight = (camera.transform.position - lightPos).normalized;
+                                float cosAngle = Vector3.Dot(toLight, visibleLight.light.transform.forward);
+                                float angleDst = (1 - cosAngle) * angleRangeInv;
+                                Vector3 scale = Vector3.one * range;
+                                scale.x *= visibleLight.spotAngle / 30f;
+                                scale.y *= visibleLight.spotAngle / 30f;
+                                Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, visibleLight.light.transform.rotation, scale);
+                                if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane) && angleDst < 1f)
+                                {
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
+                                    commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
+                                }
+                                else
+                                {
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
+                                    otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
+                                    commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 0);
+                                    commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
+                                }
+                                commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
                             }
-                            commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
-                        }
-                        break;
-                    case LightType.Spot:
-                        {
-                            float range = visibleLight.range;
-                            Vector3 lightSphere = lights.otherLightSpheres[i];
-                            float angleRangeInv = lights.otherLightThresholds[i].z;
-                            Vector3 lightPos = visibleLight.light.transform.position;
-                            Vector3 toLight = (camera.transform.position - lightPos).normalized;
-                            float cosAngle = Vector3.Dot(toLight, visibleLight.light.transform.forward);
-                            float angleDst = (1 - cosAngle) * angleRangeInv;
-                            Vector3 scale = Vector3.one * range;
-                            scale.x *= visibleLight.spotAngle / 30f;
-                            scale.y *= visibleLight.spotAngle / 30f;
-                            Matrix4x4 localToWorld = Matrix4x4.TRS(lightPos, visibleLight.light.transform.rotation, scale);
-                            if (Vector3.SqrMagnitude(lightSphere) <= (range * range - camera.nearClipPlane) && angleDst < 1f)
-                            {
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Always);
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Replace);
-                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
-                            }
-                            else
-                            {
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilComp_ID, (int)CompareFunction.Equal);
-                                otherLightMat.SetInt(BXShaderPropertyIDs._StencilOp_ID, (int)StencilOp.Keep);
-                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 0);
-                                commandBuffer.DrawMesh(commonSettings.spotLightMesh, localToWorld, otherLightMat, 0, 1);
-                            }
-                            commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 1, MeshTopology.Triangles, 6);
-                        }
-                        break;
+                            break;
+                    }
                 }
             }
             ExecuteCommand();
@@ -302,6 +306,7 @@ namespace BXRenderPipelineDeferred
             //context.SubmitForRenderPassValidation();
             if (isPreview)
             {
+                //Debug.Log("preview name: " + camera.targetTexture.);
                 commandBuffer.SetGlobalFloat("_PrieviewFlip", camera.name == "Preview Camera" ? -1 : 1);
                 DrawPostProcess();
             }

@@ -128,7 +128,7 @@ half3 SampleEnvironment(float3 vertex, float depthEye, float3 pos_world, half3 v
 		if(weight <= half(0.0)) continue;
 
 		#ifdef _REFLECTION_PROBE_BOX_PROJECTION
-			realVec = BoxProjectedCubemapDirection(reflectVector, pos_world, bx_ReflProbes_ProbePosition[reflectIndex], bx_ReflProbes_BoxMin[reflectIndex], bx_ReflProbes_BoxMax[reflectIndex]);
+			// realVec = BoxProjectedCubemapDirection(reflectVector, pos_world, bx_ReflProbes_ProbePosition[reflectIndex], bx_ReflProbes_BoxMin[reflectIndex], bx_ReflProbes_BoxMax[reflectIndex]);
 		#endif
 
 		half maxMip = abs(bx_ReflProbes_ProbePosition[reflectIndex].w) - half(1);

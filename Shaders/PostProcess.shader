@@ -512,7 +512,8 @@ Shader "PostProcess"
 					);
 				}
 				// #if UNITY_UV_STARTS_AT_TOP
-				if(_PrieviewFlip < 0) o.uv.y = 1.0 - o.uv.y;
+				// if(_PrieviewFlip < 0) o.uv.y = 1.0 - o.uv.y;
+				o.uv.y = 1.0 - o.uv.y;
 				// #endif
 				return o;
 			}
