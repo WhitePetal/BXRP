@@ -9,12 +9,28 @@ namespace BXRenderPipelineDeferred
 {
     public partial class BXOtherCameraRenderDeferred : BXMainCameraRenderBase
     {
+        private static readonly int _AlebodRoughnessRT_ID = Shader.PropertyToID("_AlebodRoughnessRT");
+        private static readonly RenderTargetIdentifier _AlebodRoughnessRT_TargetID = new RenderTargetIdentifier(_AlebodRoughnessRT_ID);
+        private static readonly int _NormalMetallicMaskRT_ID = Shader.PropertyToID("_NormalMetallicMaskRT");
+        private static readonly RenderTargetIdentifier _NormalMetallicMaskRT_TargetID = new RenderTargetIdentifier(_NormalMetallicMaskRT_ID);
+        private static readonly int _EncodeDepthRT_ID = Shader.PropertyToID("_EncodeDepthRT");
+        private static readonly RenderTargetIdentifier _EncodeDepthRT_TargetID = new RenderTargetIdentifier(_EncodeDepthRT_ID);
+        private static readonly int _LightingRT_ID = Shader.PropertyToID("_LightingRT");
+        private static readonly RenderTargetIdentifier _LightingRT_TargetID = new RenderTargetIdentifier(_LightingRT_ID);
+        private static readonly int _TempDepth_ID = Shader.PropertyToID("_TempDepth");
+        private static readonly RenderTargetIdentifier _TempDepth_TargetID = new RenderTargetIdentifier(_TempDepth_ID);
+
         public BXLightsDeferred lights = new BXLightsDeferred();
 
         private GlobalKeyword framebufferfetch_msaa = GlobalKeyword.Create("FRAMEBUFFERFETCH_MSAA");
 
         private Material[] stencilLightMats = new Material[BXLightsDeferred.maxStencilLightCount];
         private List<BXRenderFeature> onDirShadowsRenderFeatures = new List<BXRenderFeature>();
+        private RenderTargetIdentifier[] mrt = new RenderTargetIdentifier[4];
+        private RenderBufferLoadAction[] loadActions = new RenderBufferLoadAction[] { RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare };
+        private RenderBufferStoreAction[] storeActions = new RenderBufferStoreAction[] { RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store };
+
+        private Material deferredMaterial = new Material(Shader.Find("Hidden/DeferredShadingEditor"));
 
         public void Init(BXRenderCommonSettings commonSettings)
         {
@@ -35,22 +51,11 @@ namespace BXRenderPipelineDeferred
 
             width_screen = camera.pixelWidth;
             height_screen = camera.pixelHeight;
-#if UNITY_EDITOR
-            if (camera.cameraType == CameraType.SceneView)
-            {
-                height = height_screen;
-            }
-            else
-            {
-                height = Mathf.Clamp(Mathf.RoundToInt(height_screen * commonSettings.downSample), commonSettings.minHeight, commonSettings.maxHeight);
-            }
-#else
-            height = Mathf.Clamp(Mathf.RoundToInt(height_screen * commonSettings.downSample), commonSettings.minHeight, commonSettings.maxHeight);
-#endif
-            width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
+            width = width_screen;
+            height = height_screen;
 
             //BXHiZManager.instance.BeforeSRPCull(this);
-            //BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
+            BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
 #if UNITY_EDITOR
             PreparBuffer();
@@ -99,16 +104,11 @@ namespace BXRenderPipelineDeferred
 
         private void GenerateGraphicsBuffe()
         {
-            commandBuffer.SetKeyword(framebufferfetch_msaa, commonSettings.msaa > 1);
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA, false);
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._EncodeDepthBuffer_ID, width, height, 0, FilterMode.Point, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, commonSettings.msaa, false, RenderTextureMemoryless.MSAA, false);
-
-            //var renderSettings = BXVolumeManager.instance.renderSettings;
-            //var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
+            var renderSettings = BXVolumeManager.instance.renderSettings;
+            var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
 
             // EV-Expourse
-            //commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
-            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, 1f);
+            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
 
             float aspec = camera.aspect;
             float h_half;
@@ -144,71 +144,38 @@ namespace BXRenderPipelineDeferred
 
         private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing)
         {
-            var lighting = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.B10G11R11_UFloatPack32);
-            var albeod_roughness = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
-            var normal_metallic_mask = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
-            var depth = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.D24_UNorm_S8_UInt);
-            // for metal can't framefetch depth buffer, so Encode Depth to a external attachment
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            var depth_metal = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
-#endif
-            albeod_roughness.ConfigureClear(Color.clear);
-            normal_metallic_mask.ConfigureClear(Color.clear);
-            lighting.ConfigureClear(Color.clear);
-            depth.ConfigureClear(Color.clear, 1f, 0);
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            depth_metal.ConfigureClear(Color.clear);
-            depth_metal.ConfigureTarget(BXShaderPropertyIDs._EncodeDepthBuffer_TargetID, false, true);
-            if (commonSettings.msaa > 1)
+            bool isPreview = camera.cameraType == CameraType.Preview;
+            RenderTextureDescriptor lightingDesc = new RenderTextureDescriptor
             {
-                depth_metal.ConfigureResolveTarget(BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
+                width = width,
+                height = height,
+                dimension = TextureDimension.Tex2D,
+                depthBufferBits = 0,
+                graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.B10G11R11_UFloatPack32,
+                msaaSamples = 1,
+                enableRandomWrite = false,
+                sRGB = false,
+                memoryless = RenderTextureMemoryless.Depth
+            };
+            RenderTextureDescriptor colorDesc = lightingDesc;
+            colorDesc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm;
 
-            }
-            depth_metal.loadAction = RenderBufferLoadAction.DontCare;
-#endif
+            commandBuffer.GetTemporaryRT(_LightingRT_ID, lightingDesc, FilterMode.Bilinear);
+            commandBuffer.GetTemporaryRT(_AlebodRoughnessRT_ID, colorDesc, FilterMode.Bilinear);
+            commandBuffer.GetTemporaryRT(_NormalMetallicMaskRT_ID, colorDesc, FilterMode.Bilinear);
+            commandBuffer.GetTemporaryRT(_EncodeDepthRT_ID, colorDesc, FilterMode.Bilinear);
+            commandBuffer.GetTemporaryRT(_TempDepth_ID, width, height, 32, FilterMode.Point, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
 
-            lighting.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
-            if (commonSettings.msaa > 1)
-            {
-                lighting.ConfigureResolveTarget(BXShaderPropertyIDs._FrameBuffer_TargetID);
+            mrt[0] = isPreview ? _LightingRT_ID : BuiltinRenderTextureType.CameraTarget;
+            mrt[1] = _AlebodRoughnessRT_TargetID;
+            mrt[2] = _NormalMetallicMaskRT_TargetID;
+            mrt[3] = _EncodeDepthRT_TargetID;
 
-            }
-            // loadExisitingContents = false may be useless in subpass if not do this
-            lighting.loadAction = RenderBufferLoadAction.DontCare;
-
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
-#else
-            var attachments = new NativeArray<AttachmentDescriptor>(4, Allocator.Temp);
-#endif
-            const int depthIndex = 0, lightingIndex = 1, albedo_roughnessIndex = 2, normal_metallic_maskIndex = 3;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            const int depth_metalIndex = 4;
-#endif
-            attachments[depthIndex] = depth;
-            attachments[lightingIndex] = lighting;
-            attachments[albedo_roughnessIndex] = albeod_roughness;
-            attachments[normal_metallic_maskIndex] = normal_metallic_mask;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            attachments[depth_metalIndex] = depth_metal;
-#endif
-            context.BeginRenderPass(width, height, 1, commonSettings.msaa, attachments, depthIndex);
-            attachments.Dispose();
-
-            // RenderGbuffer Sub Pass
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            var gbuffers = new NativeArray<int>(4, Allocator.Temp);
-#else
-            var gbuffers = new NativeArray<int>(3, Allocator.Temp);
-#endif
-            gbuffers[0] = lightingIndex;
-            gbuffers[1] = albedo_roughnessIndex;
-            gbuffers[2] = normal_metallic_maskIndex;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            gbuffers[3] = depth_metalIndex;
-#endif
-            context.BeginSubPass(gbuffers);
-            gbuffers.Dispose();
+            RenderTargetBinding binding;
+            binding = new RenderTargetBinding(mrt, loadActions, storeActions, _TempDepth_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+            commandBuffer.SetRenderTarget(binding);
+            commandBuffer.ClearRenderTarget(true, true, Color.clear);
+            ExecuteCommand();
 
             // Draw Opaque GBuffers
             SortingSettings sortingSettings = new SortingSettings(camera)
@@ -237,34 +204,19 @@ namespace BXRenderPipelineDeferred
             alphaTestDrawSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[2]);
             context.DrawRenderers(cullingResults, ref alphaTestDrawSettings, ref filterSettings_opaue);
 
-            context.EndSubPass();
+            commandBuffer.SetRenderTarget(isPreview ? _LightingRT_TargetID : BuiltinRenderTextureType.CameraTarget, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, _TempDepth_TargetID, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+            commandBuffer.ClearRenderTarget(false, false, Color.clear);
 
-            // Render Lighting Sub Pass
-            var lightingBuffers = new NativeArray<int>(1, Allocator.Temp);
-            lightingBuffers[0] = lightingIndex;
-            var lightingInputs = new NativeArray<int>(3, Allocator.Temp);
-            lightingInputs[0] = albedo_roughnessIndex;
-            lightingInputs[1] = normal_metallic_maskIndex;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
-            lightingInputs[2] = depth_metalIndex;
-#else
-            lightingInputs[2] = depthIndex;
-#endif
-#if UNITY_STANDALONE_OSX || UNITY_IOS
-            context.BeginSubPass(lightingBuffers, lightingInputs);
-#else
-            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
-#endif
-            lightingBuffers.Dispose();
-            lightingInputs.Dispose();
+            commandBuffer.SetGlobalTexture(_AlebodRoughnessRT_ID, _AlebodRoughnessRT_TargetID);
+            commandBuffer.SetGlobalTexture(_NormalMetallicMaskRT_ID, _NormalMetallicMaskRT_TargetID);
+            commandBuffer.SetGlobalTexture(_EncodeDepthRT_ID, _EncodeDepthRT_TargetID);
 
             // Deferred Base Lighting: Directional Lighting + Indirect Lighting
             if (lights.dirLightCount > 0)
             {
-                commandBuffer.DrawProcedural(Matrix4x4.identity, commonSettings.deferredMaterial, 0, MeshTopology.Triangles, 6);
+                commandBuffer.DrawProcedural(Matrix4x4.identity, deferredMaterial, 0, MeshTopology.Triangles, 6);
             }
 
-            Material deferredMaterial = commonSettings.deferredMaterial;
             // Deferred Other Light Lighting
             for (int i = 0; i < lights.stencilLightCount; ++i)
             {
@@ -347,12 +299,9 @@ namespace BXRenderPipelineDeferred
             DrawUnsupportShader();
             DrawGizmosBeforePostProcess();
 #endif
-
-            context.EndSubPass();
-
-            context.EndRenderPass();
             //context.SubmitForRenderPassValidation();
-            DrawPostProcess();
+            if(isPreview)
+                DrawPostProcess();
 
 #if UNITY_EDITOR
             DrawGizmosAfterPostProcess();
@@ -364,11 +313,11 @@ namespace BXRenderPipelineDeferred
 #if UNITY_EDITOR
             if (camera.cameraType == CameraType.SceneView)
             {
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 5, true, true, width_screen, height_screen);
+                DrawPostProcess(_LightingRT_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 6, true, true, width_screen, height_screen);
             }
             else
             {
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, postProcessMat, 5, true, true, width_screen, height_screen);
+                DrawPostProcess(_LightingRT_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, postProcessMat, 6, true, true, width_screen, height_screen);
             }
 #else
             DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, BuiltinRenderTextureType.None, commonSettings.postProcessMaterial, 0, true, true, width_screen, height_screen);
@@ -409,8 +358,11 @@ namespace BXRenderPipelineDeferred
         private void CleanUp()
         {
             lights.CleanUp();
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID);
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._EncodeDepthBuffer_ID);
+            commandBuffer.ReleaseTemporaryRT(_LightingRT_ID);
+            commandBuffer.ReleaseTemporaryRT(_AlebodRoughnessRT_ID);
+            commandBuffer.ReleaseTemporaryRT(_NormalMetallicMaskRT_ID);
+            commandBuffer.ReleaseTemporaryRT(_EncodeDepthRT_ID);
+            commandBuffer.ReleaseTemporaryRT(_TempDepth_ID);
         }
 
         private void Submit()

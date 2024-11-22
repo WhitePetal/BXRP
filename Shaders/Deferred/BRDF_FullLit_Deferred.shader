@@ -68,9 +68,9 @@ Shader "Test/BRDF_FullLit_Deferred"
                 half4 lighting : SV_TARGET0;
                 half4 albedo_roughness : SV_TARGET1;
                 half4 normal_metallic_mask : SV_TARGET2;
-                #if SHADER_API_METAL
+                // #if SHADER_API_METAL
                 half4 depth_metal : SV_TARGET3;
-                #endif
+                // #endif
             };
 
             CBUFFER_START(UnityPerMaterial)

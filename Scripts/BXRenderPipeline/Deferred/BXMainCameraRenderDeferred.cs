@@ -77,8 +77,8 @@ namespace BXRenderPipelineDeferred
             viewToWorldMatrix = camera.cameraToWorldMatrix;
 
             commandBuffer.BeginSample(SampleName);
-            lights.Setup(this, onDirShadowsRenderFeatures);
             reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
+            lights.Setup(this, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
 
@@ -184,14 +184,14 @@ namespace BXRenderPipelineDeferred
             var normal_metallic_mask = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
             var depth = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.D24_UNorm_S8_UInt);
             // for metal can't framefetch depth buffer, so Encode Depth to a external attachment
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var depth_metal = new AttachmentDescriptor(UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm);
-#endif
+//#endif
             albeod_roughness.ConfigureClear(Color.clear);
 			normal_metallic_mask.ConfigureClear(Color.clear);
             lighting.ConfigureClear(Color.clear);
             depth.ConfigureClear(Color.clear, 1f, 0);
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             depth_metal.ConfigureClear(Color.clear);
             depth_metal.ConfigureTarget(BXShaderPropertyIDs._EncodeDepthBuffer_TargetID, false, true);
             if (commonSettings.msaa > 1)
@@ -200,7 +200,7 @@ namespace BXRenderPipelineDeferred
 
             }
             depth_metal.loadAction = RenderBufferLoadAction.DontCare;
-#endif
+//#endif
 
             lighting.ConfigureTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, false, true);
             if(commonSettings.msaa > 1)
@@ -211,37 +211,37 @@ namespace BXRenderPipelineDeferred
             // loadExisitingContents = false may be useless in subpass if not do this
             lighting.loadAction = RenderBufferLoadAction.DontCare;
 
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var attachments = new NativeArray<AttachmentDescriptor>(5, Allocator.Temp);
-#else
-            var attachments = new NativeArray<AttachmentDescriptor>(4, Allocator.Temp);
-#endif
+//#else
+            //var attachments = new NativeArray<AttachmentDescriptor>(4, Allocator.Temp);
+//#endif
             const int depthIndex = 0, lightingIndex = 1, albedo_roughnessIndex = 2, normal_metallic_maskIndex = 3;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             const int depth_metalIndex = 4;
-#endif
+//#endif
             attachments[depthIndex] = depth;
             attachments[lightingIndex] = lighting;
             attachments[albedo_roughnessIndex] = albeod_roughness;
             attachments[normal_metallic_maskIndex] = normal_metallic_mask;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             attachments[depth_metalIndex] = depth_metal;
-#endif
+//#endif
             context.BeginRenderPass(width, height, 1, commonSettings.msaa, attachments, depthIndex);
             attachments.Dispose();
 
             // RenderGbuffer Sub Pass
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             var gbuffers = new NativeArray<int>(4, Allocator.Temp);
-#else
-            var gbuffers = new NativeArray<int>(3, Allocator.Temp);
-#endif
+//#else
+            //var gbuffers = new NativeArray<int>(3, Allocator.Temp);
+//#endif
             gbuffers[0] = lightingIndex;
             gbuffers[1] = albedo_roughnessIndex;
             gbuffers[2] = normal_metallic_maskIndex;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             gbuffers[3] = depth_metalIndex;
-#endif
+//#endif
             context.BeginSubPass(gbuffers);
             gbuffers.Dispose();
 
@@ -284,16 +284,16 @@ namespace BXRenderPipelineDeferred
             var lightingInputs = new NativeArray<int>(3, Allocator.Temp);
             lightingInputs[0] = albedo_roughnessIndex;
             lightingInputs[1] = normal_metallic_maskIndex;
-#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             lightingInputs[2] = depth_metalIndex;
-#else
-            lightingInputs[2] = depthIndex;
-#endif
-#if UNITY_STANDALONE_OSX || UNITY_IOS
+            //#else
+            //lightingInputs[2] = depthIndex;
+            //#endif
+//#if UNITY_STANDALONE_OSX || UNITY_IOS || UNITY_EDITOR_OSX
             context.BeginSubPass(lightingBuffers, lightingInputs);
-#else
-            context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
-#endif
+//#else
+            //context.BeginSubPass(lightingBuffers, lightingInputs, true, false);
+//#endif
             lightingBuffers.Dispose();
             lightingInputs.Dispose();
 

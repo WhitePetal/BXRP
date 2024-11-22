@@ -1,4 +1,4 @@
-Shader "DeferredShading"
+Shader "Hidden/DeferredShadingEditor"
 {
     Properties
     {
@@ -21,7 +21,6 @@ Shader "DeferredShading"
             #pragma fragment frag
             #pragma multi_compile __ DIRECTIONAL_LIGHT
             #pragma multi_compile __ SHADOWS_DIR
-            #pragma multi_compile __ FRAMEBUFFERFETCH_MSAA
 
             // #define _ACES_C 1
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
@@ -29,9 +28,12 @@ Shader "DeferredShading"
             #include "Assets/Shaders/ShaderLibrarys/Shadows.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
-            DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
-            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // normal_metallic_mask
-            DEFINE_FRAMEBUFFER_INPUT_HALF(2); // depth
+            Texture2D _AlebodRoughnessRT;
+            Texture2D _NormalMetallicMaskRT;
+            Texture2D _EncodeDepthRT;
+            SamplerState sampler_AlebodRoughnessRT;
+            SamplerState sampler_NormalMetallicMaskRT;
+            SamplerState sampler_EncodeDepthRT;
 
             struct v2f
             {
@@ -67,25 +69,21 @@ Shader "DeferredShading"
                 return o;
             }
 
-            half4 frag (v2f i, uint sampleID : SV_SampleIndex) : SV_Target0
+            half4 frag (v2f i) : SV_Target0
             {
                 half4 color;
                 color.a = half(1.0);
                 half3 diffuseLighting = half(0.0);
                 half3 specularLighting = half(0.0);
 
-                half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
-                half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
+                half4 albedo_roughness = _AlebodRoughnessRT.SampleLevel(sampler_AlebodRoughnessRT, i.uv_screen, 0);
+                half4 normal_metallic_mask = _NormalMetallicMaskRT.SampleLevel(sampler_NormalMetallicMaskRT, i.uv_screen, 0);
                 half3 n = UnpackNormalOctQuadEncode(normal_metallic_mask.xy);
                 half oneMinusMetallic = normal_metallic_mask.z;
                 half reflectance = normal_metallic_mask.w;
 
-                // #if SHADER_API_METAL
-                float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
+                float4 encodeDepth = _EncodeDepthRT.SampleLevel(sampler_EncodeDepthRT, i.uv_screen, 0);
                 float depth = DecodeFloatRGBA(encodeDepth);
-                // #else
-                // float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
-                // #endif
                 float depthEye = LinearEyeDepth(depth);
 
                 half perceptRoughness = albedo_roughness.a;
@@ -146,9 +144,12 @@ Shader "DeferredShading"
             #include "Assets/Shaders/ShaderLibrarys/Shadows.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
 
-            DEFINE_FRAMEBUFFER_INPUT_HALF(0); // albedo_roughness
-            DEFINE_FRAMEBUFFER_INPUT_HALF(1); // normal_metallic_mask
-            DEFINE_FRAMEBUFFER_INPUT_HALF(2); // depth
+            Texture2D _AlebodRoughnessRT;
+            Texture2D _NormalMetallicMaskRT;
+            Texture2D _EncodeDepthRT;
+            SamplerState sampler_AlebodRoughnessRT;
+            SamplerState sampler_NormalMetallicMaskRT;
+            SamplerState sampler_EncodeDepthRT;
 
             CBUFFER_START(_DEFERRED_OTHER_LIGHT)
                 int _OtherLightIndex;
@@ -194,14 +195,10 @@ Shader "DeferredShading"
             {
                 half4 color;
                 color.a = half(1.0);
-                half4 albedo_roughness = FRAMEBUFFER_INPUT_LOAD(0, sampleID, i.vertex);
-                half4 normal_metallic_mask = FRAMEBUFFER_INPUT_LOAD(1, sampleID, i.vertex);
-                // #if SHADER_API_METAL
-                float4 encodeDepth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex);
+                half4 albedo_roughness = _AlebodRoughnessRT.SampleLevel(sampler_AlebodRoughnessRT, i.uv_screen, 0);
+                half4 normal_metallic_mask = _NormalMetallicMaskRT.SampleLevel(sampler_NormalMetallicMaskRT, i.uv_screen, 0);
+                float4 encodeDepth = _EncodeDepthRT.SampleLevel(sampler_EncodeDepthRT, i.uv_screen, 0);
                 float depth = DecodeFloatRGBA(encodeDepth);
-                // #else
-                // float depth = FRAMEBUFFER_INPUT_LOAD(2, sampleID, i.vertex).x;
-                // #endif
                 float depthEye = LinearEyeDepth(depth);
                 half3 n = UnpackNormalOctQuadEncode(normal_metallic_mask.xy);
                 half oneMinusMetallic = normal_metallic_mask.z;
