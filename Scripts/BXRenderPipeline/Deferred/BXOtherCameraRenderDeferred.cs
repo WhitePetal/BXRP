@@ -221,7 +221,7 @@ namespace BXRenderPipelineDeferred
             for (int i = 0; i < lights.stencilLightCount; ++i)
             {
                 Material otherLightMat = stencilLightMats[i];
-                commandBuffer.SetGlobalInteger("_OtherLightIndex", i);
+                commandBuffer.SetGlobalInteger(BXShaderPropertyIDs._OtherLightIndex_ID, i);
                 var visibleLight = lights.otherLights[i];
                 switch (visibleLight.lightType)
                 {
@@ -300,8 +300,11 @@ namespace BXRenderPipelineDeferred
             DrawGizmosBeforePostProcess();
 #endif
             //context.SubmitForRenderPassValidation();
-            if(isPreview)
+            if (isPreview)
+            {
+                commandBuffer.SetGlobalFloat("_PrieviewFlip", camera.name == "Preview Camera" ? -1 : 1);
                 DrawPostProcess();
+            }
 
 #if UNITY_EDITOR
             DrawGizmosAfterPostProcess();

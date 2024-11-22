@@ -72,6 +72,7 @@ namespace BXRenderPipeline
         public static int _OtherLightCookieEnableBits_ID = Shader.PropertyToID("_OtherLightCookieEnableBits");
         public static int _OtherLightCookieAltas_ID = Shader.PropertyToID("_OtherLightCookieAltas");
         public static int _OtherLightCookieAltasFormat_ID = Shader.PropertyToID("_OtherLightCookieAltasFormat");
+        public static int _OtherLightIndex_ID = Shader.PropertyToID("_OtherLightIndex");
 
 
         //public static int _MainLightCookie_ID = Shader.PropertyToID("_MainLightCookie");

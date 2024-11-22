@@ -474,6 +474,7 @@ Shader "PostProcess"
 			Texture2D _PostProcessInput;
 			float4 _PostProcessInput_TexelSize;
 			SamplerState sampler_PostProcessInput;
+			float _PrieviewFlip;
 
 			struct v2f
 			{
@@ -510,7 +511,9 @@ Shader "PostProcess"
 						vertexID == 1 ? 2.0 : 0.0
 					);
 				}
-				o.uv.y = 1.0 - o.uv.y;
+				// #if UNITY_UV_STARTS_AT_TOP
+				if(_PrieviewFlip < 0) o.uv.y = 1.0 - o.uv.y;
+				// #endif
 				return o;
 			}
 

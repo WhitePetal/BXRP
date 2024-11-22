@@ -308,7 +308,7 @@ namespace BXRenderPipelineDeferred
             for (int i = 0; i < lights.stencilLightCount; ++i)
 			{
                 Material otherLightMat = stencilLightMats[i];
-                commandBuffer.SetGlobalInteger("_OtherLightIndex", i);
+                commandBuffer.SetGlobalInteger(BXShaderPropertyIDs._OtherLightIndex_ID, i);
                 var visibleLight = lights.otherLights[i];
                 switch (visibleLight.lightType)
                 {
