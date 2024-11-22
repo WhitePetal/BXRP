@@ -14,6 +14,8 @@ SAMPLER(samplerunity_Lightmap);
 
 TEXTURE2D(bx_ReflProbes_Atlas);
 #define samplerurp_ReflProbes_Atlas sampler_LinearClamp
+TEXTURECUBE(_GlossyEnvironmentCubeMap);
+SAMPLER(sampler_GlossyEnvironmentCubeMap);
 
 // Light Probe Proxy Volume is deprecated in the latest srp
 // TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
@@ -25,6 +27,7 @@ CBUFFER_START(bx_ReflectionProbeBuffer)
     float4 bx_ReflProbes_BoxMin[MAX_REFLECTION_PROBE_COUNT]; // w is the importance
 	float4 bx_ReflProbes_ProbePosition[MAX_REFLECTION_PROBE_COUNT]; // w is positive for box projection, |w| is max mip level
 	float4 bx_ReflProbes_MipScaleOffset[MAX_REFLECTION_PROBE_COUNT * 7];
+	half4 _GlossyEnvironmentCubeMap_HDR;
 CBUFFER_END
 
 half3 SampleLightMap (half2 lightMapUV) {
@@ -116,11 +119,13 @@ half3 SampleEnvironment(float3 vertex, float depthEye, float3 pos_world, half3 v
 	int reflectCount = _ClusterLightingDatas[int(clusterIndex)].y;
     reflectCount = min(reflectCount, bx_ReflProbes_Count);
 	int reflectIndexStart = int(clusterIndex * float(MAX_CLUSTER_LIGHT_COUNT));
+	[loop]
 	for(int offset = 0; offset < reflectCount; ++offset)
 	{
 		int reflectIndex = _ClusterLightingIndices[reflectIndexStart + offset].y;
 		half weight = CalculateProbeWeight(pos_world, bx_ReflProbes_BoxMin[reflectIndex], bx_ReflProbes_BoxMax[reflectIndex]);
 		weight = min(weight, half(1.0) - totalWeight);
+		if(weight <= half(0.0)) continue;
 
 		#ifdef _REFLECTION_PROBE_BOX_PROJECTION
 			realVec = BoxProjectedCubemapDirection(reflectVector, pos_world, bx_ReflProbes_ProbePosition[reflectIndex], bx_ReflProbes_BoxMin[reflectIndex], bx_ReflProbes_BoxMax[reflectIndex]);
@@ -134,6 +139,12 @@ half3 SampleEnvironment(float3 vertex, float depthEye, float3 pos_world, half3 v
 
 		environment += SAMPLE_TEXTURE2D_LOD(bx_ReflProbes_Atlas, samplerurp_ReflProbes_Atlas, uv * scaleOffset.xy + scaleOffset.zw, 0) * weight;
 	}
+
+	if (totalWeight < half(0.99))
+    {
+		half4 defaultENV = SAMPLE_TEXTURECUBE_LOD(_GlossyEnvironmentCubeMap, sampler_GlossyEnvironmentCubeMap, reflectVector, mip);
+        environment.rgb += DecodeHDREnvironment(defaultENV, _GlossyEnvironmentCubeMap_HDR) * (half(1.0) - totalWeight);
+    }
 
 	return environment.rgb;
 	// return DecodeHDREnvironment(environment, unity_SpecCube0_HDR);

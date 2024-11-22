@@ -33,7 +33,7 @@ groupshared uint clusterVisibleCountY = 0;
 
 bool IntersectTileAndClusterLight(in float4 frustume[6], float3 boxMin, float3 boxMax)
 {
-    bool result = true;
+    // bool result = true;
     // [unroll(6)]
     for(int face = 0; face < 6; ++face)
     {

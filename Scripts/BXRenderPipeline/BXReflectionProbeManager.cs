@@ -301,6 +301,8 @@ namespace BXRenderPipeline
                 this.probeCount = probeCount - skipCount;
                 cmd.SetGlobalInt(ShaderProperties.bx_ReflProbes_Count_ID, this.probeCount);
                 cmd.SetGlobalTexture(ShaderProperties.bx_ReflProbes_Atlas_ID, m_AtlasTexture0);
+                cmd.SetGlobalTexture("_GlossyEnvironmentCubeMap", ReflectionProbe.defaultTexture);
+                cmd.SetGlobalVector("_GlossyEnvironmentCubeMap_HDR", ReflectionProbe.defaultTextureHDRDecodeValues);
             }
 
             m_NeedsUpdate.Clear();
