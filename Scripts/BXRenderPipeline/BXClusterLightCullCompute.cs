@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -27,8 +28,8 @@ namespace BXRenderPipeline
         public BXClusterLightCullCompute()
         {
             clusterCountZ = 64;
-            clusterLightingIndicesBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ * BXLightsBase.maxClusterLightCount, sizeof(uint), ComputeBufferType.Default);
-            clusterLightingDatasBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ, sizeof(uint), ComputeBufferType.Default);
+            clusterLightingIndicesBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ * BXLightsBase.maxClusterLightCount, sizeof(uint) * 2, ComputeBufferType.Default);
+            clusterLightingDatasBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ, sizeof(uint) * 2, ComputeBufferType.Default);
         }
 
         private struct ClusterComputeJob : IJobFor
@@ -49,9 +50,9 @@ namespace BXRenderPipeline
             // 这里我们的写操作虽然会发生在index之外，但是可以保证是安全操作
             // 因此这里关闭安全检查
             [WriteOnly, NativeDisableContainerSafetyRestriction]
-            public NativeArray<uint> clusterLightingIndices;
+            public NativeArray<uint2> clusterLightingIndices;
             [WriteOnly]
-            public NativeArray<uint> clusterLightingDatas;
+            public NativeArray<uint2> clusterLightingDatas;
 
             public void Execute(int index)
             {
@@ -68,13 +69,20 @@ namespace BXRenderPipeline
                 for (int groupIndexs = 0; groupIndexs < 16; ++groupIndexs)
                 {
                     if (groupIndexs >= clusterLightCount) break;
+                    uint2 temp;
                     if (IntersectTileAndClusterLight(groupIdZ, groupIdX, groupIdY, minBounds[groupIndexs], maxBounds[groupIndexs]))
                     {
-                        clusterLightingIndices[startIndex + lightCount] = (uint)groupIndexs;
-                        lightCount++;
+                        temp.x = (uint)groupIndexs;
                     }
+                    else
+                    {
+                        temp.x = 0u;
+                    }
+                    temp.y = (uint)groupIndexs;
+                    clusterLightingIndices[startIndex + lightCount] = temp;
+                    lightCount++;
                 }
-                clusterLightingDatas[clusterIndex] = (uint)lightCount;
+                clusterLightingDatas[clusterIndex] = math.uint2((uint)lightCount, 4);
             }
 
             private bool IntersectTileAndClusterLight(int k, int groupIdX, int groupIdY, Vector4 minBox, Vector4 maxBox)
@@ -184,8 +192,8 @@ namespace BXRenderPipeline
                 int clusterCount = tileCountX * tileCountY * clusterCountZ;
                 job.minBounds = new NativeArray<Vector4>(lights.clusterLightMinBounds, Allocator.TempJob);
                 job.maxBounds = new NativeArray<Vector4>(lights.clusterLightMaxBounds, Allocator.TempJob);
-                job.clusterLightingIndices = new NativeArray<uint>(clusterCount * BXLightsBase.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                job.clusterLightingDatas = new NativeArray<uint>(clusterCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                job.clusterLightingIndices = new NativeArray<uint2>(clusterCount * BXLightsBase.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                job.clusterLightingDatas = new NativeArray<uint2>(clusterCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 JobHandle tempHandle = new JobHandle();
                 JobHandle jobHandle = job.ScheduleParallel(clusterCount, 8, tempHandle);
                 jobHandle.Complete();
@@ -208,6 +216,11 @@ namespace BXRenderPipeline
             commandBuffer.SetComputeIntParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightCount_ID, lights.clusterLightCount);
             commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightMaxBounds_ID, lights.clusterLightMaxBounds);
             commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightMinBounds_ID, lights.clusterLightMinBounds);
+
+            commandBuffer.SetComputeIntParam(commonSettings.clusterLightCompute, "_ClusterReflectCount", lights.reflectProneCount);
+            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, "_ClusterReflectMinBounds", lights.reflectProbeMinBounds);
+            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, "_ClusterReflectMaxBounds", lights.reflectProbeMaxBounds);
+
             commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CameraPosition_ID, cam_trans.position);
             commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CmaeraUpward_ID, cameraUpward);
             commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CameraForward_ID, cameraForward);

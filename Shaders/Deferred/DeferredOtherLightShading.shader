@@ -28,7 +28,6 @@ Shader "DeferredOtherLightShading"
             #pragma fragment frag
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
-            #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
 
             struct appdata
@@ -77,7 +76,6 @@ Shader "DeferredOtherLightShading"
             #pragma fragment frag
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
-            #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
 
             struct appdata

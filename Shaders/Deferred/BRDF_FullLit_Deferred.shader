@@ -37,6 +37,7 @@ Shader "Test/BRDF_FullLit_Deferred"
             #pragma multi_compile_local __ _EMISSION_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
+            #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/BakedLights.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/TransformLibrary.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/PBRFunctions.hlsl"
@@ -152,7 +153,8 @@ Shader "Test/BRDF_FullLit_Deferred"
                 ambient = SampleLightMap(i.uv.zw);
                 #endif
                 ambient += SampleSH(n);
-                half3 ambientSpecular = SampleEnvironment(i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
+                float depthEye = LinearEyeDepth(i.vertex.z);
+                half3 ambientSpecular = SampleEnvironment(i.vertex.xyz, depthEye, i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
                 // half3 ambientSpecular = 0.0;
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * _EmissionStrength;

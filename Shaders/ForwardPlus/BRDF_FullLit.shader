@@ -197,7 +197,7 @@ Shader "Test/BRDF_FullLit"
                 #endif
                 ambient += SampleSH(n);
                 half3 F_ambient = F_Schlick(f0, f90, ndotv);
-                half3 ambientSpecular = SampleEnvironment(i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
+                half3 ambientSpecular = SampleEnvironment(i.vertex, depthEye, i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
                 #endif

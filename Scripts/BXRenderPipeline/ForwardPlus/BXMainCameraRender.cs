@@ -15,7 +15,6 @@ namespace BXRenderPipelineForward
         {
             this.commonSettings = commonSettings;
             this.postProcessMat = commonSettings.postProcessMaterial;
-            this.reflectionProbe = BXReflectionProbeManager.Create();
         }
 
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,
@@ -63,7 +62,6 @@ namespace BXRenderPipelineForward
 
             commandBuffer.BeginSample(SampleName);
             lights.Setup(this, onDirShadowsRenderFeatures);
-            reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
 
@@ -332,7 +330,6 @@ namespace BXRenderPipelineForward
             commandBuffer = null;
             commonSettings = null;
             lights.Dispose();
-            reflectionProbe.Dispose();
             lights = null;
 		}
     }

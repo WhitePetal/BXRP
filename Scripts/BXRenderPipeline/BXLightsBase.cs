@@ -15,14 +15,20 @@ namespace BXRenderPipeline
         public readonly int maxOtherLightCount;
         public readonly int maxImportedOtherLightCount;
 
+        protected BXReflectionProbeManager reflectionProbe = BXReflectionProbeManager.Create();
+
         public int dirLightCount;
         public int clusterLightCount;
         public int stencilLightCount;
         public int importedOtherLightCount;
+        public int reflectProneCount => reflectionProbe.probeCount;
 
         public Vector4[]
             clusterLightMinBounds = new Vector4[maxClusterLightCount],
             clusterLightMaxBounds = new Vector4[maxClusterLightCount];
+
+        public Vector4[] reflectProbeMinBounds => reflectionProbe.m_BoxMin;
+        public Vector4[] reflectProbeMaxBounds => reflectionProbe.m_BoxMax;
 
         public Vector4[]
             dirLightColors = new Vector4[maxDirLightCount],

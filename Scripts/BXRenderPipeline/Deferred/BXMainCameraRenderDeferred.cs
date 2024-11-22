@@ -25,7 +25,6 @@ namespace BXRenderPipelineDeferred
                 stencilLightMats[i].hideFlags = HideFlags.DontSave;
                 GameObject.DontDestroyOnLoad(stencilLightMats[i]);
             }
-            this.reflectionProbe = BXReflectionProbeManager.Create();
         }
 
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,
@@ -77,7 +76,6 @@ namespace BXRenderPipelineDeferred
             viewToWorldMatrix = camera.cameraToWorldMatrix;
 
             commandBuffer.BeginSample(SampleName);
-            reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
             lights.Setup(this, onDirShadowsRenderFeatures);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
@@ -538,7 +536,6 @@ namespace BXRenderPipelineDeferred
             commandBuffer = null;
             commonSettings = null;
             lights.Dispose();
-            reflectionProbe.Dispose();
             lights = null;
             for (int i = 0; i < BXLightsDeferred.maxStencilLightCount; ++i)
             {

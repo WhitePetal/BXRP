@@ -106,6 +106,7 @@ namespace BXRenderPipelineDeferred
             this.width = mainCameraRender.width;
             this.height = mainCameraRender.height;
 			this.worldToViewMatrix = mainCameraRender.worldToViewMatrix;
+            reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             SetupLights();
@@ -262,12 +263,15 @@ namespace BXRenderPipelineDeferred
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightThresholds_ID, otherLightThresholds);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightColors_ID, otherLightColors);
                 commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowDatas_ID, otherShadowDatas);
-                //clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
 			}
             else
             {
                 if (Shader.IsKeywordEnabled(in clusterLightKeyword))
                     commandBuffer.DisableKeyword(in clusterLightKeyword);
+            }
+            if(clusterLightCount > 0 || reflectionProbe.probeCount > 0)
+            {
+                clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
             }
         }
 
@@ -286,6 +290,7 @@ namespace BXRenderPipelineDeferred
         {
             base.Dispose();
 
+            reflectionProbe.Dispose();
             shadows.Dispose();
             clusterLightCullCompute.Dispose();
             lightCookie.Dispose();

@@ -1,18 +1,22 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel ClusterLightCulling
 
-RWStructuredBuffer<uint> _ClusterLightingIndices;
-RWStructuredBuffer<uint> _ClusterLightingDatas;
+RWStructuredBuffer<uint2> _ClusterLightingIndices;
+RWStructuredBuffer<uint2> _ClusterLightingDatas;
 
 #define MAX_CLUSTER_LIGHT_COUNT uint(64)
+#define MAX_CLUSTER_REFLECT_COUNT uint(4)
 #define CLUSTER_X_COUNT uint(8)
 #define CLUSTER_Y_COUNT uint(4)
 #define CLUSTER_X_COUNT_INV 1.0 / CLUSTER_X_COUNT
 #define CLUSTER_Y_COUNT_INV 1.0 / CLUSTER_Y_COUNT
 #define CLUSTER_XY_COUNT_INV float2(CLUSTER_X_COUNT_INV, CLUSTER_Y_COUNT_INV)
 uint _ClusterLightCount;
+uint _ClusterReflectCount;
 float4 _ClusterLightMaxBounds[MAX_CLUSTER_LIGHT_COUNT];
 float4 _ClusterLightMinBounds[MAX_CLUSTER_LIGHT_COUNT];
+float4 _ClusterReflectMaxBounds[MAX_CLUSTER_REFLECT_COUNT];
+float4 _ClusterReflectMinBounds[MAX_CLUSTER_REFLECT_COUNT];
 float4 _CameraPosition;
 float3 _CmaeraUpward;
 float3 _CameraForward;
@@ -24,10 +28,43 @@ float3 _TileRVec;
 float4 _ClusterSize;
 float4 _ProjectionParams;
 
-groupshared uint clusterVisibleLightCount = 0;
+groupshared uint clusterVisibleCountX = 0;
+groupshared uint clusterVisibleCountY = 0;
 
-bool IntersectTileAndClusterLight(uint k, uint3 groupId, float3 boxMin, float3 boxMax)
+bool IntersectTileAndClusterLight(in float4 frustume[6], float3 boxMin, float3 boxMax)
 {
+    bool result = true;
+    // [unroll(6)]
+    for(int face = 0; face < 6; ++face)
+    {
+        // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html AABB-平面相交
+        float4 plane = frustume[face];
+        float3 fn = plane.xyz;
+        float3 boxReal = fn > 0.0 ? boxMax : boxMin;
+        float d = plane.w;
+        float r = dot(fn, boxReal);
+        
+        if(r + d < 0) return false;
+        // result = result ? ((r + d) >= 0) : result;
+    }
+    return true;
+}
+
+[numthreads(8,8,1)]
+void ClusterLightCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID)
+{
+    uint k = groupId.z;
+    uint tileIndex = groupId.y * CLUSTER_X_COUNT + groupId.x;
+    uint clusterIndex = k * CLUSTER_X_COUNT * CLUSTER_Y_COUNT + tileIndex;
+    uint startIndex = clusterIndex * MAX_CLUSTER_LIGHT_COUNT;
+
+    if(groupIndex == 0)
+    {
+        clusterVisibleCountX = 0;
+        clusterVisibleCountY = 0;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
     float zMin = _ProjectionParams.y * pow(_ClusterSize.z, k);
     float zMax = zMin * _ClusterSize.z;
 
@@ -62,47 +99,23 @@ bool IntersectTileAndClusterLight(uint k, uint3 groupId, float3 boxMin, float3 b
     n = -_CameraForward;
     frustume[5] = float4(n, -dot(_CameraPosition.xyz + _CameraForward * zMax, n));
 
-    bool result = true;
-    // [unroll(6)]
-    for(int face = 0; face < 6; ++face)
+    if(groupIndex < _ClusterLightCount && IntersectTileAndClusterLight(frustume, _ClusterLightMinBounds[groupIndex].xyz, _ClusterLightMaxBounds[groupIndex].xyz))
     {
-        // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html AABB-平面相交
-        float4 plane = frustume[face];
-        float3 fn = plane.xyz;
-        float3 boxReal = fn > 0.0 ? boxMax : boxMin;
-        float d = plane.w;
-        float r = dot(fn, boxReal);
-        
-        if(r + d < 0) return false;
-        // result = result ? ((r + d) >= 0) : result;
-    }
-    return true;
-}
-
-[numthreads(8,8,1)]
-void ClusterLightCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GROUPINDEX, uint3 groupId : SV_GROUPID)
-{
-    uint k = groupId.z;
-    uint tileIndex = groupId.y * CLUSTER_X_COUNT + groupId.x;
-    uint clusterIndex = k * CLUSTER_X_COUNT * CLUSTER_Y_COUNT + tileIndex;
-    uint startIndex = clusterIndex * MAX_CLUSTER_LIGHT_COUNT;
-
-    if(groupIndex == 0)
-    {
-        clusterVisibleLightCount = 0;
+        uint clusterOffsetX;
+        InterlockedAdd(clusterVisibleCountX, uint(1), clusterOffsetX);
+        _ClusterLightingIndices[startIndex + clusterOffsetX].x = groupIndex;
     }
     GroupMemoryBarrierWithGroupSync();
-    
-    if(groupIndex < _ClusterLightCount && IntersectTileAndClusterLight(k, groupId, _ClusterLightMinBounds[groupIndex].xyz, _ClusterLightMaxBounds[groupIndex].xyz))
+    if(groupIndex < _ClusterReflectCount && IntersectTileAndClusterLight(frustume, _ClusterReflectMinBounds[groupIndex].xyz, _ClusterReflectMaxBounds[groupIndex].xyz))
     {
-        uint clusterOffset;
-        InterlockedAdd(clusterVisibleLightCount, uint(1), clusterOffset);
-        _ClusterLightingIndices[startIndex + clusterOffset] = groupIndex;
+        uint clusterOffsetY;
+        InterlockedAdd(clusterVisibleCountY, uint(1), clusterOffsetY);
+        _ClusterLightingIndices[startIndex + clusterOffsetY].y = groupIndex;
     }
     GroupMemoryBarrierWithGroupSync();
 
     if(groupIndex == 0)
     {
-        _ClusterLightingDatas[clusterIndex] = clusterVisibleLightCount;
+        _ClusterLightingDatas[clusterIndex] = uint2(clusterVisibleCountX, clusterVisibleCountY);
     }
 }

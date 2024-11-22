@@ -25,10 +25,11 @@ namespace BXRenderPipeline
         private List<int> m_NeedsUpdate;
         public List<int> m_NeedsRemove;
 
-        private Vector4[] m_BoxMax;
-        private Vector4[] m_BoxMin;
-        private Vector4[] m_ProbePostion;
-        private Vector4[] m_MipScaleOffset;
+        public int probeCount;
+        public Vector4[] m_BoxMax;
+        public Vector4[] m_BoxMin;
+        public Vector4[] m_ProbePostion;
+        public Vector4[] m_MipScaleOffset;
 
         private unsafe struct CacheProbe
         {
@@ -297,7 +298,8 @@ namespace BXRenderPipeline
                 cmd.SetGlobalVectorArray(ShaderProperties.bx_ReflProbes_BoxMax_ID, m_BoxMax);
                 cmd.SetGlobalVectorArray(ShaderProperties.bx_ReflProbes_ProbePosition_ID, m_ProbePostion);
                 cmd.SetGlobalVectorArray(ShaderProperties.bx_ReflProbes_MipScaleOffset_ID, m_MipScaleOffset);
-                cmd.SetGlobalFloat(ShaderProperties.bx_ReflProbes_Count_ID, probeCount - skipCount);
+                this.probeCount = probeCount - skipCount;
+                cmd.SetGlobalInt(ShaderProperties.bx_ReflProbes_Count_ID, this.probeCount);
                 cmd.SetGlobalTexture(ShaderProperties.bx_ReflProbes_Atlas_ID, m_AtlasTexture0);
             }
 
