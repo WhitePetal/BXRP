@@ -9,11 +9,46 @@ namespace BXRenderPipeline
 {
     public abstract class BXLightsBase : IDisposable
     {
+        public static class BaseShaderProperties
+        {
+            public static readonly int _DirectionalLightCount_ID = Shader.PropertyToID("_DirectionalLightCount");
+            public static readonly int _DirectionalLightDirections_ID = Shader.PropertyToID("_DirectionalLightDirections");
+            public static readonly int _DirectionalLightColors_ID = Shader.PropertyToID("_DirectionalLightColors");
+            public static readonly int _DirectionalShadowDatas_ID = Shader.PropertyToID("_DirectionalShadowDatas");
+
+            public static readonly int _ClusterLightCount_ID = Shader.PropertyToID("_ClusterLightCount");
+            public static readonly int _StencilLightCount_ID = Shader.PropertyToID("_StencilLightCount");
+
+            public static readonly int _OtherLightSpheres_ID = Shader.PropertyToID("_OtherLightSpheres");
+            public static readonly int _OtherLightDirections_ID = Shader.PropertyToID("_OtherLightDirections");
+            public static readonly int _OtherLightThresholds_ID = Shader.PropertyToID("_OtherLightThresholds");
+            public static readonly int _OtherLightColors_ID = Shader.PropertyToID("_OtherLightColors");
+            public static readonly int _OtherShadowDatas_ID = Shader.PropertyToID("_OtherShadowDatas");
+        }
+
+        protected const string BufferName = "Lights";
+        protected CommandBuffer commandBuffer = new CommandBuffer()
+        {
+            name = BufferName
+        };
+
         public const int maxDirLightCount = 1;
         public const int maxClusterLightCount = 64;
         public const int maxStencilLightCount = 8;
         public readonly int maxOtherLightCount;
         public readonly int maxImportedOtherLightCount;
+
+        protected Camera camera;
+        protected BXRenderCommonSettings commonSettings;
+        protected ScriptableRenderContext context;
+        protected CullingResults cullingResults;
+
+        protected int width, height;
+
+        protected GlobalKeyword dirLightKeyword = GlobalKeyword.Create("DIRECTIONAL_LIGHT");
+        protected GlobalKeyword clusterLightKeyword = GlobalKeyword.Create("CLUSTER_LIGHT");
+
+        protected bool useShadowMask;
 
         protected BXReflectionProbeManager reflectionProbe = BXReflectionProbeManager.Create();
 

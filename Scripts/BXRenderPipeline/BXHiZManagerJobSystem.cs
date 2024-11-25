@@ -123,11 +123,11 @@ namespace BXRenderPipeline
 		private void Render(CommandBuffer commandBuffer)
 		{
 			if (isViewCamera) return;
-			commandBuffer.BeginSample("Hi-Z");
+			commandBuffer.BeginSample(SampleName);
 			if (!isReadbacking[willReadBackIndex])
 			{
 				commandBuffer.SetComputeTextureParam(cs, 0, BXShaderPropertyIDs._EncodeDepthBuffer_ID, BXShaderPropertyIDs._EncodeDepthBuffer_TargetID);
-				commandBuffer.SetComputeTextureParam(cs, 0, "_HizMap", hizBuffers[willReadBackIndex]);
+				commandBuffer.SetComputeTextureParam(cs, 0, BaseShaderProperties._HiZMap_ID, hizBuffers[willReadBackIndex]);
 				int2 screenSize = screenSizes[willReadBackIndex];
 				commandBuffer.DispatchCompute(cs, 0, Mathf.CeilToInt(screenSize.x / 8), Mathf.CeilToInt(screenSize.y / 8), 1);
 
@@ -139,8 +139,8 @@ namespace BXRenderPipeline
 				mipSizes[mipCount++] = mipOffset;
 				while (mipSize.x > 1 && mipSize.y > 1)
 				{
-					commandBuffer.SetComputeVectorParam(cs, "_MipOffset", mipOffset);
-					commandBuffer.SetComputeTextureParam(cs, 1, "_HizMap", hizBuffers[willReadBackIndex]);
+					commandBuffer.SetComputeVectorParam(cs, BaseShaderProperties._MipOffset_ID, mipOffset);
+					commandBuffer.SetComputeTextureParam(cs, 1, BaseShaderProperties._HiZMap_ID, hizBuffers[willReadBackIndex]);
 					commandBuffer.DispatchCompute(cs, 1, Mathf.CeilToInt(mipSize.x / 8f), Mathf.CeilToInt(mipSize.y / 8f), 1);
 					mipOffset += math.float4(mipSize.x, 0, 0, 0);
 					mipSize *= 0.5f;
@@ -164,7 +164,7 @@ namespace BXRenderPipeline
 				readBackStartTime[willReadBackIndex] = Time.frameCount;
 				willReadBackIndex = willReadBackIndex == 2 ? 0 : (willReadBackIndex + 1);
 			}
-			commandBuffer.EndSample("Hi-Z");
+			commandBuffer.EndSample(SampleName);
 		}
 
 		public override void Register(Renderer renderer, int instanceID)

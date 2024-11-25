@@ -44,7 +44,7 @@ namespace BXRenderPipeline
             public Vector4 hdrData;
         }
 
-        private static class ShaderProperties
+        public static class ShaderProperties
         {
             public static readonly int bx_ReflProbes_BoxMin_ID = Shader.PropertyToID("bx_ReflProbes_BoxMin");
             public static readonly int bx_ReflProbes_BoxMax_ID = Shader.PropertyToID("bx_ReflProbes_BoxMax");

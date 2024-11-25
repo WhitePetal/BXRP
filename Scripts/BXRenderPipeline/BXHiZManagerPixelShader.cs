@@ -131,7 +131,7 @@ namespace BXRenderPipeline
 		private void Render(CommandBuffer commandBuffer)
 		{
 			if (isViewCamera) return;
-			commandBuffer.BeginSample("Hi-Z");
+			commandBuffer.BeginSample(SampleName);
 			float2 mipSize = math.float2(screenSize.x >> 1, screenSize.y >> 1);
 			commandBuffer.GetTemporaryRT(_HiZTempMaps_ID[0], (int)mipSize.x, (int)mipSize.y, 0, FilterMode.Point, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear, 1);
 			DrawPostProcess(commandBuffer, BXShaderPropertyIDs._EncodeDepthBuffer_TargetID, _HiZTempMaps_TargetID[0], mat, 0);
@@ -179,13 +179,13 @@ namespace BXRenderPipeline
 			{
 				commandBuffer.SetRenderTarget(hizCullResultRT, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
 				commandBuffer.ClearRenderTarget(false, true, Color.clear);
-				commandBuffer.SetGlobalTexture("_BoundCentersTex", boundCentersTex);
-				commandBuffer.SetGlobalTexture("_BoundSizesTex", boundSizesTex);
-				commandBuffer.SetGlobalVector("_HizTexSize", new Vector4(texSize.x, texSize.y));
-				commandBuffer.SetGlobalTexture("_HizMapInput", hizMap);
-				commandBuffer.SetGlobalVector("_HizParams", new Vector4(screenSize.x, screenSize.y, mipCount - 3, cullingObjectCount));
-				commandBuffer.SetGlobalMatrix("_HizProjectionMatrix", projectionMatrix);
-				commandBuffer.SetGlobalVectorArray("_HizMipSize", mipSizes);
+				commandBuffer.SetGlobalTexture(BaseShaderProperties._BoundCentersTex_ID, boundCentersTex);
+				commandBuffer.SetGlobalTexture(BaseShaderProperties._BoundSizesTex_ID, boundSizesTex);
+				commandBuffer.SetGlobalVector(BaseShaderProperties._HizTexSize_ID, new Vector4(texSize.x, texSize.y));
+				commandBuffer.SetGlobalTexture(BaseShaderProperties._HizMapInput_ID, hizMap);
+				commandBuffer.SetGlobalVector(BaseShaderProperties._HizParams_ID, new Vector4(screenSize.x, screenSize.y, mipCount - 3, cullingObjectCount));
+				commandBuffer.SetGlobalMatrix(BaseShaderProperties._HizProjectionMatrix_ID, projectionMatrix);
+				commandBuffer.SetGlobalVectorArray(BaseShaderProperties._HizMipSize_ID, mipSizes);
 				commandBuffer.DrawProcedural(Matrix4x4.identity, mat, 3, MeshTopology.Triangles, 3);
 
 
@@ -193,7 +193,7 @@ namespace BXRenderPipeline
 				commandBuffer.RequestAsyncReadbackIntoNativeArray(ref hizReadbackDatas, hizCullResultRT, ReadBack);
 				isReadbacking = true;
 			}
-			commandBuffer.EndSample("Hi-Z");
+			commandBuffer.EndSample(SampleName);
 		}
 
 		public override void Register(Renderer renderer, int instanceID)

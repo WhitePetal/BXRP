@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -6,28 +5,16 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public class BXClusterLightCullCompute : IDisposable
+    public class BXClusterCullJobSystem : BXClusterCullBase
     {
-        private const string BufferName = "ClusterLightCulling";
-        private CommandBuffer commandBuffer = new CommandBuffer()
-        {
-            name = BufferName
-        };
-
         private ComputeBuffer clusterLightingIndicesBuffer;
         private ComputeBuffer clusterLightingDatasBuffer;
 
-        private const int tileCountX = 8;
-        private const int tileCountY = 4;
-        private int clusterCountZ;
-
-        public BXClusterLightCullCompute()
+        public BXClusterCullJobSystem()
         {
-            clusterCountZ = 64;
             clusterLightingIndicesBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ * BXLightsBase.maxClusterLightCount, sizeof(uint) * 2, ComputeBufferType.Default);
             clusterLightingDatasBuffer = new ComputeBuffer(tileCountX * tileCountY * clusterCountZ, sizeof(uint) * 2, ComputeBufferType.Default);
         }
@@ -145,7 +132,7 @@ namespace BXRenderPipeline
             }
         }
 
-        public void Render(Camera camera, BXLightsBase lights, BXRenderCommonSettings commonSettings, int width, int height)
+        public override void Render(Camera camera, BXLightsBase lights, BXRenderCommonSettings commonSettings, int width, int height)
         {
             if (camera.orthographic || commonSettings.clusterLightCompute == null) return;
             Transform cam_trans = camera.transform;
@@ -174,74 +161,43 @@ namespace BXRenderPipeline
             float clusterZNumF = Mathf.Log(clusterZNumFUnLog);
             this.clusterCountZ = Mathf.CeilToInt(Mathf.Log(farPlane / nearPlane) / clusterZNumF);
             Vector4 clusterSize = new Vector4(width / tileCountX, height / tileCountY, clusterZNumFUnLog, 1f / clusterZNumF);
-            commandBuffer.SetGlobalVector(BXShaderPropertyIDs._ClusterSize_ID, clusterSize);
-            if (!commonSettings.supportComputeShader)
-            {
-                ClusterComputeJob job = new ClusterComputeJob();
-                job.clusterCountZ = clusterCountZ;
-                job.clusterLightCount = lights.clusterLightCount;
-                job.nearPlane = nearPlane;
-                job.cameraPostion = cam_trans.position;
-                job.cameraForward = cameraForward;
-                job.cameraUpward = cameraUpward;
-                job.tileLBStart = tileLB;
-                job.tileRBStart = tileRB;
-                job.tileLUStart = tileLU;
-                job.tileRVec = cameraRightward * nearPlaneXHalf * 2f;
-                job.clusterSize = clusterSize;
-                int clusterCount = tileCountX * tileCountY * clusterCountZ;
-                job.minBounds = new NativeArray<Vector4>(lights.clusterLightMinBounds, Allocator.TempJob);
-                job.maxBounds = new NativeArray<Vector4>(lights.clusterLightMaxBounds, Allocator.TempJob);
-                job.clusterLightingIndices = new NativeArray<uint2>(clusterCount * BXLightsBase.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                job.clusterLightingDatas = new NativeArray<uint2>(clusterCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                JobHandle tempHandle = new JobHandle();
-                JobHandle jobHandle = job.ScheduleParallel(clusterCount, 8, tempHandle);
-                jobHandle.Complete();
-                clusterLightingIndicesBuffer.SetData(job.clusterLightingIndices);
-                clusterLightingDatasBuffer.SetData(job.clusterLightingDatas);
-                job.minBounds.Dispose();
-                job.maxBounds.Dispose();
-                job.clusterLightingIndices.Dispose();
-                job.clusterLightingDatas.Dispose();
-                //commandBuffer.SetGlobalInt(BXShaderPropertyIDs._SupportClusterLight_ID, 0);
-                commandBuffer.SetGlobalBuffer(BXShaderPropertyIDs._ClusterLightingIndices_ID, clusterLightingIndicesBuffer);
-                commandBuffer.SetGlobalBuffer(BXShaderPropertyIDs._ClusterLightingDatas_ID, clusterLightingDatasBuffer);
-                Graphics.ExecuteCommandBuffer(commandBuffer);
-                commandBuffer.Clear();
-                return;
-            }
+            commandBuffer.SetGlobalVector(BaseShaderProperties._ClusterSize_ID, clusterSize);
 
-            //cmd.SetGlobalInt(BXShaderPropertyIDs._SupportClusterLight_ID, 1);
-
-            commandBuffer.SetComputeIntParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightCount_ID, lights.clusterLightCount);
-            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightMaxBounds_ID, lights.clusterLightMaxBounds);
-            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterLightMinBounds_ID, lights.clusterLightMinBounds);
-
-            commandBuffer.SetComputeIntParam(commonSettings.clusterLightCompute, "_ClusterReflectCount", lights.reflectProneCount);
-            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, "_ClusterReflectMinBounds", lights.reflectProbeMinBounds);
-            commandBuffer.SetComputeVectorArrayParam(commonSettings.clusterLightCompute, "_ClusterReflectMaxBounds", lights.reflectProbeMaxBounds);
-
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CameraPosition_ID, cam_trans.position);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CmaeraUpward_ID, cameraUpward);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CameraForward_ID, cameraForward);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._CameraRightword_ID, cameraRightward);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._TileLBStart_ID, tileLB);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._TileRBStart_ID, tileRB);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._TileLUStart_ID, tileLU);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._TileRVec_ID, cameraRightward * nearPlaneXHalf * 2f);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ClusterSize_ID, clusterSize);
-            commandBuffer.SetComputeVectorParam(commonSettings.clusterLightCompute, BXShaderPropertyIDs._ProjectionParams_ID, new Vector4(farPlane, nearPlane));
-            commandBuffer.SetComputeBufferParam(commonSettings.clusterLightCompute, 0, BXShaderPropertyIDs._ClusterLightingIndices_ID, clusterLightingIndicesBuffer);
-            commandBuffer.SetComputeBufferParam(commonSettings.clusterLightCompute, 0, BXShaderPropertyIDs._ClusterLightingDatas_ID, clusterLightingDatasBuffer);
-            commandBuffer.DispatchCompute(commonSettings.clusterLightCompute, 0, tileCountX, tileCountY, clusterCountZ);
-
-            commandBuffer.SetGlobalBuffer(BXShaderPropertyIDs._ClusterLightingIndices_ID, clusterLightingIndicesBuffer);
-            commandBuffer.SetGlobalBuffer(BXShaderPropertyIDs._ClusterLightingDatas_ID, clusterLightingDatasBuffer);
+            ClusterComputeJob job = new ClusterComputeJob();
+            job.clusterCountZ = clusterCountZ;
+            job.clusterLightCount = lights.clusterLightCount;
+            job.nearPlane = nearPlane;
+            job.cameraPostion = cam_trans.position;
+            job.cameraForward = cameraForward;
+            job.cameraUpward = cameraUpward;
+            job.tileLBStart = tileLB;
+            job.tileRBStart = tileRB;
+            job.tileLUStart = tileLU;
+            job.tileRVec = cameraRightward * nearPlaneXHalf * 2f;
+            job.clusterSize = clusterSize;
+            int clusterCount = tileCountX * tileCountY * clusterCountZ;
+            job.minBounds = new NativeArray<Vector4>(lights.clusterLightMinBounds, Allocator.TempJob);
+            job.maxBounds = new NativeArray<Vector4>(lights.clusterLightMaxBounds, Allocator.TempJob);
+            job.clusterLightingIndices = new NativeArray<uint2>(clusterCount * BXLightsBase.maxClusterLightCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            job.clusterLightingDatas = new NativeArray<uint2>(clusterCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            JobHandle tempHandle = new JobHandle();
+            JobHandle jobHandle = job.ScheduleParallel(clusterCount, 8, tempHandle);
+            jobHandle.Complete();
+            clusterLightingIndicesBuffer.SetData(job.clusterLightingIndices);
+            clusterLightingDatasBuffer.SetData(job.clusterLightingDatas);
+            job.minBounds.Dispose();
+            job.maxBounds.Dispose();
+            job.clusterLightingIndices.Dispose();
+            job.clusterLightingDatas.Dispose();
+            //commandBuffer.SetGlobalInt(BXShaderPropertyIDs._SupportClusterLight_ID, 0);
+            commandBuffer.SetGlobalBuffer(BaseShaderProperties._ClusterLightingIndices_ID, clusterLightingIndicesBuffer);
+            commandBuffer.SetGlobalBuffer(BaseShaderProperties._ClusterLightingDatas_ID, clusterLightingDatasBuffer);
             Graphics.ExecuteCommandBuffer(commandBuffer);
             commandBuffer.Clear();
+            return;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             commandBuffer.Dispose();
             commandBuffer = null;

@@ -12,11 +12,11 @@ RWStructuredBuffer<uint2> _ClusterLightingDatas;
 #define CLUSTER_Y_COUNT_INV 1.0 / CLUSTER_Y_COUNT
 #define CLUSTER_XY_COUNT_INV float2(CLUSTER_X_COUNT_INV, CLUSTER_Y_COUNT_INV)
 uint _ClusterLightCount;
-uint _ClusterReflectCount;
+uint bx_ReflProbes_Count_ID;
 float4 _ClusterLightMaxBounds[MAX_CLUSTER_LIGHT_COUNT];
 float4 _ClusterLightMinBounds[MAX_CLUSTER_LIGHT_COUNT];
-float4 _ClusterReflectMaxBounds[MAX_CLUSTER_REFLECT_COUNT];
-float4 _ClusterReflectMinBounds[MAX_CLUSTER_REFLECT_COUNT];
+float4 bx_ReflProbes_BoxMax[MAX_CLUSTER_REFLECT_COUNT];
+float4 bx_ReflProbes_BoxMin[MAX_CLUSTER_REFLECT_COUNT];
 float4 _CameraPosition;
 float3 _CmaeraUpward;
 float3 _CameraForward;
@@ -99,14 +99,14 @@ void ClusterLightCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GR
     n = -_CameraForward;
     frustume[5] = float4(n, -dot(_CameraPosition.xyz + _CameraForward * zMax, n));
 
-    if(groupIndex < _ClusterLightCount && IntersectTileAndClusterLight(frustume, _ClusterLightMinBounds[groupIndex].xyz, _ClusterLightMaxBounds[groupIndex].xyz))
+    if(groupIndex < _ClusterLightCount && IntersectTileAndClusterLight(frustume, bx_ReflProbes_BoxMin[groupIndex].xyz, bx_ReflProbes_BoxMax[groupIndex].xyz))
     {
         uint clusterOffsetX;
         InterlockedAdd(clusterVisibleCountX, uint(1), clusterOffsetX);
         _ClusterLightingIndices[startIndex + clusterOffsetX].x = groupIndex;
     }
     GroupMemoryBarrierWithGroupSync();
-    if(groupIndex < _ClusterReflectCount && IntersectTileAndClusterLight(frustume, _ClusterReflectMinBounds[groupIndex].xyz, _ClusterReflectMaxBounds[groupIndex].xyz))
+    if(groupIndex < bx_ReflProbes_Count_ID && IntersectTileAndClusterLight(frustume, bx_ReflProbes_BoxMin[groupIndex].xyz, bx_ReflProbes_BoxMax[groupIndex].xyz))
     {
         uint clusterOffsetY;
         InterlockedAdd(clusterVisibleCountY, uint(1), clusterOffsetY);

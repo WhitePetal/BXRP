@@ -10,31 +10,13 @@ namespace BXRenderPipelineDeferred
 {
     public class BXLightsDeferred : BXLightsBase
     {
-        private Camera camera;
-        private BXRenderCommonSettings commonSettings;
-        private ScriptableRenderContext context;
-        private CullingResults cullingResults;
-
 		private Matrix4x4 worldToViewMatrix;
-
-        private const string BufferName = "Lights";
-        private CommandBuffer commandBuffer = new CommandBuffer()
-        {
-            name = BufferName
-        };
 
         public int otherLightCount;
 
-        private int width, height;
-
         private BXShadows shadows = new BXShadows();
-        private BXClusterLightCullCompute clusterLightCullCompute = new BXClusterLightCullCompute();
+        private BXClusterCullBase clusterCull = new BXClusterCullCompute();
         private BXLightCookie lightCookie = new BXLightCookie();
-
-        private GlobalKeyword dirLightKeyword = GlobalKeyword.Create("DIRECTIONAL_LIGHT");
-        private GlobalKeyword clusterLightKeyword = GlobalKeyword.Create("CLUSTER_LIGHT");
-
-        private bool useShadowMask;
 
         public BXLightsDeferred() : base(maxClusterLightCount + maxStencilLightCount, maxStencilLightCount)
         {
@@ -239,10 +221,10 @@ namespace BXRenderPipelineDeferred
 			{
                 if (!Shader.IsKeywordEnabled(in dirLightKeyword))
                     commandBuffer.EnableKeyword(in dirLightKeyword);
-                commandBuffer.SetGlobalInt(BXShaderPropertyIDs._DirectionalLightCount_ID, dirLightCount);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._DirectionalLightDirections_ID, dirLightDirections);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._DirectionalLightColors_ID, dirLightColors);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._DirectionalShadowDatas_ID, dirShadowDatas);
+                commandBuffer.SetGlobalInt(BaseShaderProperties._DirectionalLightCount_ID, dirLightCount);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._DirectionalLightDirections_ID, dirLightDirections);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._DirectionalLightColors_ID, dirLightColors);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._DirectionalShadowDatas_ID, dirShadowDatas);
 			}
 			else
 			{
@@ -255,14 +237,14 @@ namespace BXRenderPipelineDeferred
                 {
                     if (!Shader.IsKeywordEnabled(in clusterLightKeyword))
                         commandBuffer.EnableKeyword(in clusterLightKeyword);
-                    commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ClusterLightCount_ID, clusterLightCount);
+                    commandBuffer.SetGlobalInt(BaseShaderProperties._ClusterLightCount_ID, clusterLightCount);
                 }
-                commandBuffer.SetGlobalInt(BXShaderPropertyIDs._StencilLightCount_ID, stencilLightCount);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightSpheres_ID, otherLightSpheres);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightDirections_ID, otherLightDirections);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightThresholds_ID, otherLightThresholds);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherLightColors_ID, otherLightColors);
-                commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowDatas_ID, otherShadowDatas);
+                commandBuffer.SetGlobalInt(BaseShaderProperties._StencilLightCount_ID, stencilLightCount);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightSpheres_ID, otherLightSpheres);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightDirections_ID, otherLightDirections);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightThresholds_ID, otherLightThresholds);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightColors_ID, otherLightColors);
+                commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherShadowDatas_ID, otherShadowDatas);
 			}
             else
             {
@@ -271,7 +253,7 @@ namespace BXRenderPipelineDeferred
             }
             if(clusterLightCount > 0 || reflectionProbe.probeCount > 0)
             {
-                clusterLightCullCompute.Render(camera, this, commonSettings, width, height);
+                clusterCull.Render(camera, this, commonSettings, width, height);
             }
         }
 
@@ -292,10 +274,10 @@ namespace BXRenderPipelineDeferred
 
             reflectionProbe.Dispose();
             shadows.Dispose();
-            clusterLightCullCompute.Dispose();
+            clusterCull.Dispose();
             lightCookie.Dispose();
             shadows = null;
-            clusterLightCullCompute = null;
+            clusterCull = null;
             lightCookie = null;
 
             commandBuffer.Dispose();

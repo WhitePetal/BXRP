@@ -8,6 +8,25 @@ namespace BXRenderPipeline
 {
     public class BXShadows : IDisposable
     {
+        public static class ShaderProperties
+        {
+            public static readonly int _ShadowsDistanceFade_ID = Shader.PropertyToID("_ShadowsDistanceFade");
+            public static readonly int _DirectionalShadowMatrixs_ID = Shader.PropertyToID("_DirectionalShadowMatrixs");
+            public static readonly int _CascadeCount_ID = Shader.PropertyToID("_CascadeCount");
+            public static readonly int _CascadeCullingSpheres_ID = Shader.PropertyToID("_CascadeCullingSpheres");
+            public static readonly int _CascadeDatas_ID = Shader.PropertyToID("_CascadeDatas");
+
+            public static readonly int _ShadowMapSize_ID = Shader.PropertyToID("_ShadowMapSize");
+            public static readonly int _DirectionalShadowMap_ID = Shader.PropertyToID("_DirectionalShadowMap");
+            public static readonly int _OtherShadowMap_ID = Shader.PropertyToID("_OtherShadowMap");
+            public static readonly RenderTargetIdentifier _DirectionalShadowMap_TargetID = new RenderTargetIdentifier(_DirectionalShadowMap_ID);
+            public static readonly RenderTargetIdentifier _OtherLightShadowMap_TargetID = new RenderTargetIdentifier(_OtherShadowMap_ID);
+
+            public static readonly int _ShadowPancaking_ID = Shader.PropertyToID("_ShadowPancaking");
+            public static readonly int _OtherShadowTiles_ID = Shader.PropertyToID("_OtherShadowTiles");
+            public static readonly int _OtherShadowMatrices_ID = Shader.PropertyToID("_OtherShadowMatrices");
+        }
+
         private struct ShadowedDirectionalLight
         {
             public int visibleLightIndex;
@@ -164,15 +183,15 @@ namespace BXRenderPipeline
             }
 
             commandBuffer.BeginSample(BufferName);
-            commandBuffer.SetGlobalVector(BXShaderPropertyIDs._ShadowMapSize_ID, shadowMapSizes);
+            commandBuffer.SetGlobalVector(ShaderProperties._ShadowMapSize_ID, shadowMapSizes);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }
 
         public void Cleanup()
         {
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._DirectionalShadowMap_ID);
-            commandBuffer.ReleaseTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID);
+            commandBuffer.ReleaseTemporaryRT(ShaderProperties._DirectionalShadowMap_ID);
+            commandBuffer.ReleaseTemporaryRT(ShaderProperties._OtherShadowMap_ID);
             ExecuteCommandBuffer();
         }
 
@@ -193,10 +212,10 @@ namespace BXRenderPipeline
         private void RenderDirectionalShadows(List<BXRenderFeature> onDirShadowsRenderFeatures)
         {
             int shadowMapSize = commonSettings.shadowMapSize;
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._DirectionalShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.shadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
-            commandBuffer.SetRenderTarget(BXShaderPropertyIDs._DirectionalShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+            commandBuffer.GetTemporaryRT(ShaderProperties._DirectionalShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.shadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
+            commandBuffer.SetRenderTarget(ShaderProperties._DirectionalShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             commandBuffer.ClearRenderTarget(true, false, Color.clear);
-            commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ShadowPancaking_ID, 1);
+            commandBuffer.SetGlobalInt(ShaderProperties._ShadowPancaking_ID, 1);
             commandBuffer.BeginSample(BufferName);
             ExecuteCommandBuffer();
             shadowMapSizes.x = shadowMapSize;
@@ -235,15 +254,15 @@ namespace BXRenderPipeline
             }
             commandBuffer.SetGlobalDepthBias(0f, 0f);
             float f = 1f - commonSettings.cascadeFade;
-            commandBuffer.SetGlobalVector(BXShaderPropertyIDs._ShadowsDistanceFade_ID, new Vector4(
+            commandBuffer.SetGlobalVector(ShaderProperties._ShadowsDistanceFade_ID, new Vector4(
                 1f / mainCameraRender.maxShadowDistance,
                 1f / commonSettings.distanceFade,
                 1f / (1f - f * f))
             );
-            commandBuffer.SetGlobalMatrixArray(BXShaderPropertyIDs._DirectionalShadowMatrixs_ID, dirShadowMatrixs);
-            commandBuffer.SetGlobalInt(BXShaderPropertyIDs._CascadeCount_ID, commonSettings.cascadeCount);
-            commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._CascadeCullingSpheres_ID, cascadeCullingSphere);
-            commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._CascadeDatas_ID, cascadeDatas);
+            commandBuffer.SetGlobalMatrixArray(ShaderProperties._DirectionalShadowMatrixs_ID, dirShadowMatrixs);
+            commandBuffer.SetGlobalInt(ShaderProperties._CascadeCount_ID, commonSettings.cascadeCount);
+            commandBuffer.SetGlobalVectorArray(ShaderProperties._CascadeCullingSpheres_ID, cascadeCullingSphere);
+            commandBuffer.SetGlobalVectorArray(ShaderProperties._CascadeDatas_ID, cascadeDatas);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }
@@ -297,10 +316,10 @@ namespace BXRenderPipeline
             int shadowMapSize = commonSettings.otherLightShadowMapSize;
             shadowMapSizes.z = shadowMapSize;
             shadowMapSizes.w = 1f / shadowMapSize;
-            commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._OtherShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.otherLightShadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
-            commandBuffer.SetRenderTarget(BXShaderPropertyIDs._OtherLightShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+            commandBuffer.GetTemporaryRT(ShaderProperties._OtherShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.otherLightShadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
+            commandBuffer.SetRenderTarget(ShaderProperties._OtherLightShadowMap_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             commandBuffer.ClearRenderTarget(true, false, Color.clear);
-            commandBuffer.SetGlobalInt(BXShaderPropertyIDs._ShadowPancaking_ID, 0);
+            commandBuffer.SetGlobalInt(ShaderProperties._ShadowPancaking_ID, 0);
             commandBuffer.BeginSample(BufferName);
             ExecuteCommandBuffer();
 
@@ -318,8 +337,8 @@ namespace BXRenderPipeline
                     RenderSpotShadow(i, split, tileSize);
 				}
 			}
-            commandBuffer.SetGlobalVectorArray(BXShaderPropertyIDs._OtherShadowTiles_ID, otherShadowTiles);
-            commandBuffer.SetGlobalMatrixArray(BXShaderPropertyIDs._OtherShadowMatrices_ID, otherShadowMatrixs);
+            commandBuffer.SetGlobalVectorArray(ShaderProperties._OtherShadowTiles_ID, otherShadowTiles);
+            commandBuffer.SetGlobalMatrixArray(ShaderProperties._OtherShadowMatrices_ID, otherShadowMatrixs);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
 		}
