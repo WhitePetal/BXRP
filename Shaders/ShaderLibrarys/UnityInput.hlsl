@@ -32,7 +32,6 @@ CBUFFER_END
 
 CBUFFER_START(UnityPerCameraRare)
     float4 unity_CameraWorldClipPlanes[6];
-
     float4x4 unity_CameraProjection;
     float4x4 unity_CameraInvProjection;
     float4x4 unity_WorldToCamera;
@@ -93,13 +92,13 @@ CBUFFER_START(UnityPerDraw)
     float4x4 unity_ObjectToWorld;
     float4x4 unity_WorldToObject;
     float4 unity_LODFade;
-    float4 unity_WorldTransformParams; // x is usually 1.0 or -1.0 for  odd-negative scale transforms
-    float4 unity_RenderingLayer;
+    half4 unity_WorldTransformParams; // x is usually 1.0 or -1.0 for  odd-negative scale transforms
+    half4 unity_RenderingLayer;
 
     half4 unity_LightData;
     half4 unity_LightIndices[2];
 
-    float4 unity_ProbesOcclusion;
+    half4 unity_ProbesOcclusion;
     
     // cube probe is deprecated, now use probe_atlas
     // float4 unity_SpecCube0_HDR;
@@ -116,13 +115,13 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_LightmapST;
     float4 unity_DynamicLightmapST;
 
-    float4 unity_SHAr;
-    float4 unity_SHAg;
-    float4 unity_SHAb;
-    float4 unity_SHBr;
-    float4 unity_SHBg;
-    float4 unity_SHBb;
-    float4 unity_SHC;
+    half4 unity_SHAr;
+    half4 unity_SHAg;
+    half4 unity_SHAb;
+    half4 unity_SHBr;
+    half4 unity_SHBg;
+    half4 unity_SHBb;
+    half4 unity_SHC;
 
     // Renderer bounding box
     float4 unity_RendererBounds_Min;
@@ -138,12 +137,12 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_MotionVectorsParams;
 
     // Sprite.
-    float4 unity_SpriteColor;
+    half4 unity_SpriteColor;
     //X : FlipX
     //Y : FlipY
     //Z : Reserved for future use.
     //W : Reserved for future use.
-    float4 unity_SpriteProps;
+    half4 unity_SpriteProps;
 
     // Light Probe Proxy Volume is deprecated in the latest srp
     // x = Disabled(0)/Enable(1)

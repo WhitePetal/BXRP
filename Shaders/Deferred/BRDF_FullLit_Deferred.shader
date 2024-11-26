@@ -169,9 +169,9 @@ Shader "Test/BRDF_FullLit_Deferred"
                 ;
                 gbuffer.lighting.a = half(1.0);
                 gbuffer.lighting.rgb *= _ReleateExpourse;
-                #if SHADER_API_METAL
+                // #if SHADER_API_METAL
                 gbuffer.depth_metal = EncodeFloatRGBA(i.vertex.z);
-                #endif
+                // #endif
                 
                 return gbuffer;
             }
