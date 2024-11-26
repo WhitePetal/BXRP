@@ -4,6 +4,10 @@
 // #define BX_FORWARDPLUS 1
 #define BX_DEFERRED 1
 
+#if defined(_SHADOW_MASK_DISTANCE) || defined(_SHADOW_MASK_ALWAYS)
+	#define SHADOWS_SHADOWMASK
+#endif
+
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"

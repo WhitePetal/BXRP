@@ -24,16 +24,11 @@ namespace BXRenderPipelineForward
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
             dirLightCount = 0;
             clusterLightCount = 0;
-            useShadowMask = false;
             for(int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
 			{
                 if (dirLightCount >= maxDirLightCount && clusterLightCount >= maxClusterLightCount) break;
                 ref var visibleLight = ref visibleLights.UnsafeElementAtMutable(visbileLightIndex);
                 LightBakingOutput lightBaking = visibleLight.light.bakingOutput;
-                if(lightBaking.lightmapBakeType == LightmapBakeType.Mixed && lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask)
-				{
-                    useShadowMask = true;
-				}
                 if (lightBaking.lightmapBakeType == LightmapBakeType.Baked) continue;
 				switch (visibleLight.lightType)
 				{
@@ -71,7 +66,7 @@ namespace BXRenderPipelineForward
             commandBuffer.BeginSample(BufferName);
             SetupLights();
             lightCookie.Setup(commandBuffer, this, mainCameraRender);
-            shadows.Render(useShadowMask, onDirShadowsRenderFeatures);
+            shadows.Render(onDirShadowsRenderFeatures);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }

@@ -48,8 +48,6 @@ namespace BXRenderPipeline
         protected GlobalKeyword dirLightKeyword = GlobalKeyword.Create("DIRECTIONAL_LIGHT");
         protected GlobalKeyword clusterLightKeyword = GlobalKeyword.Create("CLUSTER_LIGHT");
 
-        protected bool useShadowMask;
-
         protected BXReflectionProbeManager reflectionProbe = BXReflectionProbeManager.Create();
 
         public int dirLightCount;

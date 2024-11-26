@@ -12,7 +12,7 @@ RWStructuredBuffer<uint2> _ClusterLightingDatas;
 #define CLUSTER_Y_COUNT_INV 1.0 / CLUSTER_Y_COUNT
 #define CLUSTER_XY_COUNT_INV float2(CLUSTER_X_COUNT_INV, CLUSTER_Y_COUNT_INV)
 uint _ClusterLightCount;
-uint bx_ReflProbes_Count_ID;
+uint bx_ReflProbes_Count;
 float4 _ClusterLightMaxBounds[MAX_CLUSTER_LIGHT_COUNT];
 float4 _ClusterLightMinBounds[MAX_CLUSTER_LIGHT_COUNT];
 float4 bx_ReflProbes_BoxMax[MAX_CLUSTER_REFLECT_COUNT];
@@ -106,7 +106,7 @@ void ClusterLightCulling(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GR
         _ClusterLightingIndices[startIndex + clusterOffsetX].x = groupIndex;
     }
     GroupMemoryBarrierWithGroupSync();
-    if(groupIndex < bx_ReflProbes_Count_ID && IntersectTileAndClusterLight(frustume, bx_ReflProbes_BoxMin[groupIndex].xyz, bx_ReflProbes_BoxMax[groupIndex].xyz))
+    if(groupIndex < bx_ReflProbes_Count && IntersectTileAndClusterLight(frustume, bx_ReflProbes_BoxMin[groupIndex].xyz, bx_ReflProbes_BoxMax[groupIndex].xyz))
     {
         uint clusterOffsetY;
         InterlockedAdd(clusterVisibleCountY, uint(1), clusterOffsetY);

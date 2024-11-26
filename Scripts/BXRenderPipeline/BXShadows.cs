@@ -52,6 +52,8 @@ namespace BXRenderPipeline
 
         private GlobalKeyword dirShadowKeyword = GlobalKeyword.Create("SHADOWS_DIR");
         private GlobalKeyword otherShadowKeyword = GlobalKeyword.Create("SHADOWS_OTHER");
+        private GlobalKeyword shadowMaskDistanceKyeword = GlobalKeyword.Create("_SHADOW_MASK_DISTANCE");
+        private GlobalKeyword shadowMaskAlwaysKeyword = GlobalKeyword.Create("_SHADOW_MASK_ALWAYS");
 
         private ScriptableRenderContext context;
         private CullingResults cullingResults;
@@ -67,6 +69,8 @@ namespace BXRenderPipeline
 
         private BXMainCameraRenderBase mainCameraRender;
         private BXRenderCommonSettings commonSettings;
+
+        private bool useShadowMask;
 
         private int shadowedDirLightCount;
         private int shadowedOtherLightCount;
@@ -91,27 +95,39 @@ namespace BXRenderPipeline
             this.shadowedOtherLightCount = 0;
             this.shadowedOtherLightTileCount = 0;
             this.viewToWorldMatrix = mainCameraRender.viewToWorldMatrix;
+            this.useShadowMask = false;
         }
 
         public Vector4 SaveDirectionalShadows(Light light, int visibleLightIndex)
         {
-            Vector4 shadowData;
             if (shadowedDirLightCount < maxShadowedDirLightCount && light.shadows != LightShadows.None &&
-                light.shadowStrength > 0f && cullingResults.GetShadowCasterBounds(visibleLightIndex, out Bounds bounds))
+                light.shadowStrength > 0f)
             {
+                float maskChannel = -1;
+                LightBakingOutput lightBaking = light.bakingOutput;
+                if(lightBaking.lightmapBakeType == LightmapBakeType.Mixed && lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask)
+                {
+                    useShadowMask = true;
+                    maskChannel = lightBaking.occlusionMaskChannel;
+                }
                 shadowedDirLights[shadowedDirLightCount] = new ShadowedDirectionalLight()
                 {
                     visibleLightIndex = visibleLightIndex,
                     slopeScaleBias = light.shadowBias,
                     nearPlaneOffst = light.shadowNearPlane
                 };
-                shadowData = new Vector4(light.shadowStrength, commonSettings.cascadeCount * shadowedDirLightCount++, light.shadowNormalBias);
+
+                if(!cullingResults.GetShadowCasterBounds(visibleLightIndex, out Bounds bounds))
+                {
+                    return new Vector4(-light.shadowStrength, 0f, 0f, maskChannel);
+                }
+
+                return new Vector4(light.shadowStrength, commonSettings.cascadeCount * shadowedDirLightCount++, light.shadowNormalBias, maskChannel);
             }
             else
             {
-                shadowData = Vector4.zero;
+                return Vector4.zero;
             }
-            return shadowData;
         }
 
         public Vector4 SaveOtherShadows(Light light, int visibleLightIndex, int lightIndex)
@@ -150,7 +166,7 @@ namespace BXRenderPipeline
             return data;
         }
 
-        public void Render(bool useShadowMask, List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Render(List<BXRenderFeature> onDirShadowsRenderFeatures)
         {
             if (!commonSettings.drawShadows)
             {
@@ -173,6 +189,25 @@ namespace BXRenderPipeline
             {
                 if (!Shader.IsKeywordEnabled(in dirShadowKeyword))
                     commandBuffer.EnableKeyword(in dirShadowKeyword);
+                if (useShadowMask)
+                {
+                    if(QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask)
+                    {
+                        if (Shader.IsKeywordEnabled(shadowMaskDistanceKyeword)) commandBuffer.DisableKeyword(shadowMaskDistanceKyeword);
+                        if (!Shader.IsKeywordEnabled(shadowMaskAlwaysKeyword)) commandBuffer.EnableKeyword(shadowMaskAlwaysKeyword);
+                    }
+                    else
+                    {
+                        if (!Shader.IsKeywordEnabled(shadowMaskDistanceKyeword)) commandBuffer.EnableKeyword(shadowMaskDistanceKyeword);
+                        if (Shader.IsKeywordEnabled(shadowMaskAlwaysKeyword)) commandBuffer.DisableKeyword(shadowMaskAlwaysKeyword);
+                    }
+                }
+                else
+                {
+                    if(Shader.IsKeywordEnabled(shadowMaskDistanceKyeword)) commandBuffer.DisableKeyword(shadowMaskDistanceKyeword);
+                    if(Shader.IsKeywordEnabled(shadowMaskAlwaysKeyword)) commandBuffer.DisableKeyword(shadowMaskAlwaysKeyword);
+                }
+
                 RenderDirectionalShadows(onDirShadowsRenderFeatures);
             }
             if (shadowedOtherLightCount > 0)

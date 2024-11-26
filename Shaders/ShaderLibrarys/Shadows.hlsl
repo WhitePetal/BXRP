@@ -124,7 +124,93 @@ half GetShadowDistanceStrength(float depthView)
     return FadeShadowsStrength(depthView, _ShadowsDistanceFade.x, _ShadowsDistanceFade.y);
 }
 
-half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, half3 normal_world, half shadowDistanceStrength)
+half MixBakedAndRealtimeShadow(half shadow, half globalStrength, half shadowDistanceStrength, float3 pos_world, half2 lightmapUV)
+{
+    half baked = SampleBakedShadows(pos_world, lightMapUV);
+    #ifdef _SHADOWS_MASK_ALWAYS
+        shadow = lerp(baked, shadow, shadowDistanceStrength);
+        return lerp(half(1.0), shadow, globalStrength);
+    #endif
+    #ifdef _SHADOWS_MASK_DISTANCE
+        shadow = lerp(baked, shadow, shadowDistanceStrength);
+        return lerp(half(1.0), shadow, globalStrength);
+    #endif
+    return lerp(half(1.0), shadow, globalStrength * shadowDistanceStrength);
+}
+
+half GetDirectionalShadowForward(int lightIndex, float2 pos_clip, float3 pos_world, half3 normal_world, half2 lightmapUV, half shadowDistanceStrength)
+{
+    #ifndef SHADOWS_DIR
+        return half(1.0);
+    #endif
+
+    half4 shadowData = _DirectionalShadowDatas[lightIndex];
+    #if !defined(_SHADOWS_MASK_ALWAYS) && !defined(_SHADOWS_MASK_DISTANCE)
+        if(shadowData.x * shadowDistanceStrength <= half(0.0))
+        {
+            return half(1.0);
+        }
+    #else
+        if(shadowData.x <= half(0.0))
+        {
+            return SampleBakedShadows(pos_world, lightMapUV);
+        }
+    #endif
+
+    // else return half(0.0);
+    int cascadeIndex;
+    half cascadeBlend = half(1.0);
+    int cascadeCount = _CascadeCount;
+    int i;
+    for(i = 0; i < cascadeCount; ++i)
+    {
+        float4 sphere = _CascadeCullingSpheres[i];
+        float3 dir = pos_world - sphere.xyz;
+        float dstSqr = dot(dir, dir);
+        if(dstSqr < sphere.w)
+        {
+            half fade = FadeShadowsStrength(dstSqr, _CascadeDatas[i].x, _ShadowsDistanceFade.z);
+            if(i == (cascadeCount - 1))
+            {
+                shadowDistanceStrength *= fade;
+            }
+            else
+            {
+                cascadeBlend = fade;
+            }
+            break;
+        }
+    }
+    if(i == cascadeCount) shadowDistanceStrength = half(0.0);
+    #if defined(_CASCADE_BLEND_DITHER)
+    half dither = InterleavedGradientNoise(pos_clip.xy, half(0.0));
+    if (cascadeBlend < dither) 
+    {
+        i += 1;
+    }
+    #endif
+    cascadeIndex = i;
+
+    int shadowIndex = shadowData.y + cascadeIndex;
+    float3 normalBias = normal_world * _CascadeDatas[cascadeIndex].y * shadowData.z;
+    float4 shadowCoord = mul(_DirectionalShadowMatrixs[shadowIndex], float4(pos_world + normalBias , 1.0));
+    half shadow = FilterDirectionalShadow(shadowCoord.xyz);
+    #if defined(_CASCADE_BLEND_SOFT)
+        if (cascadeBlend < half(1.0)) 
+        {
+            cascadeIndex = cascadeIndex + 1;
+            shadowIndex = shadowIndex + 1;
+            normalBias = normal_world * (shadowData.z * _CascadeDatas[cascadeIndex].y);
+            shadowCoord = mul(_DirectionalShadowMatrixs[shadowIndex], float4(pos_world + normalBias, 1.0));
+            shadow = lerp(FilterDirectionalShadow(shadowCoord.xyz), shadow, cascadeBlend);
+        }
+    #endif
+
+    return MixBakedAndRealtimeShadow(shadow, shadowData.x, shadowDistanceStrength, pos_world, lightmapUV);
+}
+
+// deferred not have lightmapUV
+half GetDirectionalShadowForward(int lightIndex, float2 pos_clip, float3 pos_world, half3 normal_world, half shadowDistanceStrength)
 {
     #ifndef SHADOWS_DIR
         return half(1.0);
@@ -132,7 +218,11 @@ half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, hal
 
     half4 shadowData = _DirectionalShadowDatas[lightIndex];
     half shadowStrength = shadowData.x * shadowDistanceStrength;
-    if(shadowStrength <= half(0.0)) return half(1.0);
+    if(shadowStrength <= half(0.0))
+    {
+        return half(1.0);
+    }
+
     // else return half(0.0);
     int cascadeIndex;
     half cascadeBlend = half(1.0);

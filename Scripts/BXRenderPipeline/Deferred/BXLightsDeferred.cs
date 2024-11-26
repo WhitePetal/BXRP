@@ -31,17 +31,12 @@ namespace BXRenderPipelineDeferred
             stencilLightCount = 0;
             otherLightCount = 0;
             importedOtherLightCount = 0;
-            useShadowMask = false;
 
             for(int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
 			{
                 if (dirLightCount >= maxDirLightCount && otherLightCount >= maxOtherLightCount) break;
                 ref var visibleLight = ref visibleLights.UnsafeElementAtMutable(visbileLightIndex);
                 LightBakingOutput lightBaking = visibleLight.light.bakingOutput;
-                if(lightBaking.lightmapBakeType == LightmapBakeType.Mixed && lightBaking.mixedLightingMode == MixedLightingMode.Shadowmask)
-				{
-                    useShadowMask = true;
-				}
                 if (lightBaking.lightmapBakeType == LightmapBakeType.Baked) continue;
 				switch (visibleLight.lightType)
 				{
@@ -93,7 +88,7 @@ namespace BXRenderPipelineDeferred
             commandBuffer.BeginSample(BufferName);
             SetupLights();
             lightCookie.Setup(commandBuffer, this, mainCameraRender);
-            shadows.Render(useShadowMask, onDirShadowsRenderFeatures);
+            shadows.Render(onDirShadowsRenderFeatures);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }
