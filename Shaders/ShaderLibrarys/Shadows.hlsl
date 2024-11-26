@@ -126,7 +126,7 @@ half GetShadowDistanceStrength(float depthView)
 
 half MixBakedAndRealtimeShadow(half shadow, half globalStrength, half shadowDistanceStrength, float3 pos_world, half2 lightmapUV)
 {
-    half baked = SampleBakedShadows(pos_world, lightMapUV);
+    half baked = SampleBakedShadows(pos_world, lightmapUV);
     #ifdef _SHADOWS_MASK_ALWAYS
         shadow = lerp(baked, shadow, shadowDistanceStrength);
         return lerp(half(1.0), shadow, globalStrength);
@@ -210,7 +210,7 @@ half GetDirectionalShadowForward(int lightIndex, float2 pos_clip, float3 pos_wor
 }
 
 // deferred not have lightmapUV
-half GetDirectionalShadowForward(int lightIndex, float2 pos_clip, float3 pos_world, half3 normal_world, half shadowDistanceStrength)
+half GetDirectionalShadow(int lightIndex, float2 pos_clip, float3 pos_world, half3 normal_world, half shadowDistanceStrength)
 {
     #ifndef SHADOWS_DIR
         return half(1.0);
