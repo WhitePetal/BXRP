@@ -5,8 +5,22 @@
 
 #define MAX_REFLECTION_PROBE_COUNT 4
 
+#if defined(UNITY_DOTS_INSTANCING_ENABLED)
+	#define LIGHTMAP_NAME unity_Lightmaps
+	#define LIGHTMAP_INDIRECTION_NAME unity_LightmapsInd
+	#define LIGHTMAP_SAMPLER_NAME samplerunity_Lightmaps
+	#define LIGHTMAP_SAMPLE_EXTRA_ARGS lightmapUV, unity_LightmapIndex.x
+	#else
+	#define LIGHTMAP_NAME unity_Lightmap
+	#define LIGHTMAP_INDIRECTION_NAME unity_LightmapInd
+	#define LIGHTMAP_SAMPLER_NAME samplerunity_Lightmap
+	#define LIGHTMAP_SAMPLE_EXTRA_ARGS lightmapUV
+#endif
+
 TEXTURE2D(unity_Lightmap);
 SAMPLER(samplerunity_Lightmap);
+TEXTURE2D_ARRAY(unity_Lightmaps);
+SAMPLER(samplerunity_Lightmaps);
 
 // cube probe is deprecated, now use probe_atlas
 // TEXTURECUBE(unity_SpecCube0);
@@ -26,21 +40,21 @@ CBUFFER_START(bx_ReflectionProbeBuffer)
 	float4 bx_ReflProbes_BoxMax[MAX_REFLECTION_PROBE_COUNT]; // w is the blend distance
     float4 bx_ReflProbes_BoxMin[MAX_REFLECTION_PROBE_COUNT]; // w is the importance
 	float4 bx_ReflProbes_ProbePosition[MAX_REFLECTION_PROBE_COUNT]; // w is positive for box projection, |w| is max mip level
-	float4 bx_ReflProbes_MipScaleOffset[MAX_REFLECTION_PROBE_COUNT * 7];
+	half4 bx_ReflProbes_MipScaleOffset[MAX_REFLECTION_PROBE_COUNT * 7];
 	half4 _GlossyEnvironmentCubeMap_HDR;
 CBUFFER_END
 
-half3 SampleLightMap (half2 lightMapUV) {
+half3 SampleLightMap (half2 lightmapUV) {
 	#if defined(LIGHTMAP_ON)
 		return SampleSingleLightmap(
-            TEXTURE2D_ARGS(unity_Lightmap, samplerunity_Lightmap), lightMapUV,
-			float4(1.0, 1.0, 0.0, 0.0),
+            TEXTURE2D_LIGHTMAP_ARGS(LIGHTMAP_NAME, LIGHTMAP_SAMPLER_NAME), LIGHTMAP_SAMPLE_EXTRA_ARGS,
+			half4(1.0, 1.0, 0.0, 0.0),
 			#if defined(UNITY_LIGHTMAP_FULL_HDR)
 				false,
 			#else
 				true,
 			#endif
-			float4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0, 0.0)
+			half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0, 0.0)
         );
 	#else
 		return half(0.0);
