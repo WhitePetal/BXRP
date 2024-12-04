@@ -34,7 +34,8 @@ Shader "Test/BRDF_FullLit_Deferred"
             #pragma target 4.5 DOTS_INSTANCING_ON
             // #pragma multi_compile_instancing
             #pragma multi_compile _ LIGHTMAP_ON
-            #pragma multi_compile_local __ _EMISSION_ON
+            #pragma multi_compile_fragment __ _CLUSTER_GREATE_32
+            #pragma multi_compile_local_fragment __ _EMISSION_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
@@ -153,8 +154,7 @@ Shader "Test/BRDF_FullLit_Deferred"
                 ambient = SampleLightMap(i.uv.zw);
                 #endif
                 ambient += SampleSH(n);
-                float depthEye = LinearEyeDepth(i.vertex.z);
-                half3 ambientSpecular = SampleEnvironment(i.vertex.xyz, depthEye, i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
+                half3 ambientSpecular = SampleEnvironment(i.vertex.xyz, vSource, i.pos_world, v, n, perceptRoughness) * F / (perceptRoughness + half(1.0));
                 // half3 ambientSpecular = 0.0;
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * _EmissionStrength;

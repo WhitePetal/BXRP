@@ -82,7 +82,7 @@ namespace BXRenderPipeline
 			InitRenderFeatures(onPostProcessRenderFeatures);
 
 			mainCameraRender.Init(commonSettings);
-			otherCameraRender.Init(commonSettings);
+            otherCameraRender.Init(commonSettings);
 
 			Assert.IsTrue(commonSettings.coreBlitPS != null, "CommonSettings CoreBlitPS Shader is null");
 			Assert.IsTrue(commonSettings.coreBlitColorAndDepthPS != null, "CommonSettings CoreBlitColorAndDepth Shader is null");

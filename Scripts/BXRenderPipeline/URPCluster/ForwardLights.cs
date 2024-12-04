@@ -11,9 +11,25 @@ using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
-    public class BXClusterCullJobSystem : BXClusterCullBase
+    public class ForwardLights
     {
-        private struct InclusiveRange
+        static class LightConstantBuffer
+        {
+            public static int _MainLightPosition;   // DeferredLights.LightConstantBuffer also refers to the same ShaderPropertyID - TODO: move this definition to a common location shared by other UniversalRP classes
+            public static int _MainLightColor;      // DeferredLights.LightConstantBuffer also refers to the same ShaderPropertyID - TODO: move this definition to a common location shared by other UniversalRP classes
+            public static int _MainLightOcclusionProbesChannel;    // Deferred?
+            public static int _MainLightLayerMask;
+
+            public static int _AdditionalLightsCount;
+            public static int _AdditionalLightsPosition;
+            public static int _AdditionalLightsColor;
+            public static int _AdditionalLightsAttenuation;
+            public static int _AdditionalLightsSpotDir;
+            public static int _AdditionalLightOcclusionProbeChannel;
+            public static int _AdditionalLightsLayerMasks;
+        }
+
+        struct InclusiveRange
         {
             public short start;
             public short end;
@@ -59,228 +75,107 @@ namespace BXRenderPipeline
             }
         }
 
-        private int m_ActualTileWidth;
-        private int2 m_TileResolution;
-        private float2 m_TileScale;
+        int m_AdditionalLightsBufferId;
+        int m_AdditionalLightsIndicesId;
 
-        protected JobHandle m_CullingHandle;
-        private NativeArray<uint> m_ZBins;
-        private GraphicsBuffer m_ZBinsBuffer;
-        private NativeArray<uint> m_TileMasks;
-        private GraphicsBuffer m_TileMasksBuffer;
+        const string k_SetupLightConstants = "Setup Light Constants";
 
-        private int m_WordsPerTile;
-        private float m_ZBinScale;
-        private float m_ZBinOffset;
-        private int m_LightCount;
-        private int m_BinCount;
+        private static readonly ProfilingSampler m_ProfilingSampler = new ProfilingSampler(k_SetupLightConstants);
+        private static readonly ProfilingSampler m_ProfilingSamplerFPSetup = new ProfilingSampler("Forward+ Setup");
+        private static readonly ProfilingSampler m_ProfilingSamplerFPComplete = new ProfilingSampler("Forward+ Complete");
+        private static readonly ProfilingSampler m_ProfilingSamplerFPUpload = new ProfilingSampler("Forward+ Upload");
 
-        private static readonly ProfilingSampler m_ProfilingSamplerFPComplete = new ProfilingSampler("Cluster Complete");
-        private static readonly ProfilingSampler m_ProfilingSamplerFPUpload = new ProfilingSampler("Cluster Buffer Upload");
+        internal static readonly int maxVisibleAdditionalLights = 32;
+        internal static readonly int maxZBinWords = 1024 * 4;
+        internal static readonly int maxTileWords = (maxVisibleAdditionalLights <= 32 ? 1024 : 4096) * 4;
+        internal static readonly int maxVisibleReflectionProbes = Math.Min(maxVisibleAdditionalLights, 64);
 
-        private static readonly int bx_ZBinBuffer_ID = Shader.PropertyToID("bx_ZBinBuffer");
-        private static readonly int bx_TileBuffer_ID = Shader.PropertyToID("bx_TileBuffer");
-        private static readonly int _ClusterParams0_ID = Shader.PropertyToID("_ClusterParams0");
-        private static readonly int _ClusterParams1_ID = Shader.PropertyToID("_ClusterParams1");
-        private static readonly int _ClusterParams2_ID = Shader.PropertyToID("_ClusterParams2");
+        Vector4[] m_AdditionalLightPositions;
+        Vector4[] m_AdditionalLightColors;
+        Vector4[] m_AdditionalLightAttenuations;
+        Vector4[] m_AdditionalLightSpotDirections;
+        Vector4[] m_AdditionalLightOcclusionProbeChannels;
+        float[] m_AdditionalLightsLayerMasks;  // Unity has no support for binding uint arrays. We will use asuint() in the shader instead.
 
-        public BXClusterCullJobSystem()
+        bool m_UseStructuredBuffer;
+
+        bool m_UseForwardPlus;
+        int m_DirectionalLightCount;
+        int m_ActualTileWidth;
+        int2 m_TileResolution;
+
+        JobHandle m_CullingHandle;
+        NativeArray<uint> m_ZBins;
+        GraphicsBuffer m_ZBinsBuffer;
+        NativeArray<uint> m_TileMasks;
+        GraphicsBuffer m_TileMasksBuffer;
+
+        BXReflectionProbeManager m_ReflectionProbeManager;
+        int m_WordsPerTile;
+        float m_ZBinScale;
+        float m_ZBinOffset;
+        int m_LightCount;
+        int m_BinCount;
+
+        private CommandBuffer cmd;
+
+        internal ForwardLights()
+        {
+            //m_UseStructuredBuffer = RenderingUtils.useStructuredBuffer;
+            m_UseForwardPlus = true;
+
+            LightConstantBuffer._MainLightPosition = Shader.PropertyToID("_MainLightPosition");
+            LightConstantBuffer._MainLightColor = Shader.PropertyToID("_MainLightColor");
+            LightConstantBuffer._MainLightOcclusionProbesChannel = Shader.PropertyToID("_MainLightOcclusionProbes");
+            LightConstantBuffer._MainLightLayerMask = Shader.PropertyToID("_MainLightLayerMask");
+            LightConstantBuffer._AdditionalLightsCount = Shader.PropertyToID("_AdditionalLightsCount");
+
+            if (m_UseStructuredBuffer)
+            {
+                m_AdditionalLightsBufferId = Shader.PropertyToID("_AdditionalLightsBuffer");
+                m_AdditionalLightsIndicesId = Shader.PropertyToID("_AdditionalLightsIndices");
+            }
+            else
+            {
+                LightConstantBuffer._AdditionalLightsPosition = Shader.PropertyToID("_AdditionalLightsPosition");
+                LightConstantBuffer._AdditionalLightsColor = Shader.PropertyToID("_AdditionalLightsColor");
+                LightConstantBuffer._AdditionalLightsAttenuation = Shader.PropertyToID("_AdditionalLightsAttenuation");
+                LightConstantBuffer._AdditionalLightsSpotDir = Shader.PropertyToID("_AdditionalLightsSpotDir");
+                LightConstantBuffer._AdditionalLightOcclusionProbeChannel = Shader.PropertyToID("_AdditionalLightsOcclusionProbes");
+                LightConstantBuffer._AdditionalLightsLayerMasks = Shader.PropertyToID("_AdditionalLightsLayerMasks");
+
+                int maxLights = maxVisibleAdditionalLights;
+                m_AdditionalLightPositions = new Vector4[maxLights];
+                m_AdditionalLightColors = new Vector4[maxLights];
+                m_AdditionalLightAttenuations = new Vector4[maxLights];
+                m_AdditionalLightSpotDirections = new Vector4[maxLights];
+                m_AdditionalLightOcclusionProbeChannels = new Vector4[maxLights];
+                m_AdditionalLightsLayerMasks = new float[maxLights];
+            }
+
+            if (m_UseForwardPlus)
+            {
+                CreateForwardPlusBuffers();
+                m_ReflectionProbeManager = BXReflectionProbeManager.Create();
+            }
+        }
+
+        void CreateForwardPlusBuffers()
         {
             m_ZBins = new NativeArray<uint>(maxZBinWords, Allocator.Persistent);
             m_ZBinsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Constant, maxZBinWords / 4, UnsafeUtility.SizeOf<float4>());
-            m_ZBinsBuffer.name = "BX Z-Bin Buffer";
+            m_ZBinsBuffer.name = "URP Z-Bin Buffer";
             m_TileMasks = new NativeArray<uint>(maxTileWords, Allocator.Persistent);
             m_TileMasksBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Constant, maxTileWords / 4, UnsafeUtility.SizeOf<float4>());
-            m_TileMasksBuffer.name = "BX Tile Buffer";
+            m_TileMasksBuffer.name = "URP Tile Buffer";
         }
 
-        public override void Setup(Camera camera, BXLightsBase lights, int width, int height)
-        {
-            if (!m_CullingHandle.IsCompleted)
-            {
-                throw new InvalidOperationException("Forward+ Cluster jobs have not complete yet.");
-            }
+        internal BXReflectionProbeManager reflectionProbeManager => m_ReflectionProbeManager;
 
-            unsafe
-            {
-                m_CullingHandle.Complete();
-                UnsafeUtility.MemClear(m_ZBins.GetUnsafePtr(), m_ZBins.Length * sizeof(uint));
-                UnsafeUtility.MemClear(m_TileMasks.GetUnsafePtr(), m_TileMasks.Length * sizeof(uint));
-            }
-
-            var screenResolution = math.int2(width, height);
-
-            var clusterLights = lights.otherLights;
-            m_LightCount = lights.clusterLightCount;
-            var reflectionProbeCount = lights.reflectProneCount;
-            var reflectionProbes = lights.reflectionProbes;
-            var itemsPerTile = m_LightCount + reflectionProbeCount;
-            m_WordsPerTile = (itemsPerTile + 32 - 1) / 32; // 0 => 0 1~32 => 1, 33~64=>2 每 32 个 PerTile's Word + 1
-
-            m_ActualTileWidth = 8 >> 1;
-            do
-            {
-                m_ActualTileWidth <<= 1;
-                m_TileResolution = (screenResolution + m_ActualTileWidth - 1) / m_ActualTileWidth; // 每 m_ActualTileWidth 个 Pixel 分配一个 Tile
-            }
-            while ((m_TileResolution.x * m_TileResolution.y * m_WordsPerTile) > maxTileWords);
-
-            if (!camera.orthographic)
-            {
-                // Use to calculate binIndex = log2(z) * zBinScale + zBinOffset
-                m_ZBinScale = maxZBinWords / ((math.log2(camera.farClipPlane) - math.log2(camera.nearClipPlane)) * (2 + m_WordsPerTile));
-                m_ZBinOffset = -math.log2(camera.nearClipPlane) * m_ZBinScale;
-                m_BinCount = (int)(math.log2(camera.farClipPlane) * m_ZBinScale + m_ZBinOffset);
-            }
-            else
-            {
-                // Use to calculate binIndex = z * zBinScale + zBinOffset
-                m_ZBinScale = maxZBinWords / ((camera.farClipPlane - camera.nearClipPlane) * (2 + m_WordsPerTile));
-                m_ZBinOffset = -camera.nearClipPlane * m_ZBinScale;
-                m_BinCount = (int)(camera.farClipPlane * m_ZBinScale + m_ZBinOffset);
-            }
-
-            // Necessary to avoid negative bin count when the farClipPlane is set to Infinity in the editor.
-            m_BinCount = Math.Max(m_BinCount, 0);
-
-            
-            var worldToViews = camera.worldToCameraMatrix;
-            var viewToClips = camera.projectionMatrix;
-
-            // 计算光源Z方向的包围盒大小(minZ-maxZ)
-            var minMaxZs = new NativeArray<float2>(itemsPerTile, Allocator.TempJob);
-
-            var lightMinMaxZJob = new LightMinMaxZJob
-            {
-                worldToView = worldToViews,
-                lights = clusterLights,
-                minMaxZs = minMaxZs.GetSubArray(0, m_LightCount)
-            };
-            // Innerloop batch count of 32 is not special, just a handwavy amount to not have too much scheduling overhead nor too little parallelism.
-            var lightMinMaxZHandle = lightMinMaxZJob.ScheduleParallel(m_LightCount, 32, new JobHandle());
-
-            var reflectionProbeMinMaxZJob = new ReflectionProbeMinMaxZJob
-            {
-                worldToView = worldToViews,
-                reflectionProbes = reflectionProbes,
-                minMaxZs = minMaxZs.GetSubArray(m_LightCount, reflectionProbeCount)
-            };
-            var reflectionProbeMinMaxZHandle = reflectionProbeMinMaxZJob.ScheduleParallel(reflectionProbeCount, 32, lightMinMaxZHandle);
-
-            var zBinningBatchCount = (m_BinCount + ZBinningJob.batchSize - 1) / ZBinningJob.batchSize;
-            var zBinningJob = new ZBinningJob
-            {
-                bins = m_ZBins,
-                minMaxZs = minMaxZs,
-                zBinScale = m_ZBinScale,
-                zBinOffset = m_ZBinOffset,
-                binCount = m_BinCount,
-                wordsPerTile = m_WordsPerTile,
-                lightCount = m_LightCount,
-                reflectionProbeCount = reflectionProbeCount,
-                batchCount = zBinningBatchCount,
-                isOrthographics = camera.orthographic
-            };
-            var zBinningHandle = zBinningJob.ScheduleParallel(zBinningBatchCount, 1, reflectionProbeMinMaxZHandle);
-
-            // zbin struct:
-            // |header(2)|words(wordsPerTile)|
-            // header: maxLightIndex-minLightIndex
-            // wordsPerTile: per bit 0 meains no this bitIndex Light, 1 means have this bitIndex Light
-
-            // wait light minMaxZs
-            //reflectionProbeMinMaxZHandle.Complete(); // need wait?
-
-            GetViewParams(camera, viewToClips, out float viewPlaneBottom0, out float viewPlaneTop0, out float4 viewToViewportScaleBias0);
-
-            // Each light needs 1 range for Y, and a range per row. Align to 128-bytes to avoid false sharing.
-            var rangesPerItem = AlignByteCount((1 + m_TileResolution.y) * UnsafeUtility.SizeOf<InclusiveRange>(), 128) / UnsafeUtility.SizeOf<InclusiveRange>();
-            var tileRanges = new NativeArray<InclusiveRange>(rangesPerItem * itemsPerTile, Allocator.TempJob);
-            m_TileScale = (float2)screenResolution / m_ActualTileWidth;
-            var tillingJob = new TillingJob
-            {
-                lights = clusterLights,
-                reflectionProbes = reflectionProbes,
-                tileRanges = tileRanges,
-                itemsPerTile = itemsPerTile,
-                rangesPerItem = rangesPerItem,
-                worldToView = worldToViews,
-                tileScale = m_TileScale,
-                tileScaleInv = m_ActualTileWidth / (float2)screenResolution,
-                viewPlaneBottom = viewPlaneBottom0,
-                viewPlaneTop = viewPlaneTop0,
-                viewToViewportScaleBiases = viewToViewportScaleBias0,
-                tileCount = m_TileResolution,
-                near = camera.nearClipPlane,
-                isOrthographic = camera.orthographic
-            };
-            var tileRangeHandle = tillingJob.ScheduleParallel(itemsPerTile, 1, new JobHandle());
-
-            var expansionJob = new TileRangeExpansionJob
-            {
-                tileRanges = tileRanges,
-                tileMasks = m_TileMasks,
-                rangesPerItem = rangesPerItem,
-                itemsPerTile = itemsPerTile,
-                wordsPerTile = m_WordsPerTile,
-                tileResolution = m_TileResolution
-            };
-            var tillingHandle = expansionJob.ScheduleParallel(m_TileResolution.y, 1, tileRangeHandle);
-            m_CullingHandle = JobHandle.CombineDependencies(
-                minMaxZs.Dispose(zBinningHandle),
-                tileRanges.Dispose(tillingHandle));
-
-            // tile structed:
-            // |words(wordsPerTile)|
-            // wordsPerTile: per bit 0 meains no this bitIndex Light, 1 means have this bitIndex Light
-
-            JobHandle.ScheduleBatchedJobs();
-        }
-
-        public override void Upload(CommandBuffer commandBuffer)
-        {
-            using (new ProfilingScope(null, m_ProfilingSamplerFPComplete))
-            {
-                m_CullingHandle.Complete();
-            }
-            using (new ProfilingScope(commandBuffer, m_ProfilingSamplerFPUpload))
-            {
-                m_ZBinsBuffer.SetData(m_ZBins.Reinterpret<float4>(UnsafeUtility.SizeOf<uint>()));
-                m_TileMasksBuffer.SetData(m_TileMasks.Reinterpret<float4>(UnsafeUtility.SizeOf<uint>()));
-                commandBuffer.SetGlobalConstantBuffer(m_ZBinsBuffer, bx_ZBinBuffer_ID, 0, maxZBinWords * 4);
-                commandBuffer.SetGlobalConstantBuffer(m_TileMasksBuffer, bx_TileBuffer_ID, 0, maxTileWords * 4);
-            }
-
-            commandBuffer.SetGlobalVector(_ClusterParams0_ID, math.float4(m_ZBinScale, m_ZBinOffset, m_LightCount, 0));
-            commandBuffer.SetGlobalVector(_ClusterParams1_ID, math.float4(m_TileScale, m_TileResolution.x, m_WordsPerTile));
-            commandBuffer.SetGlobalVector(_ClusterParams2_ID, math.float4(m_BinCount, m_TileResolution.x * m_TileResolution.y, 0, 0));
-
-            if(m_WordsPerTile > 1)
-            {
-                commandBuffer.EnableKeyword(in _CLUSTER_GREATE_32);
-            }
-            else
-            {
-                commandBuffer.DisableKeyword(in _CLUSTER_GREATE_32);
-            }
-        }
-
-        public override void Dispose()
-        {
-            if (!m_CullingHandle.IsCompleted) m_CullingHandle.Complete();
-            m_ZBins.Dispose();
-            m_ZBinsBuffer.Dispose();
-            m_TileMasks.Dispose();
-            m_TileMasksBuffer.Dispose();
-        }
-
-        private static int AlignByteCount(int count, int align)
-        {
-            return align * ((count + align - 1) / align);
-        }
+        static int AlignByteCount(int count, int align) => align * ((count + align - 1) / align);
 
         // Calculate view planes and viewToViewportScaleBias. This handles projection center in case the projection is off-centered
-        private void GetViewParams(Camera camera, float4x4 viewToClip, out float viewPlaneBot, out float viewPlaneTop, out float4 viewToViewportScaleBias)
+        void GetViewParams(Camera camera, float4x4 viewToClip, out float viewPlaneBot, out float viewPlaneTop, out float4 viewToViewportScaleBias)
         {
             // We want to calculate `fovHalfHeight = tan(fov / 2)`
             // `projection[1][1]` contains `1 / tan(fov / 2)`
@@ -296,6 +191,200 @@ namespace BXRenderPipeline
             );
         }
 
+        internal void PreSetup(BXMainCameraRenderBase mainCameraRender)
+        {
+            if (m_CullingHandle.IsCompleted)
+            {
+                throw new InvalidOperationException("Forward+ jobs have not complete yet.");
+            }
+
+            unsafe
+            {
+                UnsafeUtility.MemClear(m_ZBins.GetUnsafePtr(), m_ZBins.Length * sizeof(uint));
+                UnsafeUtility.MemClear(m_TileMasks.GetUnsafePtr(), m_TileMasks.Length * sizeof(uint));
+            }
+
+            var camera = mainCameraRender.camera;
+            var screenResolution = math.int2(camera.pixelWidth, camera.pixelHeight);
+            var viewCount = 1;
+
+            m_LightCount = mainCameraRender.cullingResults.visibleLights.Length;
+            // remove directional light count
+            var lightOffset = 0;
+            while (lightOffset < m_LightCount && mainCameraRender.cullingResults.visibleLights[lightOffset].lightType == LightType.Directional)
+            {
+                lightOffset++;
+            }
+            m_LightCount -= lightOffset;
+
+            m_DirectionalLightCount = lightOffset;
+            if (/**lightData.mainLightIndex != -1 && **/m_DirectionalLightCount != 0) m_DirectionalLightCount -= 1;
+
+            var visibleLights = mainCameraRender.cullingResults.visibleLights.GetSubArray(lightOffset, m_LightCount);
+            var reflectionProbes = mainCameraRender.cullingResults.visibleReflectionProbes;
+            var reflectionProbeCount = math.min(reflectionProbes.Length, maxVisibleReflectionProbes);
+            var itemsPerTile = visibleLights.Length + reflectionProbeCount;
+            m_WordsPerTile = (itemsPerTile + 32 - 1) / 32; // 0 => 0 1~32 => 1, 33~64=>2 每 32 个 PerTile's Word + 1
+
+            m_ActualTileWidth = 8 >> 1;
+            do
+            {
+                m_ActualTileWidth <<= 1;
+                m_TileResolution = (screenResolution + m_ActualTileWidth - 1) / m_ActualTileWidth; // 每 m_ActualTileWidth 个 Pixel 分配一个 Tile
+            }
+            while ((m_TileResolution.x * m_TileResolution.y * m_WordsPerTile * viewCount) > maxTileWords);
+
+            if (!camera.orthographic)
+            {
+                // Use to calculate binIndex = log2(z) * zBinScale + zBinOffset
+                m_ZBinScale = (maxZBinWords / viewCount) / ((math.log2(camera.farClipPlane) - math.log2(camera.nearClipPlane)) * (2 + m_WordsPerTile));
+                m_ZBinOffset = -math.log2(camera.nearClipPlane) * m_ZBinScale;
+                m_BinCount = (int)(math.log2(camera.farClipPlane) * m_ZBinScale + m_ZBinOffset);
+            }
+            else
+            {
+                // Use to calculate binIndex = z * zBinScale + zBinOffset
+                m_ZBinScale = (maxZBinWords / viewCount) / ((camera.farClipPlane - camera.nearClipPlane) * (2 + m_WordsPerTile));
+                m_ZBinOffset = -camera.nearClipPlane * m_ZBinScale;
+                m_BinCount = (int)(camera.farClipPlane * m_ZBinScale + m_ZBinOffset);
+            }
+
+            // Necessary to avoid negative bin count when the farClipPlane is set to Infinity in the editor.
+            m_BinCount = Math.Max(m_BinCount, 0);
+
+            var worldToViews = mainCameraRender.worldToViewMatrix;
+            var viewToClips = camera.projectionMatrix;
+
+            // Should probe come after otherProbe?
+            static bool IsProbeGreater(VisibleReflectionProbe probe, VisibleReflectionProbe otherProbe)
+            {
+                return probe.importance < otherProbe.importance ||
+                    (probe.importance == otherProbe.importance && probe.bounds.extents.sqrMagnitude > otherProbe.bounds.extents.sqrMagnitude);
+            }
+
+            // probe 排序
+            for (var i = 1; i < reflectionProbeCount; i++)
+            {
+                var probe = reflectionProbes[i];
+                var j = i - 1;
+                while (j >= 0 && IsProbeGreater(reflectionProbes[j], probe))
+                {
+                    reflectionProbes[j + 1] = reflectionProbes[j];
+                    j--;
+                }
+
+                reflectionProbes[j + 1] = probe;
+            }
+
+            // 计算光源Z方向的包围盒大小(minZ-maxZ)
+            var minMaxZs = new NativeArray<float2>(itemsPerTile * viewCount, Allocator.TempJob);
+
+            var lightMinMaxZJob = new LightMinMaxZJob
+            {
+                worldToView = worldToViews,
+                lights = visibleLights,
+                minMaxZs = minMaxZs.GetSubArray(0, m_LightCount * viewCount)
+            };
+            // Innerloop batch count of 32 is not special, just a handwavy amount to not have too much scheduling overhead nor too little parallelism.
+            var lightMinMaxZHandle = lightMinMaxZJob.ScheduleParallel(m_LightCount * viewCount, 32, new JobHandle());
+
+            var reflectionProbeMinMaxZJob = new ReflectionProbeMinMaxZJob
+            {
+                worldToView = worldToViews,
+                reflectionProbes = reflectionProbes,
+                minMaxZs = minMaxZs.GetSubArray(m_LightCount * viewCount, reflectionProbeCount * viewCount)
+            };
+            var reflectionProbeMinMaxZHandle = reflectionProbeMinMaxZJob.ScheduleParallel(reflectionProbeCount * viewCount, 32, lightMinMaxZHandle);
+
+            var zBinningBatchCount = (m_BinCount + ZBinningJob.batchSize - 1) / ZBinningJob.batchSize;
+            var zBinningJob = new ZBinningJob
+            {
+                bins = m_ZBins,
+                minMaxZs = minMaxZs,
+                zBinScale = m_ZBinScale,
+                zBinOffset = m_ZBinOffset,
+                binCount = m_BinCount,
+                wordsPerTile = m_WordsPerTile,
+                lightCount = m_LightCount,
+                reflectionProbeCount = reflectionProbeCount,
+                batchCount = zBinningBatchCount,
+                viewCount = viewCount,
+                isOrthographics = camera.orthographic
+            };
+            var zBinningHandle = zBinningJob.ScheduleParallel(zBinningBatchCount * viewCount, 1, reflectionProbeMinMaxZHandle);
+
+            // zbin struct:
+            // |header(2)|words(wordsPerTile)|
+            // header: minLightIndex-maxLightIndex
+            // wordsPerTile: per bit 0 meains no this bitIndex Light, 1 means have this bitIndex Light
+
+            // wait light minMaxZs and relfectionProbe minMaxZs
+            reflectionProbeMinMaxZHandle.Complete();
+
+            GetViewParams(camera, viewToClips, out float viewPlaneBottom0, out float viewPlaneTop0, out float4 viewToViewportScaleBias0);
+
+            // Each light needs 1 range for Y, and a range per row. Align to 128-bytes to avoid false sharing.
+            var rangesPerItem = AlignByteCount((1 + m_TileResolution.y) * UnsafeUtility.SizeOf<InclusiveRange>(), 128) / UnsafeUtility.SizeOf<InclusiveRange>();
+            var tileRanges = new NativeArray<InclusiveRange>(rangesPerItem * itemsPerTile * viewCount, Allocator.Temp);
+            var tillingJob = new TillingJob
+            {
+                lights = visibleLights,
+                reflectionProbes = reflectionProbes,
+                tileRanges = tileRanges,
+                itemsPerTile = itemsPerTile,
+                rangesPerItem = rangesPerItem,
+                worldToView = worldToViews,
+                tileScale = (float2)screenResolution / m_ActualTileWidth,
+                tileScaleInv = m_ActualTileWidth / (float2)screenResolution,
+                viewPlaneBottom = viewPlaneBottom0,
+                viewPlaneTop = viewPlaneTop0,
+                viewToViewportScaleBiases = viewToViewportScaleBias0,
+                tileCount = m_TileResolution,
+                near = camera.nearClipPlane,
+                isOrthographic = camera.orthographic
+            };
+            var tileRangeHandle = tillingJob.ScheduleParallel(itemsPerTile * viewCount, 1, reflectionProbeMinMaxZHandle);
+
+            var expansionJob = new TileRangeExpansionJob
+            {
+                tileRanges = tileRanges,
+                tileMasks = m_TileMasks,
+                rangesPerItem = rangesPerItem,
+                itemsPerTile = itemsPerTile,
+                wordsPerTile = m_WordsPerTile,
+                tileResolution = m_TileResolution
+            };
+            var tillingHandle = expansionJob.ScheduleParallel(m_TileResolution.y * viewCount, 1, tileRangeHandle);
+            m_CullingHandle = JobHandle.CombineDependencies(
+                minMaxZs.Dispose(zBinningHandle),
+                tileRanges.Dispose(tillingHandle));
+
+            // tile structed:
+            // |words(wordsPerTile)|
+            // wordsPerTile: per bit 0 meains no this bitIndex Light, 1 means have this bitIndex Light
+
+            JobHandle.ScheduleBatchedJobs();
+        }
+
+        internal void Setup(BXMainCameraRenderBase mainCameraRender)
+        {
+            using(new ProfilingScope(null, m_ProfilingSamplerFPComplete))
+            {
+                m_CullingHandle.Complete();
+            }
+            using(new ProfilingScope(cmd, m_ProfilingSamplerFPUpload))
+            {
+                m_ZBinsBuffer.SetData(m_ZBins.Reinterpret<float4>(UnsafeUtility.SizeOf<uint>()));
+                m_TileMasksBuffer.SetData(m_TileMasks.Reinterpret<float4>(UnsafeUtility.SizeOf<uint>()));
+                cmd.SetGlobalConstantBuffer(m_ZBinsBuffer, "urp_ZBinBuffer", 0, maxZBinWords * 4);
+                cmd.SetGlobalConstantBuffer(m_TileMasksBuffer, "urp_TileBuffer", 0, maxTileWords * 4);
+            }
+
+            cmd.SetGlobalVector("_FPParams0", math.float4(m_ZBinScale, m_ZBinOffset, m_LightCount, m_DirectionalLightCount));
+            cmd.SetGlobalVector("_FPParams1", math.float4(mainCameraRender.camera.pixelRect.size / m_ActualTileWidth, m_TileResolution.x, m_WordsPerTile));
+            cmd.SetGlobalVector("_FPParams2", math.float4(m_BinCount, m_TileResolution.x * m_TileResolution.y, 0, 0));
+        }
+
         [BurstCompile]
         struct LightMinMaxZJob : IJobFor
         {
@@ -308,9 +397,11 @@ namespace BXRenderPipeline
 
             public void Execute(int index)
             {
-                var light = lights[index];
+                var lightIndex = index % lights.Length; // for viewCount > 1
+                var light = lights[lightIndex];
                 var lightToWorld = (float4x4)light.localToWorldMatrix;
                 var originWS = lightToWorld.c3.xyz;
+                var viewIndex = index / lights.Length; // always 0 when viewCount == 1
                 var originVS = math.mul(worldToView, math.float4(originWS, 1)).xyz;
                 originVS.z *= -1;
 
@@ -357,27 +448,30 @@ namespace BXRenderPipeline
 
             [ReadOnly]
             public NativeArray<VisibleReflectionProbe> reflectionProbes;
+
             public NativeArray<float2> minMaxZs;
 
-            public void Execute(int reflectionProbeIndex)
+            public void Execute(int index)
             {
                 var minMax = math.float2(float.MaxValue, float.MinValue);
+                var reflectionProbeIndex = index % reflectionProbes.Length; // for viewCount > 1
                 var reflectionProbe = reflectionProbes[reflectionProbeIndex];
+                var viewIndex = index / reflectionProbes.Length; // always 0 when viewCount == 1
                 var centerWS = (float3)reflectionProbe.bounds.center;
-                var extentsWS = (float3)reflectionProbe.bounds.extents;
-                for (var i = 0; i < 8; i++)
+                var extensWS = (float3)reflectionProbe.bounds.extents;
+                for(var i = 0; i < 8; ++i)
                 {
                     // Convert index to x, y, and z in [-1, 1]
                     var x = ((i << 1) & 2) - 1;
                     var y = (i & 2) - 1;
                     var z = ((i >> 1) & 2) - 1;
-                    var cornerVS = math.mul(worldToView, math.float4(centerWS + extentsWS * math.float3(x, y, z), 1));
-                    cornerVS.z *= -1;
+                    var cornerVS = math.mul(worldToView, math.float4(centerWS + extensWS * math.float3(x, y, z), 1));
+                    cornerVS.z *= -1; // reverse z
                     minMax.x = math.min(minMax.x, cornerVS.z);
                     minMax.y = math.max(minMax.y, cornerVS.z);
                 }
 
-                minMaxZs[reflectionProbeIndex] = minMax;
+                minMaxZs[index] = minMax;
             }
         }
 
@@ -409,6 +503,8 @@ namespace BXRenderPipeline
 
             public int batchCount;
 
+            public int viewCount;
+
             public bool isOrthographics;
 
             static uint EncodeHeader(uint min, uint max)
@@ -425,16 +521,19 @@ namespace BXRenderPipeline
 
             public void Execute(int jobIndex)
             {
-                var batchIndex = jobIndex;
+                var batchIndex = jobIndex % batchCount;
+                var viewIndex = jobIndex / batchCount; // always 0 when viewCount == 1
 
                 var binStart = batchSize * batchIndex;
                 var binEnd = math.min(binStart + batchSize, binCount) - 1;
 
+                var binOffset = viewIndex * binCount; // always 0 when viewCount == 1
+
                 var emptyHeader = EncodeHeader(ushort.MaxValue, ushort.MinValue);
-                for (var binIndex = binStart; binIndex <= binEnd; ++binIndex)
+                for(var binIndex = binStart; binIndex <= binEnd; ++binIndex)
                 {
-                    bins[binIndex * (headerLength + wordsPerTile) + 0] = emptyHeader;
-                    bins[binIndex * (headerLength + wordsPerTile) + 1] = emptyHeader;
+                    bins[(binOffset + binIndex) * (headerLength + wordsPerTile) + 0] = emptyHeader;
+                    bins[(binOffset + binIndex) * (headerLength + wordsPerTile) + 1] = emptyHeader;
                 }
 
                 // Regarding itemOffset: minMaxZs contains [lights view 0, lights view 1, probes view 0, probes view 1] when
@@ -442,15 +541,15 @@ namespace BXRenderPipeline
                 // on the view count and index.
 
                 // Fill ZBins for lights.
-                FillZBins(binStart, binEnd, 0, lightCount, 0, 0, 0);
+                FillZBins(binStart, binEnd, 0, lightCount, 0, viewIndex * lightCount, binOffset);
 
-                // Fill ZBins for lights
-                FillZBins(binStart, binEnd, lightCount, lightCount + reflectionProbeCount, 1, 0, 0);
+                // Fill ZBins for reflection probes.
+                FillZBins(binStart, binEnd, lightCount, lightCount + reflectionProbeCount, 1, lightCount * (viewCount - 1) + viewIndex * reflectionProbeCount, binOffset);
             }
 
             void FillZBins(int binStart, int binEnd, int itemStart, int itemEnd, int headerIndex, int itemOffset, int binOffset)
             {
-                for (var index = itemStart; index < itemEnd; ++index)
+                for(var index = itemStart; index < itemEnd; ++index)
                 {
                     // 确定光源/探针所在的 ZBin 范围
                     var minMax = minMaxZs[itemOffset + index];
@@ -460,7 +559,7 @@ namespace BXRenderPipeline
                     var wordIndex = index / 32;
                     var bitMask = 1u << (index % 32); // 对应位写入1，表示存在光源/探针
 
-                    for (var binIndex = minBin; binIndex <= maxBin; ++binIndex)
+                    for(var binIndex = minBin; binIndex <= maxBin; ++binIndex)
                     {
                         var baseIndex = (binOffset + binIndex) * (headerLength + wordsPerTile);
                         var (minIndex, maxIndex) = DecodeHeader(bins[baseIndex + headerIndex]);
@@ -501,6 +600,8 @@ namespace BXRenderPipeline
 
             InclusiveRange m_TileYRange;
             int m_Offset;
+            int m_ViewIndex;
+            float2 m_CenterOffset;
 
             private static float square(float x)
             {
@@ -513,69 +614,39 @@ namespace BXRenderPipeline
                 return (positionVS.xy / positionVS.z * viewToViewportScaleBiases.xy + viewToViewportScaleBiases.zw) * tileScale;
             }
 
-            /// <summary>
-            /// Project onto Z=1, scale and offset into [0, tileCount]
-            /// </summary>
-            float2 ViewToTileSpaceOrthographic(float3 positionVS)
-            {
-                return (positionVS.xy * viewToViewportScaleBiases.xy + viewToViewportScaleBiases.zw) * tileScale;
-            }
-
             private void ExpandY(float3 positionVS)
             {
                 var positionTS = ViewToTileSpace(positionVS);
                 var tileY = (int)positionTS.y;
                 var tileX = (int)positionTS.x;
                 m_TileYRange.Expand((short)math.clamp(tileY, 0, tileCount.y - 1));
-                if (tileY >= 0 && tileY < tileCount.y && tileX >= 0 && tileX < tileCount.x)
+                if(tileY >= 0 && tileY < tileCount.y && tileX >= 0 && tileX < tileCount.x)
                 {
                     var rowXRange = tileRanges[m_Offset + 1 + tileY];
                     rowXRange.Expand((short)tileX);
                     tileRanges[m_Offset + 1 + tileY] = rowXRange;
                 }
-            }
-
-            /// <summary>
-            /// Expands the tile Y range and the X range in the row containing the position.
-            /// </summary>
-            void ExpandOrthographic(float3 positionVS)
-            {
-                // var positionTS = math.clamp(ViewToTileSpace(positionVS), 0, tileCount - 1);
-                var positionTS = ViewToTileSpaceOrthographic(positionVS);
-                var tileY = (int)positionTS.y;
-                var tileX = (int)positionTS.x;
-                m_TileYRange.Expand((short)math.clamp(tileY, 0, tileCount.y - 1));
-                if (tileY >= 0 && tileY < tileCount.y && tileX >= 0 && tileX < tileCount.x)
-                {
-                    var rowXRange = tileRanges[m_Offset + 1 + tileY];
-                    rowXRange.Expand((short)tileX);
-                    tileRanges[m_Offset + 1 + tileY] = rowXRange;
-                }
-            }
-
-            void ExpandRangeOrthographic(ref InclusiveRange range, float xVS)
-            {
-                range.Expand((short)math.clamp(ViewToTileSpaceOrthographic(xVS).x, 0, tileCount.x - 1));
             }
 
 
             public void Execute(int jobIndex)
             {
                 var index = jobIndex % itemsPerTile;
+                m_ViewIndex = jobIndex / itemsPerTile; // always 0 when viewCount == 1
                 m_Offset = jobIndex * rangesPerItem;
 
                 m_TileYRange = new InclusiveRange(short.MaxValue, short.MinValue);
 
-                for (var i = 0; i < rangesPerItem; ++i)
+                for(var i = 0; i < rangesPerItem; ++i)
                 {
                     tileRanges[m_Offset + i] = new InclusiveRange(short.MaxValue, short.MinValue);
                 }
 
-                if (index < lights.Length)
+                if(index < lights.Length)
                 {
                     if (isOrthographic)
                     {
-                        TileLightOrthographic(index);
+
                     }
                     else
                     {
@@ -584,7 +655,7 @@ namespace BXRenderPipeline
                 }
                 else
                 {
-                    TileReflectionProbe(index);
+                    //TileReflectionProbe(index);
                 }
             }
 
@@ -999,7 +1070,7 @@ namespace BXRenderPipeline
 
                 m_TileYRange.Clamp(0, (short)(tileCount.y - 1));
 
-                if (light.lightType == LightType.Spot)
+                if(light.lightType == LightType.Spot)
                 {
                     // Cone base
                     var baseRadius = math.sqrt(range * range - coneHeight * coneHeight);
@@ -1187,285 +1258,6 @@ namespace BXRenderPipeline
                 }
                 tileRanges[m_Offset] = m_TileYRange;
             }
-
-            void TileLightOrthographic(int lightIndex)
-            {
-                var light = lights[lightIndex];
-                var lightToWorld = (float4x4)light.localToWorldMatrix;
-                var lightPosVS = math.mul(worldToView, math.float4(lightToWorld.c3.xyz, 1)).xyz;
-                lightPosVS.z *= -1;
-                ExpandOrthographic(lightPosVS);
-                var lightDirVS = math.mul(worldToView, math.float4(lightToWorld.c2.xyz, 0)).xyz;
-                lightDirVS.z *= -1;
-                lightDirVS = math.normalize(lightDirVS);
-
-                var halfAngle = math.radians(light.spotAngle * 0.5f);
-                var range = light.range;
-                var rangeSq = square(range);
-                var cosHalfAngle = math.cos(halfAngle);
-                var coneHeight = cosHalfAngle * range;
-                var coneHeightSq = square(coneHeight);
-                var coneHeightInv = 1f / coneHeight;
-                var coneHeightInvSq = square(coneHeightInv);
-
-                bool SpherePointIsValid(float3 p) => light.lightType == LightType.Point ||
-                    math.dot(math.normalize(p - lightPosVS), lightDirVS) >= cosHalfAngle;
-
-                var sphereBoundY0 = lightPosVS - math.float3(0, range, 0);
-                var sphereBoundY1 = lightPosVS + math.float3(0, range, 0);
-                var sphereBoundX0 = lightPosVS - math.float3(range, 0, 0);
-                var sphereBoundX1 = lightPosVS + math.float3(range, 0, 0);
-
-                if (SpherePointIsValid(sphereBoundY0)) ExpandOrthographic(sphereBoundY0);
-                if (SpherePointIsValid(sphereBoundY1)) ExpandOrthographic(sphereBoundY1);
-                if (SpherePointIsValid(sphereBoundX0)) ExpandOrthographic(sphereBoundX0);
-                if (SpherePointIsValid(sphereBoundX1)) ExpandOrthographic(sphereBoundX1);
-
-                var circleCenter = lightPosVS + lightDirVS * coneHeight;
-                var circleRadius = math.sqrt(rangeSq - coneHeightSq);
-                var circleRadiusSq = square(circleRadius);
-                var circleUp = math.normalize(math.float3(0, 1, 0) - lightDirVS * lightDirVS.y);
-                var circleRight = math.normalize(math.float3(1, 0, 0) - lightDirVS * lightDirVS.x);
-                var circleBoundY0 = circleCenter - circleUp * circleRadius;
-                var circleBoundY1 = circleCenter + circleUp * circleRadius;
-
-                if (light.lightType == LightType.Spot)
-                {
-                    var circleBoundX0 = circleCenter - circleRight * circleRadius;
-                    var circleBoundX1 = circleCenter + circleRight * circleRadius;
-                    ExpandOrthographic(circleBoundY0);
-                    ExpandOrthographic(circleBoundY1);
-                    ExpandOrthographic(circleBoundX0);
-                    ExpandOrthographic(circleBoundX1);
-                }
-
-                m_TileYRange.Clamp(0, (short)(tileCount.y - 1));
-
-                // Find two lines in screen-space for the cone if the light is a spot.
-                float coneDir0X = 0, coneDir0YInv = 0, coneDir1X = 0, coneDir1YInv = 0;
-                if (light.lightType == LightType.Spot)
-                {
-                    // Distance from light position to and radius of sphere fitted to the end of the cone.
-                    var sphereDistance = coneHeight + circleRadiusSq * coneHeightInv;
-                    var sphereRadius = math.sqrt(square(circleRadiusSq) * coneHeightInvSq + circleRadiusSq);
-                    var directionXYSqInv = math.rcp(math.lengthsq(lightDirVS.xy));
-                    var polarIntersection = -circleRadiusSq * coneHeightInv * directionXYSqInv * lightDirVS.xy;
-                    var polarDir = math.sqrt((square(sphereRadius) - math.lengthsq(polarIntersection)) * directionXYSqInv) * math.float2(lightDirVS.y, -lightDirVS.x);
-                    var conePBase = lightPosVS.xy + sphereDistance * lightDirVS.xy + polarIntersection;
-                    var coneP0 = conePBase - polarDir;
-                    var coneP1 = conePBase + polarDir;
-
-                    coneDir0X = coneP0.x - lightPosVS.x;
-                    coneDir0YInv = math.rcp(coneP0.y - lightPosVS.y);
-                    coneDir1X = coneP1.x - lightPosVS.x;
-                    coneDir1YInv = math.rcp(coneP1.y - lightPosVS.y);
-                }
-
-                // Tile plane ranges
-                for (var planeIndex = m_TileYRange.start + 1; planeIndex <= m_TileYRange.end; planeIndex++)
-                {
-                    var planeRange = InclusiveRange.empty;
-
-                    // Sphere
-                    var planeY = math.lerp(viewPlaneBottom, viewPlaneTop, planeIndex * tileScaleInv.y);
-                    var sphereX = math.sqrt(rangeSq - square(planeY - lightPosVS.y));
-                    var sphereX0 = math.float3(lightPosVS.x - sphereX, planeY, lightPosVS.z);
-                    var sphereX1 = math.float3(lightPosVS.x + sphereX, planeY, lightPosVS.z);
-                    if (SpherePointIsValid(sphereX0)) { ExpandRangeOrthographic(ref planeRange, sphereX0.x); }
-                    if (SpherePointIsValid(sphereX1)) { ExpandRangeOrthographic(ref planeRange, sphereX1.x); }
-
-                    if (light.lightType == LightType.Spot)
-                    {
-                        // Circle
-                        if (planeY >= circleBoundY0.y && planeY <= circleBoundY1.y)
-                        {
-                            var intersectionDistance = (planeY - circleCenter.y) / circleUp.y;
-                            var closestPointX = circleCenter.x + intersectionDistance * circleUp.x;
-                            var intersectionDirX = -lightDirVS.z / math.length(math.float3(-lightDirVS.z, 0, lightDirVS.x));
-                            var sideDistance = math.sqrt(square(circleRadius) - square(intersectionDistance));
-                            var circleX0 = closestPointX - sideDistance * intersectionDirX;
-                            var circleX1 = closestPointX + sideDistance * intersectionDirX;
-                            ExpandRangeOrthographic(ref planeRange, circleX0);
-                            ExpandRangeOrthographic(ref planeRange, circleX1);
-                        }
-
-                        // Cone
-                        var deltaY = planeY - lightPosVS.y;
-                        var coneT0 = deltaY * coneDir0YInv;
-                        var coneT1 = deltaY * coneDir1YInv;
-                        if (coneT0 >= 0 && coneT0 <= 1) { ExpandRangeOrthographic(ref planeRange, lightPosVS.x + coneT0 * coneDir0X); }
-                        if (coneT1 >= 0 && coneT1 <= 1) { ExpandRangeOrthographic(ref planeRange, lightPosVS.x + coneT1 * coneDir1X); }
-                    }
-
-                    var tileIndex = m_Offset + 1 + planeIndex;
-                    tileRanges[tileIndex] = InclusiveRange.Merge(tileRanges[tileIndex], planeRange);
-                    tileRanges[tileIndex - 1] = InclusiveRange.Merge(tileRanges[tileIndex - 1], planeRange);
-                }
-
-                tileRanges[m_Offset] = m_TileYRange;
-            }
-
-            static readonly float3[] k_CubePoints =
-            {
-                new(-1, -1, -1),
-                new(-1, -1, +1),
-                new(-1, +1, -1),
-                new(-1, +1, +1),
-                new(+1, -1, -1),
-                new(+1, -1, +1),
-                new(+1, +1, -1),
-                new(+1, +1, +1),
-            };
-
-            // Each item represents 3 lines, with x being the start index and yzw the end indices.
-            static readonly int4[] k_CubeLineIndices =
-            {
-                // (-1, -1, -1) -> {(+1, -1, -1), (-1, +1, -1), (-1, -1, +1)}
-                new(0, 4, 2, 1),
-
-                // (-1, +1, +1) -> {(+1, +1, +1), (-1, -1, +1), (-1, +1, -1)}
-                new(3, 7, 1, 2),
-
-                // (+1, -1, +1) -> {(-1, -1, +1), (+1, +1, +1), (+1, -1, -1)}
-                new(5, 1, 7, 4),
-
-                // (+1, +1, -1) -> {(-1, +1, -1), (+1, -1, -1), (+1, +1, +1)}
-                new(6, 2, 4, 7),
-            };
-
-            void TileReflectionProbe(int index)
-            {
-                // The algorithm used here works by clipping all the lines of the cube against the near-plane, and then
-                // projects the resulting points to the view plane. These points are then used to construct a 2D convex
-                // hull, which we can iterate linearly to get the lines on screen making up the cube.
-
-                var reflectionProbe = reflectionProbes[index - lights.Length];
-                var centerWS = (float3)reflectionProbe.bounds.center;
-                var extentsWS = (float3)reflectionProbe.bounds.extents;
-
-                // The vertices of the cube in view space.
-                var points = new NativeArray<float3>(k_CubePoints.Length, Allocator.Temp);
-                // This is initially filled with just the cube vertices that lie in front of the near plane.
-                var clippedPoints = new NativeArray<float2>(k_CubePoints.Length + k_CubeLineIndices.Length * 3, Allocator.Temp);
-                var clippedPointsCount = 0;
-                var leftmostIndex = 0;
-                for (var i = 0; i < k_CubePoints.Length; i++)
-                {
-                    var point = math.mul(worldToView, math.float4(centerWS + extentsWS * k_CubePoints[i], 1)).xyz;
-                    point.z *= -1;
-                    points[i] = point;
-                    if (point.z >= near)
-                    {
-                        var clippedPoint = isOrthographic ? point.xy : point.xy / point.z;
-                        var clippedIndex = clippedPointsCount++;
-                        clippedPoints[clippedIndex] = clippedPoint;
-                        if (clippedPoint.x < clippedPoints[leftmostIndex].x) leftmostIndex = clippedIndex;
-                    }
-                }
-
-                // Clip the cube's line segments with the near plane, and add the new vertices to clippedPoints. Only lines
-                // that are clipped will generate new vertices.
-                for (var i = 0; i < k_CubeLineIndices.Length; i++)
-                {
-                    var indices = k_CubeLineIndices[i];
-                    var p0 = points[indices.x];
-                    for (var j = 0; j < 3; j++)
-                    {
-                        var p1 = points[indices[j + 1]];
-                        // The entire line is in front of the near plane.
-                        if (p0.z < near && p1.z < near) continue;
-                        // Check whether the line needs clipping.
-                        if (p0.z < near || p1.z < near)
-                        {
-                            var d = (near - p0.z) / (p1.z - p0.z);
-                            var p = math.lerp(p0, p1, d);
-                            var clippedPoint = isOrthographic ? p.xy : p.xy / p.z;
-                            var clippedIndex = clippedPointsCount++;
-                            clippedPoints[clippedIndex] = clippedPoint;
-                            if (clippedPoint.x < clippedPoints[leftmostIndex].x) leftmostIndex = clippedIndex;
-                        }
-                    }
-                }
-
-                // Construct the convex hull. It is formed by the line loop consisting of the points in the array.
-                var hullPoints = new NativeArray<float2>(clippedPointsCount, Allocator.Temp);
-                var hullPointsCount = 0;
-
-                if (clippedPointsCount > 0)
-                {
-                    // Start with the leftmost point, as that is guaranteed to be on the hull.
-                    var hullPointIndex = leftmostIndex;
-
-                    // Find the remaining hull points until we end up back at the leftmost point.
-                    do
-                    {
-                        var hullPoint = clippedPoints[hullPointIndex];
-                        ExpandY(math.float3(hullPoint, 1));
-                        hullPoints[hullPointsCount++] = hullPoint;
-
-                        // Find the endpoint resulting in the leftmost turning line. This line will be a part of the hull.
-                        var endpointIndex = 0;
-                        var endpointLine = clippedPoints[endpointIndex] - hullPoint;
-                        for (var i = 0; i < clippedPointsCount; i++)
-                        {
-                            var candidateLine = clippedPoints[i] - hullPoint;
-                            var det = math.determinant(math.float2x2(endpointLine, candidateLine));
-
-                            // Check if point i lies on the left side of the line to the current endpoint, or if it lies
-                            // collinear to the current endpoint but farther away.
-                            if (endpointIndex == hullPointIndex || det > 0 || (det == 0.0f && math.lengthsq(candidateLine) > math.lengthsq(endpointLine)))
-                            {
-                                endpointIndex = i;
-                                endpointLine = candidateLine;
-                            }
-                        }
-
-                        hullPointIndex = endpointIndex;
-                    } while (hullPointIndex != leftmostIndex && hullPointsCount < clippedPointsCount);
-
-                    m_TileYRange.Clamp(0, (short)(tileCount.y - 1));
-
-                    // Calculate tile plane ranges for sphere.
-                    for (var planeIndex = m_TileYRange.start + 1; planeIndex <= m_TileYRange.end; planeIndex++)
-                    {
-                        var planeRange = InclusiveRange.empty;
-
-                        var planeY = math.lerp(viewPlaneBottom, viewPlaneTop, planeIndex * tileScaleInv.y);
-
-                        for (var i = 0; i < hullPointsCount; i++)
-                        {
-                            var hp0 = hullPoints[i];
-                            var hp1 = hullPoints[(i + 1) % hullPointsCount];
-
-                            // planeY = hp0 + t * (hp1 - hp0) => planeY - hp0 = t * (hp1 - hp0) => (planeY - hp0) / (hp1 - hp0) = t
-                            var t = (planeY - hp0.y) / (hp1.y - hp0.y);
-                            if (t < 0 || t > 1) continue;
-                            var x = math.lerp(hp0.x, hp1.x, t);
-
-                            var p = math.float3(x, planeY, 1);
-                            var pTS = isOrthographic ? ViewToTileSpaceOrthographic(p) : ViewToTileSpace(p);
-                            planeRange.Expand((short)pTS.x);
-                        }
-
-                        // Only consider ranges that intersect the tiling extents.
-                        // The logic in the below 'if' statement is a simplification of:
-                        // !((planeRange.start < 0) && (planeRange.end < 0)) && !((planeRange.start > tileCount.x - 1) && (planeRange.end > tileCount.x - 1))
-                        if (((planeRange.start >= 0) || (planeRange.end >= 0)) && ((planeRange.start <= tileCount.x - 1) || (planeRange.end <= tileCount.x - 1)))
-                        {
-                            var tileIndex = m_Offset + 1 + planeIndex;
-                            planeRange.Clamp(0, (short)(tileCount.x - 1));
-                            tileRanges[tileIndex] = InclusiveRange.Merge(tileRanges[tileIndex], planeRange);
-                            tileRanges[tileIndex - 1] = InclusiveRange.Merge(tileRanges[tileIndex - 1], planeRange);
-                        }
-                    }
-
-                    tileRanges[m_Offset] = m_TileYRange;
-                }
-
-                hullPoints.Dispose();
-                clippedPoints.Dispose();
-                points.Dispose();
-            }
         }
 
         [BurstCompile(FloatMode = FloatMode.Fast, DisableSafetyChecks = true, OptimizeFor = OptimizeFor.Performance)]
@@ -1491,7 +1283,7 @@ namespace BXRenderPipeline
                 var itemRanges = new NativeArray<InclusiveRange>(itemsPerTile, Allocator.Temp);
 
                 // Compact the light ranges for the current row.
-                for (var itemIndex = 0; itemIndex < itemsPerTile; ++itemIndex)
+                for(var itemIndex = 0; itemIndex < itemsPerTile; ++itemIndex)
                 {
                     var range = tileRanges[viewIndex * rangesPerItem * itemsPerTile + itemIndex * rangesPerItem + 1 + rowIndex];
                     if (!range.isEmpty)
@@ -1503,10 +1295,10 @@ namespace BXRenderPipeline
                 }
 
                 var rowBaseMaskIndex = viewIndex * wordsPerTile * tileResolution.x * tileResolution.y + rowIndex * wordsPerTile * tileResolution.x;
-                for (var tileIndex = 0; tileIndex < tileResolution.x; ++tileIndex)
+                for(var tileIndex = 0; tileIndex < tileResolution.x; ++tileIndex)
                 {
                     var tileBaseIndex = rowBaseMaskIndex + tileIndex * wordsPerTile;
-                    for (var i = 0; i < compactCount; ++i)
+                    for(var i = 0; i < compactCount; ++i)
                     {
                         var itemIndex = (int)itemIndices[i];
                         var wordIndex = itemIndex / 32;

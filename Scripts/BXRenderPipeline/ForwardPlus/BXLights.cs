@@ -11,7 +11,7 @@ namespace BXRenderPipelineForward
     public class BXLights : BXLightsBase
     {
         private BXShadows shadows = new BXShadows();
-        private BXClusterCullBase clusterCull = new BXClusterCullCompute();
+        private BXClusterCullBase clusterCull = new BXClusterCullJobSystem();
         private BXLightCookie lightCookie = new BXLightCookie();
 
         public BXLights() : base(maxClusterLightCount, maxClusterLightCount)
@@ -64,9 +64,15 @@ namespace BXRenderPipelineForward
             this.height = mainCameraRender.height;
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
+            CollectLightDatas();
+            bool needCluster = clusterLightCount > 0 || reflectProneCount > 0;
+            if (needCluster)
+                clusterCull.Setup(camera, this, width, height);
             SetupLights();
             lightCookie.Setup(commandBuffer, this, mainCameraRender);
             shadows.Render(onDirShadowsRenderFeatures);
+            if(needCluster)
+                clusterCull.Upload(commandBuffer);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }
@@ -140,7 +146,6 @@ namespace BXRenderPipelineForward
 
         private void SetupLights()
 		{
-            CollectLightDatas();
             if(dirLightCount > 0)
 			{
                 if (!Shader.IsKeywordEnabled(in dirLightKeyword))
@@ -165,7 +170,6 @@ namespace BXRenderPipelineForward
                 commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightThresholds_ID, otherLightThresholds);
                 commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherLightColors_ID, otherLightColors);
                 commandBuffer.SetGlobalVectorArray(BaseShaderProperties._OtherShadowDatas_ID, otherShadowDatas);
-                clusterCull.Render(camera, this, commonSettings, width, height);
 			}
             else
             {

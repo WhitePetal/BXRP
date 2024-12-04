@@ -38,6 +38,7 @@ Shader "Test/BRDF_FullLit"
             #pragma multi_compile __ SHADOWS_OTHER
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_local __ _EMISSION_ON
+            #pragma multi_compile _ENVIRONMENTREFLECTIONS_OFF _ENVIRONMENTREFLECTIONS_ON
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
@@ -110,8 +111,8 @@ Shader "Test/BRDF_FullLit"
                 half4 detilA = _DetilTexA.Sample(sampler_NormalTex, i.uv_detil.xy);
                 half4 detilB = _DetilTexB.Sample(sampler_NormalTex, i.uv_detil.zw);
 
-                half3 v = _WorldSpaceCameraPos.xyz - i.pos_world;
-                v = normalize(v);
+                float3 vSource = _WorldSpaceCameraPos.xyz - i.pos_world;
+                half3 v = normalize(vSource);
                 half4 normalScales = GET_PROP(_NormalScales);
                 half3 n = GetBlendNormalWorldFromMapAB(i.tangent_world, i.binormal_world, i.normal_world, normalMap, detilA, detilB, normalScales.x, normalScales.y, normalScales.z, detilMask);
 
@@ -154,14 +155,14 @@ Shader "Test/BRDF_FullLit"
                         specularLighting += D * F * Vis * lightStrength;
                     }
                 #endif
+                // uint clusterCount = 0;
                 #ifdef CLUSTER_LIGHT
-                    int lightIndexStart;
-                    int clusterCount = GetClusterCount(i.vertex.xyz, depthEye, lightIndexStart);
-                    for(int offset = 0; offset < clusterCount; ++offset)
-                    {
-                        if(ndotv <= half(0.0)) break;
-                        int lightIndex = _ClusterLightingIndices[lightIndexStart + offset];
+                    float2 uvClip = i.vertex.xy / _ScreenParams.xy;
+                    // uvClip.y = 1.0 - uvClip;
+                    LIGHT_LOOP_BEGIN(uvClip, -vSource)
                         float4 lightPos = _OtherLightSpheres[lightIndex];
+                        // return half4(lightIndex.xxxx);
+                        // clusterCount++;
                         half3 dir = half3(lightPos.xyz - pos_world);
                         half3 l = normalize(dir);
                         half ndotl = smoothstep(kds.z, kds.w, dot(n, l) + kds.y);
@@ -188,16 +189,16 @@ Shader "Test/BRDF_FullLit"
                         half D = D_GGX(ndoth, perceptRoughness);
                         diffuseLighting += Fr_DisneyDiffuse(ndotv, ndotl, ldoth, perceptRoughness) * lightStrength;
                         specularLighting += D * F * Vis * lightStrength;
-                    }
+                    LIGHT_LOOP_END
                 #endif
-
+                // return clusterCount * 0.2 + mainTex.a * 0.0001;
                 half3 ambient = half(0.0);
                 #ifdef LIGHTMAP_ON
                 ambient = SampleLightMap(i.uv.zw);
                 #endif
                 ambient += SampleSH(n);
                 half3 F_ambient = F_Schlick(f0, f90, ndotv);
-                half3 ambientSpecular = SampleEnvironment(i.vertex, depthEye, i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
+                // half3 ambientSpecular = SampleEnvironment(i.vertex, depthEye, i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
                 #endif
@@ -205,7 +206,7 @@ Shader "Test/BRDF_FullLit"
                     (
                         diffuseLighting * albedo * pi_inv + 
                         specularLighting + 
-                        (ambient * albedo + ambientSpecular) * ao
+                        (ambient * albedo /** + ambientSpecular **/) * ao
                         #ifdef _EMISSION_ON
                         + emission.rgb
                         #endif

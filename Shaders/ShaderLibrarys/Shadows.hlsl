@@ -346,7 +346,9 @@ half GetOtherShadow(int lightIndex, half3 lightFwd, float3 pos_world, half3 norm
     // int maskChanel = shadowData.w;
     float3 lightPos = _OtherLightSpheres[lightIndex].xyz;
     half3 toLightDir = half3(lightPos - pos_world);
+    #ifdef _DEFERRED
     toLightDir = TransformViewToWorldDir(toLightDir);
+    #endif
 
     half3 lightPlane;
     if(shadowData.z == half(1.0))

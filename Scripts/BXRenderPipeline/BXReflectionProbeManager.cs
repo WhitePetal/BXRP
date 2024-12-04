@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -11,7 +12,7 @@ namespace BXRenderPipeline
     public struct BXReflectionProbeManager : IDisposable
     {
         private const int k_MaxVisibleReflectionProbeCount = 4;
-        private const int k_MaxAtlasTextureSize = 4096;
+        private const int k_MaxAtlasTextureSize = 2048;
         private const int k_MaxMipCount = 7;
         private const string k_ReflectionProbeAtlasName = "BX Reflection Probe Atlas";
 
@@ -30,6 +31,7 @@ namespace BXRenderPipeline
         public Vector4[] m_BoxMin;
         public Vector4[] m_ProbePostion;
         public Vector4[] m_MipScaleOffset;
+        public NativeArray<VisibleReflectionProbe> m_Probes;
 
         private unsafe struct CacheProbe
         {
@@ -104,6 +106,8 @@ namespace BXRenderPipeline
             m_BoxMin = new Vector4[k_MaxVisibleReflectionProbeCount];
             m_ProbePostion = new Vector4[k_MaxVisibleReflectionProbeCount];
             m_MipScaleOffset = new Vector4[k_MaxVisibleReflectionProbeCount * 7];
+
+            m_Probes = new NativeArray<VisibleReflectionProbe>(k_MaxVisibleReflectionProbeCount, Allocator.Persistent);
         }
 
         public unsafe void UpdateGPUData(CommandBuffer cmd, ref CullingResults cullingResults)
@@ -263,6 +267,7 @@ namespace BXRenderPipeline
                     skipCount++;
                     continue;
                 }
+                m_Probes[dataIndex] = probe;
                 m_BoxMax[dataIndex] = new Vector4(probe.bounds.max.x, probe.bounds.max.y, probe.bounds.max.z, probe.blendDistance);
                 m_BoxMin[dataIndex] = new Vector4(probe.bounds.min.x, probe.bounds.min.y, probe.bounds.min.z, probe.importance);
                 m_ProbePostion[dataIndex] = new Vector4(probe.localToWorldMatrix.m03, probe.localToWorldMatrix.m13, probe.localToWorldMatrix.m23, (probe.isBoxProjection ? 1 : -1) * (cacheProbe.mipCount));
@@ -320,6 +325,7 @@ namespace BXRenderPipeline
             UnityEngine.Object.DestroyImmediate(m_AtlasTexture0);
             UnityEngine.Object.DestroyImmediate(m_AtlasTexture1);
 
+            m_Probes.Dispose();
             this = default;
         }
 

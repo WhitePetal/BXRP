@@ -33,7 +33,7 @@ namespace BXRenderPipeline
         };
 
         public const int maxDirLightCount = 1;
-        public const int maxClusterLightCount = 64;
+        public const int maxClusterLightCount = 32;
         public const int maxStencilLightCount = 8;
         public readonly int maxOtherLightCount;
         public readonly int maxImportedOtherLightCount;
@@ -60,8 +60,9 @@ namespace BXRenderPipeline
             clusterLightMinBounds = new Vector4[maxClusterLightCount],
             clusterLightMaxBounds = new Vector4[maxClusterLightCount];
 
-        public Vector4[] reflectProbeMinBounds => reflectionProbe.m_BoxMin;
-        public Vector4[] reflectProbeMaxBounds => reflectionProbe.m_BoxMax;
+        public NativeArray<VisibleReflectionProbe> reflectionProbes => reflectionProbe.m_Probes;
+        //public Vector4[] reflectProbeMinBounds => reflectionProbe.m_BoxMin;
+        //public Vector4[] reflectProbeMaxBounds => reflectionProbe.m_BoxMax;
 
         public Vector4[]
             dirLightColors = new Vector4[maxDirLightCount],
@@ -75,6 +76,7 @@ namespace BXRenderPipeline
 
         public NativeArray<VisibleLight>
             dirLights = new NativeArray<VisibleLight>(maxDirLightCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory),
+            // clusterLights
             otherLights = new NativeArray<VisibleLight>(maxClusterLightCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
         public BXLightsBase(int maxOtherLightCount, int maxImportedOtherLightCount)

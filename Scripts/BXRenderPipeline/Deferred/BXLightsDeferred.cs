@@ -10,21 +10,21 @@ namespace BXRenderPipelineDeferred
 {
     public class BXLightsDeferred : BXLightsBase
     {
-		private Matrix4x4 worldToViewMatrix;
+        private Matrix4x4 worldToViewMatrix;
 
         public int otherLightCount;
 
         private BXShadows shadows = new BXShadows();
-        private BXClusterCullBase clusterCull = new BXClusterCullCompute();
+        private BXClusterCullBase clusterCull = new BXClusterCullJobSystem();
         private BXLightCookie lightCookie = new BXLightCookie();
 
         public BXLightsDeferred() : base(maxClusterLightCount + maxStencilLightCount, maxStencilLightCount)
         {
-            
+
         }
 
         private void CollectLightDatas()
-		{
+        {
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
             dirLightCount = 0;
             clusterLightCount = 0;
@@ -32,63 +32,71 @@ namespace BXRenderPipelineDeferred
             otherLightCount = 0;
             importedOtherLightCount = 0;
 
-            for(int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
-			{
+            for (int visbileLightIndex = 0; visbileLightIndex < visibleLights.Length; ++visbileLightIndex)
+            {
                 if (dirLightCount >= maxDirLightCount && otherLightCount >= maxOtherLightCount) break;
                 ref var visibleLight = ref visibleLights.UnsafeElementAtMutable(visbileLightIndex);
                 LightBakingOutput lightBaking = visibleLight.light.bakingOutput;
                 if (lightBaking.lightmapBakeType == LightmapBakeType.Baked) continue;
-				switch (visibleLight.lightType)
-				{
+                switch (visibleLight.lightType)
+                {
                     case LightType.Directional:
-                        if(dirLightCount < maxDirLightCount)
-						{
+                        if (dirLightCount < maxDirLightCount)
+                        {
                             SetupDirectionalLight(dirLightCount++, visbileLightIndex, ref visibleLight);
-						}
+                        }
                         break;
                     case LightType.Point:
-                        if(stencilLightCount < maxStencilLightCount)
-						{
+                        if (stencilLightCount < maxStencilLightCount)
+                        {
                             SetupStencilPointLight(otherLightCount++, visbileLightIndex, ref visibleLight);
                             ++stencilLightCount;
                             ++importedOtherLightCount;
-						}
-                        else if(clusterLightCount < maxClusterLightCount)
+                        }
+                        else if (clusterLightCount < maxClusterLightCount)
                         {
                             SetupClusterPointLight(otherLightCount++, clusterLightCount++, visbileLightIndex, ref visibleLight);
                         }
                         break;
                     case LightType.Spot:
-                        if(stencilLightCount < maxStencilLightCount)
-						{
+                        if (stencilLightCount < maxStencilLightCount)
+                        {
                             SetupStencilSpotLight(otherLightCount++, visbileLightIndex, ref visibleLight);
                             ++stencilLightCount;
                             ++importedOtherLightCount;
                         }
-                        else if(clusterLightCount < maxClusterLightCount)
+                        else if (clusterLightCount < maxClusterLightCount)
                         {
                             SetupClusterSpotLight(otherLightCount++, clusterLightCount++, visbileLightIndex, ref visibleLight);
                         }
                         break;
-				}
-			}
-		}
+                }
+            }
+        }
 
         public void Setup(BXMainCameraRenderBase mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
-		{
+        {
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
             this.cullingResults = mainCameraRender.cullingResults;
             this.commonSettings = mainCameraRender.commonSettings;
             this.width = mainCameraRender.width;
             this.height = mainCameraRender.height;
-			this.worldToViewMatrix = mainCameraRender.worldToViewMatrix;
+            this.worldToViewMatrix = mainCameraRender.worldToViewMatrix;
             reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
+            CollectLightDatas();
+            bool needCluster = clusterLightCount > 0 || reflectProneCount > 0;
+            if(needCluster)
+                clusterCull.Setup(camera, this, width, height);
             SetupLights();
-            lightCookie.Setup(commandBuffer, this, mainCameraRender);
             shadows.Render(onDirShadowsRenderFeatures);
+            if (needCluster)
+            {
+                clusterCull.Upload(commandBuffer);
+            }
+            lightCookie.Setup(commandBuffer, this, mainCameraRender);
             commandBuffer.EndSample(BufferName);
             ExecuteCommandBuffer();
         }
@@ -211,7 +219,6 @@ namespace BXRenderPipelineDeferred
 
         private void SetupLights()
 		{
-            CollectLightDatas();
             if(dirLightCount > 0)
 			{
                 if (!Shader.IsKeywordEnabled(in dirLightKeyword))
@@ -245,10 +252,6 @@ namespace BXRenderPipelineDeferred
             {
                 if (Shader.IsKeywordEnabled(in clusterLightKeyword))
                     commandBuffer.DisableKeyword(in clusterLightKeyword);
-            }
-            if(clusterLightCount > 0 || reflectionProbe.probeCount > 0)
-            {
-                clusterCull.Render(camera, this, commonSettings, width, height);
             }
         }
 

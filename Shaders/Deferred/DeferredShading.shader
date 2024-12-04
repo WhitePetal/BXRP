@@ -140,6 +140,8 @@ Shader "DeferredShading"
             #pragma multi_compile __ FRAMEBUFFERFETCH_MSAA
             #pragma multi_compile __ SHADOWS_OTHER
 
+            #define _DEFERRED 1
+
             // #define _ACES_C 1
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"

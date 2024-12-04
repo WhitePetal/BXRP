@@ -41,38 +41,39 @@ CBUFFER_START(UnityLights)
     float4 _ClusterSize;
 CBUFFER_END
 
-StructuredBuffer<uint2> _ClusterLightingIndices;
-StructuredBuffer<uint2> _ClusterLightingDatas;
+// StructuredBuffer<uint2> _ClusterLightingIndices;
+// StructuredBuffer<uint2> _ClusterLightingDatas;
 
 #include "LightCookies.hlsl"
+#include "Clustering.hlsl"
 
-float GetClusterIndex(float3 pos_screen, float depthEye)
-{
-    float2 tileXY = pos_screen.xy / _ClusterSize.xy;
-    tileXY = floor(tileXY);
-    float k = depthEye / _ProjectionParams.y;
-    k = log(k) * _ClusterSize.w;
-    k = floor(k);
-    float tileIndex = tileXY.y * float(CLUSTER_X_COUNT) + tileXY.x;
-    float clusterIndex = k * float(CLUSTER_X_MUL_Y_COUNT) + tileIndex;
-    clusterIndex = min(clusterIndex, float(MAX_CLUSTER_DATA_INDEX));
-    return clusterIndex;
-}
+// float GetClusterIndex(float3 pos_screen, float depthEye)
+// {
+//     float2 tileXY = pos_screen.xy / _ClusterSize.xy;
+//     tileXY = floor(tileXY);
+//     float k = depthEye / _ProjectionParams.y;
+//     k = log(k) * _ClusterSize.w;
+//     k = floor(k);
+//     float tileIndex = tileXY.y * float(CLUSTER_X_COUNT) + tileXY.x;
+//     float clusterIndex = k * float(CLUSTER_X_MUL_Y_COUNT) + tileIndex;
+//     clusterIndex = min(clusterIndex, float(MAX_CLUSTER_DATA_INDEX));
+//     return clusterIndex;
+// }
 
-int GetClusterCount(float3 pos_screen, float depthEye, out int lightIndexStart)
-{
-    float2 tileXY = pos_screen.xy / _ClusterSize.xy;
-    tileXY = floor(tileXY);
-    float k = depthEye / _ProjectionParams.y;
-    k = log(k) * _ClusterSize.w;
-    k = floor(k);
-    float tileIndex = tileXY.y * float(CLUSTER_X_COUNT) + tileXY.x;
-    float clusterIndex = k * float(CLUSTER_X_MUL_Y_COUNT) + tileIndex;
-    clusterIndex = min(clusterIndex, float(MAX_CLUSTER_DATA_INDEX));
-    lightIndexStart = clusterIndex * float(MAX_CLUSTER_LIGHT_COUNT);
-    int clusterData = _ClusterLightingDatas[int(clusterIndex)].x;
-    clusterData = min(clusterData, _ClusterLightCount);
-    return clusterData;
-}
+// int GetClusterCount(float3 pos_screen, float depthEye, out int lightIndexStart)
+// {
+//     float2 tileXY = pos_screen.xy / _ClusterSize.xy;
+//     tileXY = floor(tileXY);
+//     float k = depthEye / _ProjectionParams.y;
+//     k = log(k) * _ClusterSize.w;
+//     k = floor(k);
+//     float tileIndex = tileXY.y * float(CLUSTER_X_COUNT) + tileXY.x;
+//     float clusterIndex = k * float(CLUSTER_X_MUL_Y_COUNT) + tileIndex;
+//     clusterIndex = min(clusterIndex, float(MAX_CLUSTER_DATA_INDEX));
+//     lightIndexStart = clusterIndex * float(MAX_CLUSTER_LIGHT_COUNT);
+//     int clusterData = _ClusterLightingDatas[int(clusterIndex)].x;
+//     clusterData = min(clusterData, _ClusterLightCount);
+//     return clusterData;
+// }
 
 #endif

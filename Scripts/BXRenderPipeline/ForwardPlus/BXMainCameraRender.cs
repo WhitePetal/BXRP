@@ -26,21 +26,27 @@ namespace BXRenderPipelineForward
             this.context = context;
             this.camera = camera;
 
-            width_screen = camera.pixelWidth;
-            height_screen = camera.pixelHeight;
+            width_screen = Screen.width;
+            height_screen = Screen.height;
 #if UNITY_EDITOR
             if(camera.cameraType == CameraType.SceneView)
 			{
-                height = height_screen;
-			}
+                height = camera.pixelWidth;
+                width = camera.pixelWidth;
+            }
 			else
 			{
                 height = Mathf.Clamp(Mathf.RoundToInt(height_screen * commonSettings.downSample), commonSettings.minHeight, commonSettings.maxHeight);
-			}
+                width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
+            }
 #else
             height = Mathf.Clamp(Mathf.RoundToInt(height_screen * commonSettings.downSample), commonSettings.minHeight, commonSettings.maxHeight);
 #endif
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
+
+            // for ture camera.projectionMatrix
+            Rect originRect = camera.pixelRect;
+            camera.pixelRect = new Rect(originRect.position.x, originRect.position.y, width, height);
 
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 

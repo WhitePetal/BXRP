@@ -15,19 +15,14 @@ namespace BXRenderPipeline
             public static readonly int _ClusterLightingDatas_ID = Shader.PropertyToID("_ClusterLightingDatas");
         }
 
-        protected const int tileCountX = 8;
-        protected const int tileCountY = 4;
-        protected const int maxClusterCountZ = 64;
-        protected int clusterCountZ = maxClusterCountZ;
+        protected static readonly GlobalKeyword _CLUSTER_GREATE_32 = GlobalKeyword.Create("_CLUSTER_GREATE_32");
 
+        protected const int maxZBinWords = 1024 * 4;
+        protected const int maxTileWords = 1024 * 4;
 
-        protected const string BufferName = "ClusterLightCulling";
-        protected CommandBuffer commandBuffer = new CommandBuffer()
-        {
-            name = BufferName
-        };
+        public abstract void Setup(Camera camera, BXLightsBase lights, int width, int height);
 
-        public abstract void Render(Camera camera, BXLightsBase lights, BXRenderCommonSettings commonSettings, int width, int height);
+        public abstract void Upload(CommandBuffer commandBuffer);
 
         public abstract void Dispose();
     }
