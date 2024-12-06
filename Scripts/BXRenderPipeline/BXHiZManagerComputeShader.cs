@@ -174,7 +174,7 @@ namespace BXRenderPipeline
 
 			cullingObjects.Dispose();
 			hizCullResultRT.Release();
-			hizMap.Release();
+			if(hizMap != null) hizMap.Release();
 			rendererDic.Clear();
 			mipSizes = null;
 			GameObject.DestroyImmediate(hizCullResultRT);
@@ -203,6 +203,8 @@ namespace BXRenderPipeline
 			hizMap.filterMode = FilterMode.Point;
 			hizMap.enableRandomWrite = true;
 			hizMap.Create();
+			hizMap.hideFlags = HideFlags.DontSave;
+			GameObject.DontDestroyOnLoad(hizMap);
 		}
 
 		private void ReadBack(AsyncGPUReadbackRequest obj)
