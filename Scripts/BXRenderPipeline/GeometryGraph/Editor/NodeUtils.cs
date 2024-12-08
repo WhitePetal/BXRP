@@ -133,5 +133,38 @@ namespace BXGeometryGraph
                 return "NAN";
             return value.ToString(CultureInfo.InvariantCulture);
         }
-    }
+
+		public static string ConvertConcreteSlotValueTypeToString(AbstractGeometryNode.OutputPrecision p, ConcreteSlotValueType slotValue)
+		{
+			switch (slotValue)
+			{
+				case ConcreteSlotValueType.Boolean:
+					return p.ToString();
+				case ConcreteSlotValueType.Vector1:
+					return p.ToString();
+				case ConcreteSlotValueType.Vector2:
+					return p + "2";
+				case ConcreteSlotValueType.Vector3:
+					return p + "3";
+				case ConcreteSlotValueType.Vector4:
+					return p + "4";
+				case ConcreteSlotValueType.Texture2D:
+					return "Texture2D";
+				case ConcreteSlotValueType.Cubemap:
+					return "Cubemap";
+				case ConcreteSlotValueType.Gradient:
+					return "Gradient";
+				case ConcreteSlotValueType.Matrix2:
+					return p + "2x2";
+				case ConcreteSlotValueType.Matrix3:
+					return p + "3x3";
+				case ConcreteSlotValueType.Matrix4:
+					return p + "4x4";
+				case ConcreteSlotValueType.SamplerState:
+					return "SamplerState";
+				default:
+					return "Error";
+			}
+		}
+	}
 }

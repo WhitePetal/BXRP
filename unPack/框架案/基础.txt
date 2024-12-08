@@ -3,3 +3,5 @@
 3. UI
 4. InputSystem
 5. Export 打包
+
+https://github.com/Unity-Technologies/UnityCsReference/blob/59e16ee85f52a77866390fe084c966dd967e1c49/Modules/SharedInternals/BindingsAttributes.cs#L143

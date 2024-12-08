@@ -94,5 +94,59 @@ namespace BXGeometryGraph
 
             return string.Format(duplicateFormat, name, duplicateNumber);
         }
+
+		private static void Visit(List<INode> outputList, Dictionary<Guid, INode> unmarkedNodes, INode node)
+		{
+			if (!unmarkedNodes.ContainsKey(node.guid))
+				return;
+			foreach (var slot in node.GetInputSlots<ISlot>())
+			{
+				foreach (var edge in node.owner.GetEdges(slot.slotReference))
+				{
+					var inputNode = node.owner.GetNodeFromGuid(edge.outputSlot.nodeGuid);
+					Visit(outputList, unmarkedNodes, inputNode);
+				}
+			}
+			unmarkedNodes.Remove(node.guid);
+			outputList.Add(node);
+		}
+
+		public static GenerationResults GetGeometry(this AbstructGeometryGraph graph, AbstractGeometryNode node, GenerationMode mode, string name)
+		{
+			var result = new GenerationResults();
+			bool isUber = node == null;
+
+			var activeNodeList = ListPool<INode>.Get();
+			if (isUber)
+			{
+				var unmarkedNodes = graph.GetNodes<INode>().Where(x => !(x is IMasterNode)).ToDictionary(x => x.guid);
+				while (unmarkedNodes.Any())
+				{
+					var unmarkedNode = unmarkedNodes.FirstOrDefault();
+					Visit(activeNodeList, unmarkedNodes, unmarkedNode.Value);
+				}
+			}
+			else
+			{
+				NodeUtils.DepthFirstCollectNodesFromNode(activeNodeList, node);
+			}
+
+			result.previewMode = PreviewMode.Preview3D;
+
+			var geometryProperties = new PropertyCollector();
+			result.outputIdProperty = new Vector1GeometryProperty
+			{
+				displayName = "OutputId",
+				generatePropertyBlock = false,
+				value = -1
+			};
+
+			if (isUber)
+				geometryProperties.AddGeometryProperty(result.outputIdProperty);
+
+			result.configuredTextures = geometryProperties.GetConfiguredTextures();
+			result.geometry = "A Geometry";
+			return result;
+		}
     }
 }

@@ -19,4 +19,21 @@ public static class VisualElementExtensionEditor
             element.styleSheets.Add(styleSheet);
         }
     }
+
+	//public static VisualElement GetRootVisualContainer(this VisualElement element)
+	//{
+	//	VisualElement topMostRootContainer = null;
+	//	var hierarchyParent = element;
+	//	while (hierarchyParent != null)
+	//	{
+	//		if (hierarchyParent.isRootVisualContainer)
+	//		{
+	//			topMostRootContainer = hierarchyParent;
+	//		}
+
+	//		hierarchyParent = hierarchyParent.hierarchy.parent;
+	//	}
+
+	//	return topMostRootContainer;
+	//}
 }

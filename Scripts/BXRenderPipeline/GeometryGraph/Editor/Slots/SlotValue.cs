@@ -59,5 +59,31 @@ namespace BXGeometryGraph
                     return 0;
             }
         }
-    }
+
+		static readonly string[] k_ConcreteSlotValueTypeClassNames =
+{
+			null,
+			"typeMatrix",
+			"typeMatrix",
+			"typeMatrix",
+			"typeTexture2D",
+			"typeCubemap",
+			"typeGradient",
+			"typeFloat4",
+			"typeFloat3",
+			"typeFloat2",
+			"typeFloat1",
+			"typeBoolean"
+		};
+
+		public static string ToClassName(this ConcreteSlotValueType type)
+		{
+			return k_ConcreteSlotValueTypeClassNames[(int)type];
+		}
+
+		public static string ToString(this ConcreteSlotValueType type, AbstractGeometryNode.OutputPrecision precision)
+		{
+			return NodeUtils.ConvertConcreteSlotValueTypeToString(precision, type);
+		}
+	}
 }
