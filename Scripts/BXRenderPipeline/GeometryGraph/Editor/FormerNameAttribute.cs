@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class FormerNameAttribute : Attribute
     {
         public string fullName { get; private set; }

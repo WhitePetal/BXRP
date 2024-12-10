@@ -1,0 +1,41 @@
+/* Node Category Colors */
+GeometryNodeView.Artistic #title {
+    border-color:#DB773B;
+}
+
+GeometryNodeView.Channel #title {
+    border-color:#97D13D;
+}
+
+GeometryNodeView.Input #title {
+    border-color:#CB3022;
+}
+
+GeometryNodeView.Math #title {
+    border-color:#4B92F3;
+}
+
+GeometryNodeView.Procedural #title {
+    border-color:#9C4FFF;
+}
+
+GeometryNodeView.Utility #title {
+    border-color:#AEAEAE;
+}
+
+GeometryNodeView.UV #title {
+    border-color:#08D78B;
+}
+
+/* Precision Colors */
+GeometryNodeView.Single #title {
+    border-color:#4B92F3;
+}
+
+GeometryNodeView.Half #title {
+    border-color:#CB3022;
+}
+
+GeometryNodeView.Graph #title {
+    border-color:#30CB22;
+}

@@ -32,7 +32,7 @@ namespace BXGeometryGraph
 
 		public PortInputView(GeometrySlot slot)
 		{
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/PortInputView.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/PortInputView.uss");
 			pickingMode = PickingMode.Ignore;
 			ClearClassList();
 			m_Slot = slot;

@@ -21,7 +21,7 @@ namespace BXGeometryGraph
 
         public override string documentationURL
         {
-            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Documents/SliderNode"; }
+            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Documents/SliderNode"; }
         }
 
         public sealed override void UpdateNodeAfterDeserialization()

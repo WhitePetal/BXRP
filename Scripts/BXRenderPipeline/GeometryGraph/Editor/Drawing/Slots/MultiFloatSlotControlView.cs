@@ -17,7 +17,7 @@ namespace BXGeometryGraph
 
         public MultiFloatSlotControlView(INode node, string[] labels, Func<Vector4> get, Action<Vector4> set)
         {
-            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/MultiFloatSlotControlView.uss");
+            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/MultiFloatSlotControlView.uss");
             m_Node = node;
             m_Get = get;
             m_Set = set;

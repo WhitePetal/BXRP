@@ -16,6 +16,7 @@ namespace BXGeometryGraph
 		public bool dockingLeft
 		{
 			get { return m_DockingLeft; }
+            set { m_DockingLeft = value; }
 		}
 
 		[SerializeField]
@@ -24,6 +25,7 @@ namespace BXGeometryGraph
 		public bool dockingTop
 		{
 			get { return m_DockingTop; }
+            set { m_DockingTop = value; }
 		}
 
 		[SerializeField]
@@ -32,6 +34,7 @@ namespace BXGeometryGraph
 		public float verticalOffset
 		{
 			get { return m_VerticalOffset; }
+            set { m_VerticalOffset = value; }
 		}
 
 		[SerializeField]
@@ -40,6 +43,7 @@ namespace BXGeometryGraph
 		public float horizontalOffset
 		{
 			get { return m_HorizontalOffset; }
+            set { m_HorizontalOffset = value; }
 		}
 
 		[SerializeField]
@@ -120,6 +124,7 @@ namespace BXGeometryGraph
 		{
 			Rect layout = new Rect();
 
+			Debug.Log("WindowDockingLayout Size: " + size);
 			layout.size = size;
 
 			if (dockingLeft)

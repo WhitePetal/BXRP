@@ -10,7 +10,8 @@ namespace BXGraphing
         Nothing = 0,
         Node = 1,
         Graph = 2,
-        Topological = 3
+        Topological = 3,
+        Layout = 4
     }
 
     public delegate void OnNodeModified(INode node, ModificationScope scope);

@@ -7,7 +7,8 @@ namespace BXGeometryGraph
     public enum GenerationMode
     {
         Preview,
-        ForReals
+        ForReals,
+        VFX
     }
 
     public static class GenerationModeExtensions

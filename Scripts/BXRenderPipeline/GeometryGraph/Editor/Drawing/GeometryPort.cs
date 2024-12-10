@@ -12,7 +12,7 @@ namespace BXGeometryGraph
 		GeometryPort(Orientation portOrientation, Direction portDirection, Capacity portCapacity, Type type)
 			: base(portOrientation, portDirection, portCapacity, type)
 		{
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/GeometryPort.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/GeometryPort.uss");
 		}
 
 		private GeometrySlot m_Slot;

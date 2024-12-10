@@ -7,15 +7,26 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
+    [Serializable]
     [Title("Input", "Property")]
-    public class PropertyNode : AbstractGeometryNode, IGeneratesBodyCode, IOnAssetEnabled
+    public class PropertyNode : AbstractGeometryNode, IGeneratesBodyCode, IOnAssetEnabled, IGeometryInputObserver
     {
-        private Guid m_PropertyGuid;
-
         [SerializeField]
-        private string m_PropertyGuidSerialized;
+        private JsonRef<AbstractGeometryProperty> m_Property;
 
-        public const int OutputSlotId = 0;
+        public AbstractGeometryProperty property
+        {
+            get { return m_Property; }
+            set
+            {
+                if (m_Property == value)
+                    return;
+
+                m_Property = value;
+                AddOutputSlot();
+                Dirty(ModificationScope.Topological);
+            }
+        }
 
         public PropertyNode()
         {
@@ -23,29 +34,39 @@ namespace BXGeometryGraph
             UpdateNodeAfterDeserialization();
         }
 
-        public Guid propertyGuid
+        public override string documentationURL
         {
-            get { return m_PropertyGuid; }
-            set
+            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Documents/PropertyNode"; }
+        }
+
+        public override void UpdateNodeAfterDeserialization()
+        {
+            base.UpdateNodeAfterDeserialization();
+
+            if (owner == null)
+                return;
+
+            if(property is Vector1GeometryProperty vector1GeometryProperty && vector1GeometryProperty.floatType == FloatType.Slider)
             {
-                if (m_PropertyGuid == value)
-                    return;
-
-                var graph = owner as AbstructGeometryGraph;
-                var property = graph.properties.FirstOrDefault(x => x.guid == value);
-                if (property == null)
-                    return;
-                m_PropertyGuid = value;
-
-                UpdateNode();
-
-                Dirty(ModificationScope.Topological);
+                // Previously, the Slider vector1 property allowed the min value to be greater than the max
+                // We no longer want to support that behavior so if such a property is encountered, swap the values
+                if (vector1GeometryProperty.rangeValues.x > vector1GeometryProperty.rangeValues.y)
+                {
+                    vector1GeometryProperty.rangeValues = new Vector2(vector1GeometryProperty.rangeValues.y, vector1GeometryProperty.rangeValues.x);
+                    Dirty(ModificationScope.Graph);
+                }
             }
         }
 
-        public override string documentationURL
+        // this node's precision is always controlled by the property precision
+        public override bool canSetPrecision => false;
+
+        public void UpdateNodeDisplayName(string newDisplayName)
         {
-            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Documents/PropertyNode"; }
+            GeometrySlot foundSlot = FindSlot<GeometrySlot>(OutputSlotId);
+
+            if (foundSlot != null)
+                foundSlot.displayName = newDisplayName;
         }
 
         private void UpdateNode()

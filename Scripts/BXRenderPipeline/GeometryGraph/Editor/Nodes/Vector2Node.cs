@@ -27,7 +27,7 @@ namespace BXGeometryGraph
 
         public override string documentationURL
         {
-            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Documents/Vector2Node"; }
+            get { return "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Documents/Vector2Node"; }
         }
 
         public sealed override void UpdateNodeAfterDeserialization()

@@ -1,0 +1,156 @@
+GeometryNodeView.graphElement.node.MaterialNode {
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+GeometryNodeView #collapsible-area {
+    width: 0;
+    height: 0;
+}
+
+GeometryNodeView #previewFiller.expanded {
+    width: 200;
+    padding-bottom: 200;
+}
+
+GeometryNodeView #previewFiller,
+GeometryNodeView #controls {
+    background-color: rgba(63, 63, 63, 0.8);
+}
+
+GeometryNodeView #controls > #items {
+    padding-top: 4;
+    padding-bottom: 4;
+}
+
+GeometryNodeView > #previewContainer {
+    position-type: absolute;
+    position-bottom: 4;
+    position-left: 4;
+    border-radius: 6;
+    padding-top: 6;
+}
+
+GeometryNodeView > #previewContainer > #preview  {
+    width: 200;
+    height: 200;
+    align-items:center;
+}
+
+GeometryNodeView > #previewContainer > #preview > #collapse {
+    background-color: #000;
+    border-color: #F0F0F0;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    border-radius: 1;
+    border-top-width: 1;
+    border-bottom-width: 1;
+    border-left-width: 1;
+    border-right-width: 1;
+    margin-top: 4;
+    align-items:center;
+    justify-content:center;
+}
+
+
+GeometryNodeView:hover > #previewContainer > #preview > #collapse {
+    width: 20;
+    height: 20;
+    opacity: 0.6;
+}
+
+GeometryNodeView > #previewContainer > #preview > #collapse > #icon  {
+    background-image : resource("Icons/PreviewCollapse.png");
+    width: 16;
+    height: 16;
+}
+
+GeometryNodeView > #previewContainer > #preview > #collapse:hover {
+    opacity: 1.0;
+}
+
+GeometryNodeView #previewFiller > #expand {
+    align-self: center;
+    width: 56;
+    height: 16;
+    flex-direction: row;
+    justify-content:center;
+}
+
+GeometryNodeView #previewFiller > #expand > #icon {
+    align-self: center;
+    background-image : resource("Icons/PreviewExpand.png");
+    width: 16;
+    height: 16;
+}
+
+GeometryNodeView #previewFiller.collapsed > #expand:hover {
+    background-color: #2B2B2B;
+}
+
+GeometryNodeView #previewFiller.expanded > #expand {
+    height: 0;
+}
+
+GeometryNodeView > #resize {
+    background-image : resource("Icons/NodeChevronLeft.png");
+    position-type: absolute;
+    position-right: 5;
+    position-bottom: 5;
+    width: 10;
+    height: 10;
+    cursor: resize-up-left;
+}
+
+GeometryNodeView > #portInputContainer {
+    position-type: absolute;
+    width: 212;
+    position-left: -200;
+    position-top: 46;
+}
+
+GeometryNodeView > #settings-container {
+	background-color : rgb(63, 63, 63);
+}
+
+#settings-button {
+    width: 16;
+    align-self: center;
+    justify-content: center;
+    padding-left: 8;
+}
+
+#settings-button > #icon {
+    width : 12;
+    height : 12;
+    align-self: center;
+    visibility: hidden;
+    background-image : resource("Icons/SettingsIcons");
+}
+
+.node:hover #settings-button > #icon {
+    visibility: visible;
+}
+
+#settings-button:hover > #icon {
+    align-self: center;
+    background-color: #2B2B2B;
+    background-image : resource("Icons/SettingsIcons_hover");
+}
+
+#settings-button.clicked > #icon{
+    background-color: #2B2B2B;
+    background-image : resource("Icons/SettingsIcons_hover");
+    visibility: visible;
+}
+
+.node.collapsed > #node-border > #title > #button-container > #collapse-button > #icon {
+    background-image: resource("Icons/NodeChevronLeft.png");
+}
+
+.node.expanded > #node-border > #title > #button-container > #collapse-button > #icon {
+    background-image : resource("Icons/NodeChevronDown.png");
+}

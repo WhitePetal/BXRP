@@ -1,58 +1,34 @@
-Shader "Unlit/TestGeometry"
 {
-    Properties
-    {
-        _MainTex ("Texture", 2D) = "white" {}
-    }
-    SubShader
-    {
-        Tags { "RenderType"="Opaque" }
-        LOD 100
-
-        Pass
+    "m_SerializedProperties": [
         {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            // make fog work
-            #pragma multi_compile_fog
-
-            #include "UnityCG.cginc"
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
-                float4 vertex : SV_POSITION;
-            };
-
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-
-            v2f vert (appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                UNITY_TRANSFER_FOG(o,o.vertex);
-                return o;
-            }
-
-            fixed4 frag (v2f i) : SV_Target
-            {
-                // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
-                // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
-                return col;
-            }
-            ENDCG
+            "typeInfo": {
+                "fullName": "BXGeometryGraph.Vector1GeometryProperty"
+            },
+            "JSONnodeData": "{\n    \"m_Value\": 0.0,\n    \"m_Name\": \"Vector1\",\n    \"m_GeneratePropertyBlock\": true,\n    \"m_Guid\": {\n        \"m_GuidSerialized\": \"7acf481c-399b-4e0e-b3f0-e3d00ac45ce6\"\n    },\n    \"m_OverrideReferenceName\": \"_Vector1_8480818\",\n    \"m_FloatType\": 1,\n    \"m_RangeValues\": {\n        \"x\": 0.0,\n        \"y\": 1.0\n    }\n}"
+        },
+        {
+            "typeInfo": {
+                "fullName": "BXGeometryGraph.Vector1GeometryProperty"
+            },
+            "JSONnodeData": "{\n    \"m_Value\": 0.0,\n    \"m_Name\": \"Vector1 (1)\",\n    \"m_GeneratePropertyBlock\": true,\n    \"m_Guid\": {\n        \"m_GuidSerialized\": \"b90cd8ba-10cf-48ab-ae77-2bfc5278498f\"\n    },\n    \"m_OverrideReferenceName\": \"_Vector1_6FCC480\",\n    \"m_FloatType\": 0,\n    \"m_RangeValues\": {\n        \"x\": 0.0,\n        \"y\": 1.0\n    }\n}"
+        },
+        {
+            "typeInfo": {
+                "fullName": "BXGeometryGraph.Vector1GeometryProperty"
+            },
+            "JSONnodeData": "{\n    \"m_Value\": 0.0,\n    \"m_Name\": \"Vector1 (2)\",\n    \"m_GeneratePropertyBlock\": true,\n    \"m_Guid\": {\n        \"m_GuidSerialized\": \"02c0f7eb-09ca-4c44-ae26-ec1c39f45e73\"\n    },\n    \"m_OverrideReferenceName\": \"\",\n    \"m_FloatType\": 0,\n    \"m_RangeValues\": {\n        \"x\": 0.0,\n        \"y\": 1.0\n    }\n}"
+        },
+        {
+            "typeInfo": {
+                "fullName": "BXGeometryGraph.Vector4GeometryProperty"
+            },
+            "JSONnodeData": "{\n    \"m_Value\": {\n        \"x\": 0.0,\n        \"y\": 0.0,\n        \"z\": 0.0,\n        \"w\": 0.0\n    },\n    \"m_Name\": \"Vector4\",\n    \"m_GeneratePropertyBlock\": true,\n    \"m_Guid\": {\n        \"m_GuidSerialized\": \"c6a06228-eb5d-458a-a4bd-623591005726\"\n    },\n    \"m_OverrideReferenceName\": \"\"\n}"
         }
-    }
+    ],
+    "m_GUID": {
+        "m_GuidSerialized": "2c8a596c-f709-4de0-932b-64c836f204ea"
+    },
+    "m_SerializableNodes": [],
+    "m_SerializableEdges": [],
+    "m_Path": ""
 }

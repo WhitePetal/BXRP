@@ -488,10 +488,13 @@ namespace BXGeometryGraph
 				selectedGuid = assetGuid;
 
 				var textGraph = File.ReadAllText(path, Encoding.UTF8);
-				Debug.Log("textGraph: " + textGraph);
 				graphObject = CreateInstance<GraphObject>();
 				graphObject.hideFlags = HideFlags.HideAndDontSave;
 				graphObject.graph = JsonUtility.FromJson(textGraph, graphType) as IGraph;
+				if(graphObject.graph == null)
+                {
+					graphObject.graph = new GeometryGraph();
+                }
 				graphObject.graph.OnEnable();
 				graphObject.graph.ValidateGraph();
 
@@ -502,11 +505,12 @@ namespace BXGeometryGraph
 
 				Repaint();
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
 				m_HasError = true;
 				m_GraphEditorView = null;
 				graphObject = null;
+				Debug.LogException(e);
 				throw;
 			}
 		}

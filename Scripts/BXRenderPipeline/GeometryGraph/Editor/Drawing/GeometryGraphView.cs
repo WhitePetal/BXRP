@@ -18,7 +18,7 @@ namespace BXGeometryGraph
 
 		public GeometryGraphView()
 		{
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/GeometryGraphView.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/GeometryGraphView.uss");
 		}
 
 		protected override bool canCopySelection

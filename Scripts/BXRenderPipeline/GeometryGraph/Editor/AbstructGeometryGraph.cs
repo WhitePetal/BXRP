@@ -396,7 +396,6 @@ namespace BXGeometryGraph
         public string SanitizePropertyReferenceName(string referenceName, Guid guid = default(Guid))
         {
             referenceName = referenceName.Trim();
-
             if (string.IsNullOrEmpty(referenceName))
                 return null;
 

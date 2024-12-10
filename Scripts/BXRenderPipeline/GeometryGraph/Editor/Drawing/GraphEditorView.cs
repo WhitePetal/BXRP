@@ -13,10 +13,23 @@ namespace BXGeometryGraph
 	[Serializable]
 	class FloatingWindowsLayout
 	{
-		public WindowDockingLayout previewLayout = new WindowDockingLayout();
-		public WindowDockingLayout blackBoardLayout = new WindowDockingLayout();
-		public Vector2 masterPreviewSize = new Vector2(200, 400);
+		public WindowDockingLayout previewLayout = new WindowDockingLayout
+		{
+			dockingTop = false,
+			dockingLeft = false,
+			verticalOffset = 8,
+			horizontalOffset = 8
+		};
 	}
+
+	[Serializable]
+	class UserViewSettings
+    {
+		public bool isBlackboardVisible = true;
+		public bool isPreviewVisible = true;
+		public bool isInspectorVisible = true;
+		public string colorProvider = NoColors.
+    }
 
 	public class GraphEditorView : VisualElement, IDisposable
 	{
@@ -29,7 +42,7 @@ namespace BXGeometryGraph
 		private PreviewManager m_PreviewManager;
 		private SearchWindowProvider m_SearchWindowProvider;
 		private IEdgeConnectorListener m_EdgeConnectorListener;
-		//private BlackboardFieldProvider m_BlackboardProvider;
+		private BlackboardProvider m_BlackboardProvider;
 
 		private const string k_FloatingWindowsLayoutKey = "BXGeometryGraph.FloatingWindowsLayout";
 		private FloatingWindowsLayout m_FloatingWindowsLayout;
@@ -60,7 +73,7 @@ namespace BXGeometryGraph
 		public GraphEditorView(EditorWindow editorWindow, AbstructGeometryGraph graph, string assetName)
 		{
 			m_Graph = graph;
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/GraphEditorView.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/GraphEditorView.uss");
 			m_EditorWindow = editorWindow;
 			//previewManager = new PreviewManager(graph);
 
@@ -105,13 +118,13 @@ namespace BXGeometryGraph
 				m_GraphView.RegisterCallback<KeyDownEvent>(OnSpaceDown);
 				content.Add(m_GraphView);
 
-				// TODO
-				//m_BlackboardProvider = new BlackboardProvider(assetName, graph);
-				//m_GraphView.Add(m_BlackboardProvider.blackboard);
-				//Rect blackboardLayout = m_BlackboardProvider.blackboard.layout;
-				//blackboardLayout.x = 10f;
-				//blackboardLayout.y = 10f;
-				//m_BlackboardProvider.blackboard.layout = blackboardLayout;
+                // TODO
+                m_BlackboardProvider = new BlackboardProvider(assetName, graph);
+                m_GraphView.Add(m_BlackboardProvider.blackboard);
+                Rect blackboardLayout = m_BlackboardProvider.blackboard.layout;
+				blackboardLayout.x = 10f;
+                blackboardLayout.y = 10f;
+                m_BlackboardProvider.blackboard.SetPosition(blackboardLayout);
 
 				//m_MasterPreviewView = new MasterPreviewView(assetName, previewManager, graph) { name = "masterPreview" };
 
@@ -258,9 +271,9 @@ namespace BXGeometryGraph
 		{
 			//previewManager.HandleGraphChanges();
 			//previewManager.RenderPreviews();
-			//m_BlackboardProvider.HandleGraphChanges();
+			m_BlackboardProvider.HandleGraphChanges();
 
-			foreach(var node in m_Graph.removedNodes)
+            foreach (var node in m_Graph.removedNodes)
 			{
 				node.UnregisterCallback(OnNodeChanged);
 				var nodeView = m_GraphView.nodes.ToList().OfType<GeometryNodeView>().FirstOrDefault(p => p.node != null && p.node.guid == node.guid);
@@ -458,7 +471,7 @@ namespace BXGeometryGraph
 
 		private void HandleEditorViewChanged(GeometryChangedEvent evt)
 		{
-			//m_BlackboardProvider.blackboard.layout = m_FloatingWindowsLayout.blackboardLayout.GetLayout(m_GraphView.layout);
+			m_BlackboardProvider.blackboard.SetPosition(m_FloatingWindowsLayout.blackboardLayout.GetLayout(m_GraphView.layout));
 		}
 
 		private void StoreBlackboardLayoutOnGeometryChanged(GeometryChangedEvent evt)
@@ -472,13 +485,13 @@ namespace BXGeometryGraph
 
 			if(m_FloatingWindowsLayout != null)
 			{
-				// Restore master preview layout
-				//m_FloatingWindowsLayout.previewLayout.ApplyPosition(m_MasterPreviewView);
-				//m_MasterPreviewView.previewTextureView.style.width = StyleValue<float>.Create(m_FloatingWindowsLayout.masterPreviewSize.x);
-				//m_MasterPreviewView.previewTextureView.style.height = StyleValue<float>.Create(m_FloatingWindowsLayout.masterPreviewSize.y);
+                // Restore master preview layout
+                //m_FloatingWindowsLayout.previewLayout.ApplyPosition(m_MasterPreviewView);
+                //m_MasterPreviewView.previewTextureView.style.width = StyleValue<float>.Create(m_FloatingWindowsLayout.masterPreviewSize.x);
+                //m_MasterPreviewView.previewTextureView.style.height = StyleValue<float>.Create(m_FloatingWindowsLayout.masterPreviewSize.y);
 
-				//// Restore blackboard layout
-				//m_BlackboardProvider.blackboard.layout = m_FloatingWindowsLayout.blackboardLayout.GetLayout(this.layout);
+                // Restore blackboard layout
+                m_BlackboardProvider.blackboard.SetPosition(m_FloatingWindowsLayout.blackboardLayout.GetLayout(this.layout));
 
 				//previewManager.ResizeMasterPreview(m_FloatingWindowsLayout.masterPreviewSize);
 			}
@@ -488,7 +501,7 @@ namespace BXGeometryGraph
 			}
 
 			// After the layout is restored from the previous session, start tracking layout changes in the blackboard.
-			//m_BlackboardProvider.blackboard.RegisterCallback<GeometryChangedEvent>(StoreBlackboardLayoutOnGeometryChanged);
+			m_BlackboardProvider.blackboard.RegisterCallback<GeometryChangedEvent>(StoreBlackboardLayoutOnGeometryChanged);
 
 			// After the layout is restored, track changes in layout and make the blackboard have the same behavior as the preview w.r.t. docking.
 			RegisterCallback<GeometryChangedEvent>(HandleEditorViewChanged);
@@ -502,8 +515,8 @@ namespace BXGeometryGraph
 			//m_FloatingWindowsLayout.previewLayout.CalculateDockingCornerAndOffset(m_MasterPreviewView.layout, m_GraphView.layout);
 			m_FloatingWindowsLayout.previewLayout.ClampToParentWindow();
 
-			//m_FloatingWindowsLayout.blackboardLayout.CalculateDockingCornerAndOffset(m_BlackboardProvider.blackboard.layout, m_GraphView.layout);
-			//m_FloatingWindowsLayout.blackboardLayout.ClampToParentWindow();
+			m_FloatingWindowsLayout.blackboardLayout.CalculateDockingCornerAndOffset(m_BlackboardProvider.blackboard.layout, m_GraphView.layout);
+            m_FloatingWindowsLayout.blackboardLayout.ClampToParentWindow();
 
 			//if (m_MasterPreviewView.expanded)
 			//{

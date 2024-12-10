@@ -14,25 +14,31 @@ using System;
 
 namespace BXGeometryGraph
 {
-	public sealed class GeometryNodeView : Node
+	public sealed class GeometryNodeView : Node, IGeometryNodeView, IInspectable
 	{
 		private PreviewRenderData m_PreviewRenderData;
 		private Image m_PreviewImage;
-		private VisualElement m_PreviewContainer;
-		private VisualElement m_ControlItems;
-		private VisualElement m_PreviewFilter;
-		private VisualElement m_ControlsDivider;
-		private IEdgeConnectorListener m_ConnectorListerner;
-		private VisualElement m_PortInputContainer;
-		private VisualElement m_SettingsContainer;
-		private bool m_ShowSettings = false;
-		private VisualElement m_SettingsButton;
-		private VisualElement m_Settings;
-		private VisualElement m_NodeSettingsView;
+		// Remove this after updated to the correct API call has landed in trunk. ------------
+		private VisualElement m_TitleContainer;
 
-		public void Initialize(AbstractGeometryNode inNode, PreviewManager previewManager, IEdgeConnectorListener connectorListener)
+		private VisualElement m_PreviewContainer;
+		private VisualElement m_PreviewFilter;
+		private VisualElement m_ControlItems;
+		private VisualElement m_ControlsDivider;
+		private VisualElement m_DropdownItems;
+		private VisualElement m_DropdownsDivider;
+		private Action m_UnregisterAll;
+
+		private IEdgeConnectorListener m_ConnectorListerner;
+
+		private GeometryGraphView m_GraphView;
+
+		public string inspectorTitle => $"{node.name} (Node)";
+
+		public void Initialize(AbstractGeometryNode inNode, PreviewManager previewManager, IEdgeConnectorListener connectorListener, GeometryGraphView graphView)
 		{
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/GeometryNodeView.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/GeometryNodeView.uss");
+			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/ColorMode.uss");
 			AddToClassList("GeometryNode");
 
 			if (inNode == null)
@@ -40,9 +46,10 @@ namespace BXGeometryGraph
 
 			var contents = this.Q("contents");
 
+			m_GraphView = graphView;
+			mainContainer.style.overflow = StyleKeyword.None; // Override explicit style set in base class
 			m_ConnectorListerner = connectorListener;
 			node = inNode;
-			persistenceKey = node.guid.ToString();
 			UpdateTitle();
 
 			// Add controls container
@@ -533,6 +540,50 @@ namespace BXGeometryGraph
 			}
 		}
 
-		public string persistenceKey { get; set; }
-	}
+        public void SetColor(Color newColor)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ResetColor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void UpdateDropdownEntries()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void AttachMessage(string errString, GeometryCompilerMessageSeverity severity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ClearMessage()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool FindPort(SlotReference slot, out GeometryPort port)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object GetObjectToInspect()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SupplyDataToPropertyDrawer(IPropertyDrawer propertyDrawer, Action inspectorUpdateDelegate)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Node gvNode => throw new NotImplementedException();
+
+        public VisualElement colorElement => throw new NotImplementedException();
+
+        public string inspectorTitle => throw new NotImplementedException();
+    }
 }

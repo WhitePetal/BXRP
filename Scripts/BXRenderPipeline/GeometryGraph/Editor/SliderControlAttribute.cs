@@ -43,7 +43,7 @@ namespace BXGeometryGraph
         {
             m_Node = node;
             m_PropertyInfo = propertyInfo;
-            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/SliderControlView.uss");
+            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/SliderControlView.uss");
             m_DisplayMinMax = displayMinMax;
 
             if(propertyInfo.PropertyType != typeof(Vector3))

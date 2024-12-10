@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace BXGeometryGraph
 {
     [System.Serializable]
-    public abstract class GeometrySlot : ISlot
+    public abstract class GeometrySlot : JsonObject, IDisposable
     {
         const string k_NotInit = "Not Initilaized";
 
@@ -21,9 +21,6 @@ namespace BXGeometryGraph
 
         [SerializeField]
         private SlotType m_SlotType = SlotType.Input;
-
-        [SerializeField]
-        private int m_Priority = int.MaxValue;
 
         [SerializeField]
         private bool m_Hidden;
@@ -50,14 +47,38 @@ namespace BXGeometryGraph
             m_GeometryOutputName = geometryOutputName;
         }
 
-        protected GeometrySlot(int slotId, string displayName, string geometryOutputName, SlotType slotType, int priority, bool hidden = false)
+        internal void SetInternalData(SlotType slotType, string geometryOutputName)
         {
-            m_Id = slotId;
-            m_DisplayName = displayName;
-            m_SlotType = slotType;
-            m_Priority = priority;
-            m_Hidden = hidden;
-            m_GeometryOutputName = geometryOutputName;
+            this.m_SlotType = slotType;
+            this.geometryOutputName = geometryOutputName;
+        }
+
+        public bool IsConnectionTestable()
+        {
+            if(owner is SubGraphNode sgNode)
+            {
+                //var property = sgNode.GetGeometryProperty(id);
+                //if(property != null)
+                //{
+                //    return property.isConnectionTestable;
+                //}
+            }
+            else if(owner is PropertyNode propertyNode)
+            {
+                return propertyNode.property.isConnectionTestable;
+            }
+            return false;
+        }
+
+        public VisualElement InstantiateCustomControl()
+        {
+            if (!isConnected && IsConnectionTestable())
+            {
+                var sgNode = owner as SubGraphNode;
+                var property = sgNode.GetGeometryProperty(id);
+                return new LabelSlotControlView(property.customSlotLabel);
+            }
+            return null;
         }
 
         public virtual VisualElement InstantiateControl()
@@ -297,6 +318,11 @@ namespace BXGeometryGraph
             {
                 return (m_Id * 397) ^ (owner != null ? owner.GetHashCode() : 0);
             }
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
         }
     }
 }

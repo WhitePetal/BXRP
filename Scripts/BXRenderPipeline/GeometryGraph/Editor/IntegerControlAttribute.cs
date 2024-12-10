@@ -31,7 +31,7 @@ namespace BXGeometryGraph
 
         public IntegerControlView(string label, AbstractGeometryNode node, PropertyInfo propertyInfo)
         {
-            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resource/Styles/IntegerControlView.uss");
+            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/IntegerControlView.uss");
             m_Node = node;
             m_PropertyInfo = propertyInfo;
             if(propertyInfo.PropertyType != typeof(int))

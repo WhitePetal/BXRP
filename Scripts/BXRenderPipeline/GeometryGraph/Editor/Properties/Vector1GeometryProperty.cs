@@ -15,7 +15,9 @@ namespace BXGeometryGraph
 
     [System.Serializable]
     [FormerName("BXGeometryGraph.FloatGeometryProperty")]
-    public class Vector1GeometryProperty : AbstractGeometryProperty<float>
+    [FormerName("BXGeometryGraph.Vector1GeometryProperty")]
+    //[BlackboardInputInfo(0, "Float")]
+    public sealed class Vector1GeometryProperty : AbstractGeometryProperty<float>
     {
         public Vector1GeometryProperty()
         {

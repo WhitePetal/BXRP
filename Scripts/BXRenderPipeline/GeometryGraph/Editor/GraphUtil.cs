@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    public static class GraphUtil
+    internal static class GraphUtil
     {
         static Dictionary<SerializationHelper.TypeSerializationInfo, SerializationHelper.TypeSerializationInfo> s_LegacyTypeRemapping;
 
@@ -111,42 +111,45 @@ namespace BXGeometryGraph
 			outputList.Add(node);
 		}
 
-		public static GenerationResults GetGeometry(this AbstructGeometryGraph graph, AbstractGeometryNode node, GenerationMode mode, string name)
-		{
-			var result = new GenerationResults();
-			bool isUber = node == null;
 
-			var activeNodeList = ListPool<INode>.Get();
-			if (isUber)
-			{
-				var unmarkedNodes = graph.GetNodes<INode>().Where(x => !(x is IMasterNode)).ToDictionary(x => x.guid);
-				while (unmarkedNodes.Any())
-				{
-					var unmarkedNode = unmarkedNodes.FirstOrDefault();
-					Visit(activeNodeList, unmarkedNodes, unmarkedNode.Value);
-				}
-			}
-			else
-			{
-				NodeUtils.DepthFirstCollectNodesFromNode(activeNodeList, node);
-			}
+        internal static string DeduplicateName(IEnumerable<string> existingNames, string duplicateFormat, string name)
+        {
+            if (!existingNames.Contains(name))
+                return name;
 
-			result.previewMode = PreviewMode.Preview3D;
+            string escapedDuplicateFormat = Regex.Escape(duplicateFormat);
 
-			var geometryProperties = new PropertyCollector();
-			result.outputIdProperty = new Vector1GeometryProperty
-			{
-				displayName = "OutputId",
-				generatePropertyBlock = false,
-				value = -1
-			};
+            // Escaped format will escape string interpolation, so the escape characters must be removed for these.
+            escapedDuplicateFormat = escapedDuplicateFormat.Replace(@"\{0}", @"{0}");
+            escapedDuplicateFormat = escapedDuplicateFormat.Replace(@"\{1}", @"{1}");
 
-			if (isUber)
-				geometryProperties.AddGeometryProperty(result.outputIdProperty);
+            var baseRegex = new Regex(string.Format(escapedDuplicateFormat, @"^(.*)", @"(\d+)"));
 
-			result.configuredTextures = geometryProperties.GetConfiguredTextures();
-			result.geometry = "A Geometry";
-			return result;
-		}
+            var baseMatch = baseRegex.Match(name);
+            if (baseMatch.Success)
+                name = baseMatch.Groups[1].Value;
+
+            string baseNameExpression = string.Format(@"^{0}", Regex.Escape(name));
+            var regex = new Regex(string.Format(escapedDuplicateFormat, baseNameExpression, @"(\d+)") + "$");
+
+            var existingDuplicateNumbers = existingNames.Select(existingName => regex.Match(existingName)).Where(m => m.Success).Select(m => int.Parse(m.Groups[1].Value)).Where(n => n > 0).Distinct().ToList();
+
+            var duplicateNumber = 1;
+            existingDuplicateNumbers.Sort();
+            if (existingDuplicateNumbers.Any() && existingDuplicateNumbers.First() == 1)
+            {
+                duplicateNumber = existingDuplicateNumbers.Last() + 1;
+                for (var i = 1; i < existingDuplicateNumbers.Count; i++)
+                {
+                    if (existingDuplicateNumbers[i - 1] != existingDuplicateNumbers[i] - 1)
+                    {
+                        duplicateNumber = existingDuplicateNumbers[i - 1] + 1;
+                        break;
+                    }
+                }
+            }
+
+            return string.Format(duplicateFormat, name, duplicateNumber);
+        }
     }
 }
