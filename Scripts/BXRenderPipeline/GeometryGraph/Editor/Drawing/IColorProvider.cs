@@ -12,7 +12,7 @@ namespace BXGeometryGraph
 
         bool ClearOnDirty();
 
-        void ApplyColor(IGeometryNodeView nodeview);
-        void ClearColor(IGeometryNodeView, nodeview);
+        void ApplyColor(IGeometryNodeView nodeView);
+        void ClearColor(IGeometryNodeView nodeView);
     }
 }

@@ -30,7 +30,7 @@ namespace BXGeometryGraph
 
 		private GraphEditorView m_GraphEditorView;
 
-		private GraphEditorView graphEditorView
+		internal GraphEditorView graphEditorView
 		{
 			get { return m_GraphEditorView; }
 			set

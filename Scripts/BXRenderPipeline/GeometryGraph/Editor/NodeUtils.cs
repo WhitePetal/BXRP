@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using BXCommon;
 using BXGraphing;
 using UnityEngine;
 
@@ -11,58 +12,24 @@ namespace BXGeometryGraph
 {
     public class SlotConfigurationException : Exception
     {
-        public SlotConfigurationException(string message) : base(message)
-        {
-
-        }
+        public SlotConfigurationException(string message)
+                    : base(message)
+        { }
     }
 
     internal static class NodeUtils
     {
-        public static IEnumerable<T> GetSlots<T>(this AbstractGeometryNode node) where T : GeometrySlot
-        {
-            var slots = new List<T>();
-            node.GetSlots(slots);
-            return slots;
-        }
+        private static string NodeDocSuffix = "-Node";
 
-        public static IEnumerable<T> GetInputSlots<T>(this AbstractGeometryNode node) where T : GeometrySlot
-        {
-            var slots = new List<T>();
-            node.GetInputSlots(slots);
-            return slots;
-        }
-
-        public static IEnumerable<T> GetInputSlots<T>(this AbstractGeometryNode node, GeometrySlot startingSlot) where T : GeometrySlot
-        {
-            var slots = new List<T>();
-            node.GetInputSlots(startingSlot, slots);
-            return slots;
-        }
-
-        public static IEnumerable<T> GetOutputSlots<T>(this AbstractGeometryNode node) where T : GeometrySlot
-        {
-            var slots = new List<T>();
-            node.GetOutputSlots(slots);
-            return slots;
-        }
-
-        public static IEnumerable<T> GetOutputSlots<T>(this AbstractGeometryNode node, GeometrySlot startingSlot) where T : GeometrySlot
-        {
-            var slots = new List<T>();
-            node.GetOutputSlots(startingSlot, slots);
-            return slots;
-        }
-
-        public static void SlotConfigurationExceptionIfBadConfiguration(INode node, IEnumerable<int> expectedInputSlots, IEnumerable<int> expectedOutputSlots)
+        public static void SlotConfigurationExceptionIfBadConfiguration(AbstractGeometryNode node, IEnumerable<int> expectedInputSlots, IEnumerable<int> expectedOutputSlots)
         {
             var missingSlots = new List<int>();
 
             var inputSlots = expectedInputSlots as IList<int> ?? expectedInputSlots.ToList();
-            missingSlots.AddRange(inputSlots.Except(node.GetInputSlots<ISlot>().Select(x => x.id)));
+            missingSlots.AddRange(inputSlots.Except(node.GetInputSlots<GeometrySlot>().Select(x => x.id)));
 
             var outputSlots = expectedOutputSlots as IList<int> ?? expectedOutputSlots.ToList();
-            missingSlots.AddRange(outputSlots.Except(node.GetOutputSlots<ISlot>().Select(x => x.id)));
+            missingSlots.AddRange(outputSlots.Except(node.GetOutputSlots<GeometrySlot>().Select(x => x.id)));
 
             if (missingSlots.Count == 0)
                 return;
@@ -72,12 +39,12 @@ namespace BXGeometryGraph
             throw new SlotConfigurationException(string.Format("Missing slots {0} on node {1}", string.Join(", ", toPrint.ToArray()), node));
         }
 
-        public static IEnumerable<IEdge> GetAllEdges(INode node)
+        public static IEnumerable<IEdge> GetAllEdges(AbstractGeometryNode node)
         {
             var result = new List<IEdge>();
-            var validSlots = ListPool<ISlot>.Get();
+            var validSlots = ListPool<GeometrySlot>.Get();
 
-            validSlots.AddRange(node.GetInputSlots<ISlot>());
+            validSlots.AddRange(node.GetInputSlots<GeometrySlot>());
             for(int index = 0; index < validSlots.Count; ++index)
             {
                 var inputSlot = validSlots[index];
@@ -85,15 +52,24 @@ namespace BXGeometryGraph
             }
 
             validSlots.Clear();
-            validSlots.AddRange(node.GetOutputSlots<ISlot>());
+            validSlots.AddRange(node.GetOutputSlots<GeometrySlot>());
             for(int index = 0; index < validSlots.Count; ++index)
             {
                 var outputSlot = validSlots[index];
                 result.AddRange(node.owner.GetEdges(outputSlot.slotReference));
             }
 
-            ListPool<ISlot>.Release(validSlots);
+            ListPool<GeometrySlot>.Release(validSlots);
             return result;
+        }
+
+        public static string GetDuplicateSafeNameForSlot(AbstractGeometryNode node, int slotId, string name)
+        {
+            List<GeometrySlot> slots = new List<GeometrySlot>();
+            node.GetSlots(slots);
+
+            name = name.Trim();
+            return GraphUtil.SanitizeName(slots.Where(p => p.id != slotId).Select(p => p.RawDisplayName()), "{0} {1}", name);
         }
 
         // CollectNodesNodeFeedsInto looks at the current node and calculates
@@ -106,134 +82,61 @@ namespace BXGeometryGraph
             Exclude
         }
 
-        public static void DepthFirstCollectNodesFromNode(List<INode> nodeList, INode node, IncludeSelf includeSelf = IncludeSelf.Include, List<int> slotIds = null)
+        public static SlotReference DepthFirstCollectRedirectNodeFromNode(RedirectNodeData node)
         {
+            var inputSlot = node.FindSlot<GeometrySlot>(RedirectNodeData.kInputSlotID);
+            foreach(var edge in node.owner.GetEdges(inputSlot.slotReference))
+            {
+                // get the input details
+                var outputSlotRef = edge.outputSlot;
+                var inputNode = outputSlotRef.node;
+                // If this is a redirect node we continue to look for the top one
+                if(inputNode is RedirectNodeData redirectNode)
+                {
+                    return DepthFirstCollectRedirectNodeFromNode(redirectNode);
+                }
+                return outputSlotRef;
+            }
+            // If no edges it is the first redirect node without an edge going into it and we should return the slot ref
+            return node.GetSlotReference(RedirectNodeData.kInputSlotID);
+        }
+
+        public static void DepthFirstCollectNodesFromNode(ICollection<AbstractGeometryNode> nodeList, AbstractGeometryNode node, IncludeSelf includeSelf = IncludeSelf.Include, List<KeyValuePair<ShaderKeyword, int>> keywordPermutation = null, bool ignoreActiveState = false)
+        {
+            // no where to start
             if (node == null)
                 return;
 
+            // already added this node
             if (nodeList.Contains(node))
                 return;
 
-            var ids = node.GetInputSlots<ISlot>().Select(x => x.id);
-            if (slotIds != null)
-                ids = node.GetInputSlots<ISlot>().Where(x => slotIds.Contains(x.id)).Select(x => x.id);
+            IEnumerable<int> ids;
+
+            // If this node is a keyword node and we have an active keyword permutation
+            // The only valid port id is the port that corresponds to that keywords value in the active permutation
+            //if(node is KeywordNode && keywordPermutation != null)
+            //{
+            //    var valueInPermutation = keywordPermutation.Where(x => x.Key == keywordNode.keyword).FirstOrDefault();
+            //    ids = new int[] { keywordNode.GetSlotIdForPermutation(valueInPermutation) };
+            //}
+            //else
+            {
+                ids = node.GetInputSlots<GeometrySlot>().Select(x => x.id);
+            }
 
             foreach(var slot in ids)
             {
                 foreach(var edge in node.owner.GetEdges(node.GetSlotReference(slot)))
                 {
-                    var outputNode = node.owner.GetNodeFromGuid(edge.outputSlot.nodeGuid);
-                    DepthFirstCollectNodesFromNode(nodeList, outputNode);
+                    var outputNode = edge.outputSlot.node;
+                    if (outputNode != null)
+                        DepthFirstCollectNodesFromNode(nodeList, outputNode, keywordPermutation: keywordPermutation, ignoreActiveState: ignoreActiveState);
                 }
             }
 
-            if (includeSelf == IncludeSelf.Include)
+            if (includeSelf == IncludeSelf.Include && (node.isActive || ignoreActiveState))
                 nodeList.Add(node);
-        }
-
-        public static void CollectNodesNodeFeedsInto(List<INode> nodeList, INode node, IncludeSelf includeSelf = IncludeSelf.Include)
-        {
-            if (node == null)
-                return;
-
-            if (nodeList.Contains(node))
-                return;
-
-            foreach(var slot in node.GetOutputSlots<ISlot>())
-            {
-                foreach(var edge in node.owner.GetEdges(slot.slotReference))
-                {
-                    var inputNode = node.owner.GetNodeFromGuid(edge.inputSlot.nodeGuid);
-                    CollectNodesNodeFeedsInto(nodeList, inputNode);
-                }
-            }
-
-            if (includeSelf == IncludeSelf.Include)
-                nodeList.Add(node);
-        }
-
-        public static string GetHLSLSafeName(string input)
-        {
-            char[] arr = input.ToCharArray();
-            arr = Array.FindAll<char>(arr, (c => (Char.IsLetterOrDigit(c))));
-            return new string(arr);
-        }
-
-        public static string FloatToGeometryValue(float value)
-        {
-            if (Single.IsPositiveInfinity(value))
-                return "1.#INF";
-            else if (Single.IsNegativeInfinity(value))
-                return "-1#INF";
-            else if (Single.IsNaN(value))
-                return "NAN";
-            return value.ToString(CultureInfo.InvariantCulture);
-        }
-
-		public static string ConvertConcreteSlotValueTypeToString(AbstractGeometryNode.OutputPrecision p, ConcreteSlotValueType slotValue)
-		{
-			switch (slotValue)
-			{
-				case ConcreteSlotValueType.Boolean:
-					return p.ToString();
-				case ConcreteSlotValueType.Vector1:
-					return p.ToString();
-				case ConcreteSlotValueType.Vector2:
-					return p + "2";
-				case ConcreteSlotValueType.Vector3:
-					return p + "3";
-				case ConcreteSlotValueType.Vector4:
-					return p + "4";
-				case ConcreteSlotValueType.Texture2D:
-					return "Texture2D";
-				case ConcreteSlotValueType.Cubemap:
-					return "Cubemap";
-				case ConcreteSlotValueType.Gradient:
-					return "Gradient";
-				case ConcreteSlotValueType.Matrix2:
-					return p + "2x2";
-				case ConcreteSlotValueType.Matrix3:
-					return p + "3x3";
-				case ConcreteSlotValueType.Matrix4:
-					return p + "4x4";
-				case ConcreteSlotValueType.SamplerState:
-					return "SamplerState";
-				default:
-					return "Error";
-			}
-		}
-
-        public static string ConvertToValidHLSLIdentifier(string originalId /**, Func<string, bool> isDisallowedIdentifier = null **/)
-        {
-            // Converts "  1   var  * q-30 ( 0 ) (1)   " to "_1_var_q_30_0_1"
-            if (originalId == null)
-                originalId = "";
-
-            var result = Regex.Replace(originalId, @"^[^A-Za-z0-9_]+|[^A-Za-z0-9_]+$", ""); // trim leading/trailing bad characters (excl '_').
-            result = Regex.Replace(result, @"[^A-Za-z0-9]+", "_"); // replace sequences of bad characters with underscores (incl '_').
-
-            for (int i = 0; result.Length == 0 || Char.IsDigit(result[0]) /** || IsHLSLKeyword(result) || (isDisallowedIdentifier?.Invoke(result) ?? false) **/;)
-            {
-                if (result.StartsWith("_"))
-                    result += $"_{++i}";
-                else
-                    result = "_" + result;
-            }
-            return result;
-        }
-
-        //Go to the leaves of the node, then get all trees with those leaves
-        private static HashSet<AbstractGeometryNode> GetForest(AbstractGeometryNode node)
-        {
-            var initial = new HashSet<AbstractGeometryNode> { node };
-
-            var upstream = new HashSet<AbstractGeometryNode>();
-            PreviewManager.PropagateNodes(initial, PreviewManager.PropagationDirection.Upstream, upstream);
-
-            var forest = new HashSet<AbstractGeometryNode>();
-            PreviewManager.PropagateNodes(upstream, PreviewManager.PropagationDirection.Downstream, forest);
-
-            return forest;
         }
 
         internal static List<AbstractGeometryNode> GetParentNodes(AbstractGeometryNode node)
@@ -377,6 +280,668 @@ namespace BXGeometryGraph
                 }
                 n.SetActive(at, false);
             }
+        }
+
+        //Go to the leaves of the node, then get all trees with those leaves
+        private static HashSet<AbstractGeometryNode> GetForest(AbstractGeometryNode node)
+        {
+            var initial = new HashSet<AbstractGeometryNode> { node };
+
+            var upstream = new HashSet<AbstractGeometryNode>();
+            PreviewManager.PropagateNodes(initial, PreviewManager.PropagationDirection.Upstream, upstream);
+
+            var forest = new HashSet<AbstractGeometryNode>();
+            PreviewManager.PropagateNodes(upstream, PreviewManager.PropagationDirection.Downstream, forest);
+
+            return forest;
+        }
+
+        public static void GetDownsteamNodesForNode(List<AbstractGeometryNode> nodeList, AbstractGeometryNode node)
+        {
+            // no where to start
+            if (node == null)
+                return;
+
+            // Recursively traverse downstream from the original node
+            // Traverse down each edge and continue on any connected downstream nodes
+            // Only nodes with no nodes further downstream are added to node list
+            bool hasDownstream = false;
+            var ids = node.GetOutputSlots<GeometrySlot>().Select(x => x.id);
+            foreach (var slot in ids)
+            {
+                foreach (var edge in node.owner.GetEdges(node.FindSlot<GeometrySlot>(slot).slotReference))
+                {
+                    var inputNode = ((Edge)edge).inputSlot.node;
+                    if (inputNode != null)
+                    {
+                        hasDownstream = true;
+                        GetDownsteamNodesForNode(nodeList, inputNode);
+                    }
+                }
+            }
+
+            // No more nodes downstream from here
+            if (!hasDownstream)
+                nodeList.Add(node);
+        }
+
+        public static void CollectNodeSet(HashSet<AbstractGeometryNode> nodeSet, GeometrySlot slot)
+        {
+            var node = slot.owner;
+            var graph = node.owner;
+            foreach (var edge in graph.GetEdges(node.GetSlotReference(slot.id)))
+            {
+                var outputNode = edge.outputSlot.node;
+                if (outputNode != null)
+                {
+                    CollectNodeSet(nodeSet, outputNode);
+                }
+            }
+        }
+
+        public static void CollectNodeSet(HashSet<AbstractGeometryNode> nodeSet, AbstractGeometryNode node)
+        {
+            if (!nodeSet.Add(node))
+            {
+                return;
+            }
+
+            using (ListPool<GeometrySlot>.Get(out var slots))
+            {
+                node.GetInputSlots(slots);
+                foreach (var slot in slots)
+                {
+                    CollectNodeSet(nodeSet, slot);
+                }
+            }
+        }
+
+        public static void CollectNodesNodeFeedsInto(List<AbstractGeometryNode> nodeList, AbstractGeometryNode node, IncludeSelf includeSelf = IncludeSelf.Include)
+        {
+            if (node == null)
+                return;
+
+            if (nodeList.Contains(node))
+                return;
+
+            foreach (var slot in node.GetOutputSlots<GeometrySlot>())
+            {
+                foreach (var edge in node.owner.GetEdges(slot.slotReference))
+                {
+                    var inputNode = edge.inputSlot.node;
+                    CollectNodesNodeFeedsInto(nodeList, inputNode);
+                }
+            }
+            if (includeSelf == IncludeSelf.Include)
+                nodeList.Add(node);
+        }
+
+        static Stack<GeometrySlot> s_SlotStack = new Stack<GeometrySlot>();
+
+        public static GeometryStage GetEffectiveGeometryStage(GeometrySlot initialSlot, bool goingBackwards)
+        {
+            var graph = initialSlot.owner.owner;
+            s_SlotStack.Clear();
+            s_SlotStack.Push(initialSlot);
+            while (s_SlotStack.Any())
+            {
+                var slot = s_SlotStack.Pop();
+                GeometryStage stage;
+                if (slot.stageCapability.TryGetShaderStage(out stage))
+                    return stage;
+
+                if (goingBackwards && slot.isInputSlot)
+                {
+                    foreach (var edge in graph.GetEdges(slot.slotReference))
+                    {
+                        var node = edge.outputSlot.node;
+                        s_SlotStack.Push(node.FindOutputSlot<GeometrySlot>(edge.outputSlot.slotId));
+                    }
+                }
+                else if (!goingBackwards && slot.isOutputSlot)
+                {
+                    foreach (var edge in graph.GetEdges(slot.slotReference))
+                    {
+                        var node = edge.inputSlot.node;
+                        s_SlotStack.Push(node.FindInputSlot<GeometrySlot>(edge.inputSlot.slotId));
+                    }
+                }
+                else
+                {
+                    var ownerSlots = Enumerable.Empty<GeometrySlot>();
+                    if (goingBackwards && slot.isOutputSlot)
+                        ownerSlots = slot.owner.GetInputSlots<GeometrySlot>(slot);
+                    else if (!goingBackwards && slot.isInputSlot)
+                        ownerSlots = slot.owner.GetOutputSlots<GeometrySlot>(slot);
+                    foreach (var ownerSlot in ownerSlots)
+                        s_SlotStack.Push(ownerSlot);
+                }
+            }
+            // We default to fragment shader stage if all connected nodes were compatible with both.
+            return GeometryStage.Geometry;
+        }
+
+        private static GeometryStageCapability GetEffectiveGeometryStageCapabilityRecursive(SlotReference slotRef, bool goingBackwards, Dictionary<SlotReference, GeometryStageCapability> lookUp)
+        {
+            var slot = slotRef.slot;
+            GeometryStageCapability capabilities = slot.stageCapability;
+            // Can early out if we know nothing is compatible, otherwise we have to keep checking everything we can reach.
+            if (capabilities == GeometryStageCapability.None)
+            {
+                lookUp[slotRef] = capabilities;
+                return capabilities;
+            }
+
+            var graph = slot.owner.owner;
+            if (goingBackwards && slot.isInputSlot)
+            {
+                foreach (var edge in graph.GetEdges(slot.slotReference))
+                {
+                    if (!lookUp.TryGetValue(edge.outputSlot, out var childCapabilities))
+                    {
+                        childCapabilities = GetEffectiveGeometryStageCapabilityRecursive(edge.outputSlot, goingBackwards, lookUp);
+                    }
+                    capabilities &= childCapabilities;
+                    if (capabilities == GeometryStageCapability.None)
+                        break;
+                }
+            }
+            else if (!goingBackwards && slot.isOutputSlot)
+            {
+                foreach (var edge in graph.GetEdges(slot.slotReference))
+                {
+                    if (!lookUp.TryGetValue(edge.inputSlot, out var childCapabilities))
+                    {
+                        childCapabilities = GetEffectiveGeometryStageCapabilityRecursive(edge.inputSlot, goingBackwards, lookUp);
+                    }
+                    capabilities &= childCapabilities;
+                    if (capabilities == GeometryStageCapability.None)
+                        break;
+                }
+            }
+            else
+            {
+                var ownerSlots = Enumerable.Empty<GeometrySlot>();
+                if (goingBackwards && slot.isOutputSlot)
+                    ownerSlots = slot.owner.GetInputSlots<GeometrySlot>(slot);
+                else if (!goingBackwards && slot.isInputSlot)
+                    ownerSlots = slot.owner.GetOutputSlots<GeometrySlot>(slot);
+                foreach (var ownerSlot in ownerSlots)
+                {
+                    var childSlotRef = new SlotReference(ownerSlot.owner, ownerSlot.id);
+                    if (!lookUp.TryGetValue(childSlotRef, out var childCapabilities))
+                    {
+                        childCapabilities = GetEffectiveGeometryStageCapabilityRecursive(childSlotRef, goingBackwards, lookUp);
+                    }
+                    capabilities &= childCapabilities;
+                    if (capabilities == GeometryStageCapability.None)
+                        break;
+                }
+            }
+            lookUp[slotRef] = capabilities;
+            return capabilities;
+        }
+
+        public static GeometryStageCapability GetEffectiveShaderStageCapability(GeometrySlot initialSlot, bool goingBackwards, Dictionary<SlotReference, GeometryStageCapability> lookUp = null)
+        {
+            if (lookUp == null)
+                lookUp = new Dictionary<SlotReference, GeometryStageCapability>();
+            return GetEffectiveGeometryStageCapabilityRecursive(new SlotReference(initialSlot.owner, initialSlot.id), goingBackwards, lookUp);
+        }
+
+        public static string GetSlotDimension(ConcreteSlotValueType slotValue)
+        {
+            switch (slotValue)
+            {
+                case ConcreteSlotValueType.Vector1:
+                    return String.Empty;
+                case ConcreteSlotValueType.Vector2:
+                    return "2";
+                case ConcreteSlotValueType.Vector3:
+                    return "3";
+                case ConcreteSlotValueType.Vector4:
+                    return "4";
+                case ConcreteSlotValueType.Matrix2:
+                    return "2x2";
+                case ConcreteSlotValueType.Matrix3:
+                    return "3x3";
+                case ConcreteSlotValueType.Matrix4:
+                    return "4x4";
+                case ConcreteSlotValueType.PropertyConnectionState:
+                    return String.Empty;
+                default:
+                    return "Error";
+            }
+        }
+
+        // NOTE: there are several bugs here.. we should use ConvertToValidHLSLIdentifier() instead
+        public static string GetHLSLSafeName(string input)
+        {
+            char[] arr = input.ToCharArray();
+            arr = Array.FindAll<char>(arr, (c => (Char.IsLetterOrDigit(c))));
+            var safeName = new string(arr);
+            if (safeName.Length > 1 && char.IsDigit(safeName[0]))
+            {
+                safeName = $"var{safeName}";
+            }
+            return safeName;
+        }
+
+        static readonly string[] k_HLSLNumericKeywords =
+        {
+            "float",
+            "half",     // not technically in HLSL spec, but prob should be
+            "real",     // Unity thing, but included here
+            "int",
+            "uint",
+            "bool",
+            "min10float",
+            "min16float",
+            "min12int",
+            "min16int",
+            "min16uint"
+        };
+
+        static readonly string[] k_HLSLNumericKeywordSuffixes =
+        {
+            "",
+            "1", "2", "3", "4",
+            "1x1", "1x2", "1x3", "1x4",
+            "2x1", "2x2", "2x3", "2x4",
+            "3x1", "3x2", "3x3", "3x4",
+            "4x1", "4x2", "4x3", "4x4"
+        };
+
+        static HashSet<string> m_ShaderLabKeywords = new HashSet<string>()
+        {
+            // these should all be lowercase, as shaderlab keywords are case insensitive
+            "properties",
+            "range",
+            "bind",
+            "bindchannels",
+            "tags",
+            "lod",
+            "shader",
+            "subshader",
+            "category",
+            "fallback",
+            "dependency",
+            "customeditor",
+            "rect",
+            "any",
+            "float",
+            "color",
+            "int",
+            "integer",
+            "vector",
+            "matrix",
+            "2d",
+            "cube",
+            "3d",
+            "2darray",
+            "cubearray",
+            "name",
+            "settexture",
+            "true",
+            "false",
+            "on",
+            "off",
+            "separatespecular",
+            "offset",
+            "zwrite",
+            "zclip",
+            "conservative",
+            "ztest",
+            "alphatest",
+            "fog",
+            "stencil",
+            "colormask",
+            "alphatomask",
+            "cull",
+            "front",
+            "material",
+            "ambient",
+            "diffuse",
+            "specular",
+            "emission",
+            "shininess",
+            "blend",
+            "blendop",
+            "colormaterial",
+            "lighting",
+            "pass",
+            "grabpass",
+            "usepass",
+            "gpuprogramid",
+            "add",
+            "sub",
+            "revsub",
+            "min",
+            "max",
+            "logicalclear",
+            "logicalset",
+            "logicalcopy",
+            "logicalcopyinverted",
+            "logicalnoop",
+            "logicalinvert",
+            "logicaland",
+            "logicalnand",
+            "logicalor",
+            "logicalnor",
+            "logicalxor",
+            "logicalequiv",
+            "logicalandreverse",
+            "logicalandinverted",
+            "logicalorreverse",
+            "logicalorinverted",
+            "multiply",
+            "screen",
+            "overlay",
+            "darken",
+            "lighten",
+            "colordodge",
+            "colorburn",
+            "hardlight",
+            "softlight",
+            "difference",
+            "exclusion",
+            "hslhue",
+            "hslsaturation",
+            "hslcolor",
+            "hslluminosity",
+            "zero",
+            "one",
+            "dstcolor",
+            "srccolor",
+            "oneminusdstcolor",
+            "srcalpha",
+            "oneminussrccolor",
+            "dstalpha",
+            "oneminusdstalpha",
+            "srcalphasaturate",
+            "oneminussrcalpha",
+            "constantcolor",
+            "oneminusconstantcolor",
+            "constantalpha",
+            "oneminusconstantalpha",
+        };
+
+        static HashSet<string> m_HLSLKeywords = new HashSet<string>()
+        {
+            "AppendStructuredBuffer",
+            "asm",
+            "asm_fragment",
+            "auto",
+            "BlendState",
+            "break",
+            "Buffer",
+            "ByteAddressBuffer",
+            "case",
+            "catch",
+            "cbuffer",
+            "centroid",
+            "char",
+            "class",
+            "column_major",
+            "compile",
+            "compile_fragment",
+            "CompileShader",
+            "const",
+            "const_cast",
+            "continue",
+            "ComputeShader",
+            "ConsumeStructuredBuffer",
+            "default",
+            "delete",
+            "DepthStencilState",
+            "DepthStencilView",
+            "discard",
+            "do",
+            "double",
+            "DomainShader",
+            "dynamic_cast",
+            "dword",
+            "else",
+            "enum",
+            "explicit",
+            "export",
+            "extern",
+            "false",
+            "for",
+            "friend",
+            "fxgroup",
+            "GeometryShader",
+            "goto",
+            "groupshared",
+            "half",
+            "Hullshader",
+            "if",
+            "in",
+            "inline",
+            "inout",
+            "InputPatch",
+            "interface",
+            "line",
+            "lineadj",
+            "linear",
+            "LineStream",
+            "long",
+            "matrix",
+            "mutable",
+            "namespace",
+            "new",
+            "nointerpolation",
+            "noperspective",
+            "NULL",
+            "operator",
+            "out",
+            "OutputPatch",
+            "packoffset",
+            "pass",
+            "pixelfragment",
+            "PixelShader",
+            "point",
+            "PointStream",
+            "precise",
+            "private",
+            "protected",
+            "public",
+            "RasterizerState",
+            "reinterpret_cast",
+            "RenderTargetView",
+            "return",
+            "register",
+            "row_major",
+            "RWBuffer",
+            "RWByteAddressBuffer",
+            "RWStructuredBuffer",
+            "RWTexture1D",
+            "RWTexture1DArray",
+            "RWTexture2D",
+            "RWTexture2DArray",
+            "RWTexture3D",
+            "sample",
+            "sampler",
+            "SamplerState",
+            "SamplerComparisonState",
+            "shared",
+            "short",
+            "signed",
+            "sizeof",
+            "snorm",
+            "stateblock",
+            "stateblock_state",
+            "static",
+            "static_cast",
+            "string",
+            "struct",
+            "switch",
+            "StructuredBuffer",
+            "tbuffer",
+            "technique",
+            "technique10",
+            "technique11",
+            "template",
+            "texture",
+            "Texture1D",
+            "Texture1DArray",
+            "Texture2D",
+            "Texture2DArray",
+            "Texture2DMS",
+            "Texture2DMSArray",
+            "Texture3D",
+            "TextureCube",
+            "TextureCubeArray",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "typedef",
+            "typename",
+            "triangle",
+            "triangleadj",
+            "TriangleStream",
+            "uniform",
+            "unorm",
+            "union",
+            "unsigned",
+            "using",
+            "vector",
+            "vertexfragment",
+            "VertexShader",
+            "virtual",
+            "void",
+            "volatile",
+            "while"
+        };
+
+        static HashSet<string> m_ShaderGraphKeywords = new HashSet<string>()
+        {
+            "_Weight",
+            "Gradient",
+            "UnitySamplerState",
+            "UnityTexture2D",
+            "UnityTexture2DArray",
+            "UnityTexture3D",
+            "UnityTextureCube"
+        };
+
+        static bool m_HLSLKeywordDictionaryBuilt = false;
+
+        public static bool IsHLSLKeyword(string id)
+        {
+            if (!m_HLSLKeywordDictionaryBuilt)
+            {
+                foreach (var numericKeyword in k_HLSLNumericKeywords)
+                    foreach (var suffix in k_HLSLNumericKeywordSuffixes)
+                        m_HLSLKeywords.Add(numericKeyword + suffix);
+
+                m_HLSLKeywordDictionaryBuilt = true;
+            }
+
+            bool isHLSLKeyword = m_HLSLKeywords.Contains(id);
+
+            return isHLSLKeyword;
+        }
+
+        public static bool IsShaderLabKeyWord(string id)
+        {
+            bool isShaderLabKeyword = m_ShaderLabKeywords.Contains(id.ToLower());
+            return isShaderLabKeyword;
+        }
+
+        public static bool IsShaderGraphKeyWord(string id)
+        {
+            bool isShaderGraphKeyword = m_ShaderGraphKeywords.Contains(id);
+            return isShaderGraphKeyword;
+        }
+
+        public static string ConvertToValidHLSLIdentifier(string originalId, Func<string, bool> isDisallowedIdentifier = null)
+        {
+            // Converts "  1   var  * q-30 ( 0 ) (1)   " to "_1_var_q_30_0_1"
+            if (originalId == null)
+                originalId = "";
+
+            var result = Regex.Replace(originalId, @"^[^A-Za-z0-9_]+|[^A-Za-z0-9_]+$", ""); // trim leading/trailing bad characters (excl '_').
+            result = Regex.Replace(result, @"[^A-Za-z0-9]+", "_"); // replace sequences of bad characters with underscores (incl '_').
+
+            for (int i = 0; result.Length == 0 || Char.IsDigit(result[0]) || IsHLSLKeyword(result) || (isDisallowedIdentifier?.Invoke(result) ?? false);)
+            {
+                if (result.StartsWith("_"))
+                    result += $"_{++i}";
+                else
+                    result = "_" + result;
+            }
+            return result;
+        }
+
+        private static string GetDisplaySafeName(string input)
+        {
+            //strip valid display characters from slot name
+            //current valid characters are whitespace and ( ) _ separators
+            StringBuilder cleanName = new StringBuilder();
+            foreach (var c in input)
+            {
+                if (c != ' ' && c != '(' && c != ')' && c != '_')
+                    cleanName.Append(c);
+            }
+
+            return cleanName.ToString();
+        }
+
+        public static bool ValidateSlotName(string inName, out string errorMessage)
+        {
+            //check for invalid characters between display safe and hlsl safe name
+            if (GetDisplaySafeName(inName) != GetHLSLSafeName(inName) && GetDisplaySafeName(inName) != ConvertToValidHLSLIdentifier(inName))
+            {
+                errorMessage = "Slot name(s) found invalid character(s). Valid characters: A-Z, a-z, 0-9, _ ( ) ";
+                return true;
+            }
+
+            //if clean, return null and false
+            errorMessage = null;
+            return false;
+        }
+
+        public static string FloatToGeometryValue(float value)
+        {
+            if (Single.IsPositiveInfinity(value))
+            {
+                return "1.#INF";
+            }
+            if (Single.IsNegativeInfinity(value))
+            {
+                return "-1.#INF";
+            }
+            if (Single.IsNaN(value))
+            {
+                return "NAN";
+            }
+
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        // A number large enough to become Infinity (~FLOAT_MAX_VALUE * 10) + explanatory comment
+        private const string k_ShaderLabInfinityAlternatrive = "3402823500000000000000000000000000000000 /* Infinity */";
+
+        // ShaderLab doesn't support Scientific Notion nor Infinity. To stop from generating a broken shader we do this.
+        public static string FloatToShaderValueShaderLabSafe(float value)
+        {
+            if (Single.IsPositiveInfinity(value))
+            {
+                return k_ShaderLabInfinityAlternatrive;
+            }
+            if (Single.IsNegativeInfinity(value))
+            {
+                return "-" + k_ShaderLabInfinityAlternatrive;
+            }
+            if (Single.IsNaN(value))
+            {
+                return "NAN"; // A real error has occured, in this case we should break the shader.
+            }
+
+            // For single point precision, reserve 54 spaces (e-45 min + ~9 digit precision). See floating-point-numeric-types (Microsoft docs).
+            return value.ToString("0.######################################################", CultureInfo.InvariantCulture);
         }
     }
 }

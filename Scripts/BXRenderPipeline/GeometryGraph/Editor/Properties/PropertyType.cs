@@ -23,6 +23,7 @@ namespace BXGeometryGraph
         Matrix4,
         SamplerState,
         VirtualTexture,
-        PropertyConnectionState
+        PropertyConnectionState,
+        Geometry
     }
 }

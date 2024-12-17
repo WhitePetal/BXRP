@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BXGraphing
+namespace BXGeometryGraph
 {
-    public interface IEdge
+    interface IEdge
     {
         SlotReference outputSlot { get; }
         SlotReference inputSlot { get; }

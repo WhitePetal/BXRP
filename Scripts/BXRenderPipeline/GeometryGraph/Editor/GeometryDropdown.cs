@@ -1,22 +1,92 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace BXGeometryGraph
 {
     [Serializable]
-    public class GeometryDropdown : GeometryInput
+    class GeometryDropdown : GeometryInput
     {
-        internal override ConcreteSlotValueType concreteShaderValueType => throw new System.NotImplementedException();
+        public GeometryDropdown()
+        {
+            this.displayName = "Dropdown";
+            // Add sensible default entries for Enum type
+            m_Entries = new List<DropdownEntry>();
+            m_Entries.Add(new DropdownEntry(1, "A"));
+            m_Entries.Add(new DropdownEntry(2, "B"));
+        }
 
-        internal override bool isExposable => throw new System.NotImplementedException();
+        [SerializeField]
+        private List<DropdownEntry> m_Entries;
 
-        internal override bool isRenamable => throw new System.NotImplementedException();
+        public List<DropdownEntry> entries
+        {
+            get => m_Entries;
+            set => m_Entries = value;
+        }
+
+        internal override bool isCustomSlotAllowed { get => false; }
+        public override bool allowedInMainGraph { get => false; }
+
+        [SerializeField]
+        private int m_Value;
+
+        private int GetClampedValue(int value)
+        {
+            return count > 0 ? Mathf.Clamp(value, 0, count - 1) : 0;
+        }
+
+        public int value
+        {
+            get => GetClampedValue(m_Value);
+            set => m_Value = GetClampedValue(value);
+        }
+
+        public string entryName
+        {
+            get => entries[value].displayName;
+        }
+
+        public int entryId
+        {
+            get => entries[value].id;
+        }
+
+        public bool ContainsEntry(string entryName)
+        {
+            return entries.Any(x => x.displayName.Equals(entryName));
+        }
+
+        public int IndexOfName(string entryName)
+        {
+            return entries.FindIndex((DropdownEntry entry) => entry.displayName.Equals(entryName));
+        }
+
+        public int IndexOfId(int entryId)
+        {
+            return entries.FindIndex((DropdownEntry entry) => entry.id.Equals(entryId));
+        }
+
+        public int count
+        {
+            get { return m_Entries.Count; }
+        }
+
+        internal override bool isExposable => true;
+        internal override bool isRenamable => true;
+
+        internal override ConcreteSlotValueType concreteGeometryValueType => ConcreteSlotValueType.Vector1;
 
         internal override GeometryInput Copy()
         {
-            throw new System.NotImplementedException();
+            return new GeometryDropdown()
+            {
+                displayName = displayName,
+                value = value,
+                entries = entries,
+            };
         }
     }
 }

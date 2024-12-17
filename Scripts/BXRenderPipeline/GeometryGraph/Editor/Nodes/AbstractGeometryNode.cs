@@ -70,30 +70,6 @@ namespace BXGeometryGraph
             m_OnModified -= callback;
         }
 
-        protected static List<GeometrySlot> s_TempSlots = new List<GeometrySlot>();
-        protected static List<IEdge> s_TempEdges = new List<IEdge>();
-        protected static List<PreviewProperty> s_TempPreviewProperties = new List<PreviewProperty>();
-
-        public enum OutputPrecision
-        {
-            @fixed,
-            @half,
-            @float
-        }
-
-        [NonSerialized]
-        protected Guid m_Guid;
-
-        [SerializeField]
-        protected string m_GuidSerialized;
-
-        [SerializeField]
-        protected List<SerializationHelper.JSONSerializedElement> m_SerializableSlots = new List<SerializationHelper.JSONSerializedElement>();
-
-
-        public Identifier tempId { get; set; }
-
-
         public void Dirty(ModificationScope scope)
         {
             // Calling m_OnModified immediately upon dirtying the node can result in a lot of churn. For example,
@@ -341,7 +317,7 @@ namespace BXGeometryGraph
         private string m_DefaultVariableName;
         private string m_NameForDefaultVariableName;
 
-        string defaultVariableName
+        private string defaultVariableName
         {
             get
             {
@@ -621,7 +597,7 @@ namespace BXGeometryGraph
             concretePrecision = graphPrecision.ToConcrete(owner.graphDefaultConcretePrecision);
         }
 
-        public virtual void EvaluateDynamicMaterialSlots(List<GeometrySlot> inputSlots, List<GeometrySlot> outputSlots)
+        public virtual void EvaluateDynamicGeometrySlots(List<GeometrySlot> inputSlots, List<GeometrySlot> outputSlots)
         {
             //var dynamicInputSlotsToCompare = DictionaryPool<DynamicVectorMaterialSlot, ConcreteSlotValueType>.Get();
             //var skippedDynamicSlots = ListPool<DynamicVectorMaterialSlot>.Get();
@@ -752,7 +728,7 @@ namespace BXGeometryGraph
                 GetOutputSlots(outputSlots);
 
                 UpdatePrecision(inputSlots);
-                EvaluateDynamicMaterialSlots(inputSlots, outputSlots);
+                //EvaluateDynamicMaterialSlots(inputSlots, outputSlots);
             }
         }
 

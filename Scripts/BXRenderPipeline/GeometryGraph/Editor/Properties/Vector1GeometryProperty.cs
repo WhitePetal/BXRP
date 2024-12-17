@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -10,13 +11,16 @@ namespace BXGeometryGraph
     {
         Default,
         Slider,
-        Integer
+        Integer,
+        Enum
     }
+
+    public enum EnumType { Enum, CSharpEnum, KeywordEnum}
 
     [System.Serializable]
     [FormerName("BXGeometryGraph.FloatGeometryProperty")]
     [FormerName("BXGeometryGraph.Vector1GeometryProperty")]
-    //[BlackboardInputInfo(0, "Float")]
+    [BlackboardInputInfo(0, "Float")]
     public sealed class Vector1GeometryProperty : AbstractGeometryProperty<float>
     {
         public Vector1GeometryProperty()
@@ -26,12 +30,26 @@ namespace BXGeometryGraph
 
         public override PropertyType propertyType
         {
-            get { return PropertyType.Vector1; }
+            get { return PropertyType.Float; }
         }
 
-        public override Vector4 defaultValue
+        internal override bool isExposable => true;
+        internal override bool isRenamable => true;
+
+        public override float value
         {
-            get { return new Vector4(value, value, value, value); }
+            get
+            {
+                if(floatType == FloatType.Integer)
+                {
+                    return (int)base.value;
+                }
+                return base.value;
+            }
+            set
+            {
+                base.value = value;
+            }
         }
 
         [SerializeField]
@@ -39,68 +57,111 @@ namespace BXGeometryGraph
 
         public FloatType floatType
         {
-            get { return m_FloatType; }
-            set
-            {
-                if (m_FloatType == value)
-                    return;
-                m_FloatType = value;
-            }
+            get => m_FloatType;
+            set => m_FloatType = value;
         }
 
         [SerializeField]
-        public Vector2 m_RangeValues = new Vector2(0, 1);
+        Vector2 m_RangeValues = new Vector2(0, 1);
 
         public Vector2 rangeValues
         {
-            get { return m_RangeValues; }
-            set
+            get => m_RangeValues;
+            set => m_RangeValues = value;
+        }
+
+        EnumType m_EnumType = EnumType.Enum;
+
+        public EnumType enumType
+        {
+            get => m_EnumType;
+            set => m_EnumType = value;
+        }
+
+        private Type m_CSharpEnumType;
+
+        public Type cSharpEnumType
+        {
+            get => m_CSharpEnumType;
+            set => m_CSharpEnumType = value;
+        }
+
+        List<string> m_EnumNames = new List<string>();
+
+        public List<string> enumNames
+        {
+            get => m_EnumNames;
+            set => m_EnumNames = value;
+        }
+
+        List<int> m_EnumValues = new List<int>();
+
+        public List<int> enumValues
+        {
+            get => m_EnumValues;
+            set => m_EnumValues = value;
+        }
+
+        private string enumTagString
+        {
+            get
             {
-                if (m_RangeValues == value)
-                    return;
-                m_RangeValues = value;
+                switch (enumType)
+                {
+                    case EnumType.CSharpEnum:
+                        return $"[Enum({m_CSharpEnumType.ToString()})]";
+                    case EnumType.KeywordEnum:
+                        return $"[KeywordEnum({string.Join(", ", enumNames)})]";
+                    default:
+                        string enumValuesString = "";
+                        for (int i = 0; i < enumNames.Count; i++)
+                        {
+                            int value = (i < enumValues.Count) ? enumValues[i] : i;
+                            enumValuesString += (enumNames[i] + ", " + value + ((i != enumNames.Count - 1) ? ", " : ""));
+                        }
+                        return $"[Enum({enumValuesString})]";
+                }
             }
         }
 
-        public override string GetPropertyBlockString()
+        internal override string GetHLSLVariableName(bool isSubgraphProperty, GenerationMode mode)
         {
-            var result = new StringBuilder();
-            result.Append(referenceName);
-            result.Append("(\"");
-            result.Append(displayName);
+            HLSLDeclaration decl = GetDefaultHLSLDeclaration();
+            if (decl == HLSLDeclaration.HybridPerInstance)
+                return $"UNITY_ACCESS_HYBRID_INSTANCED_PROP({referenceName}, {concretePrecision.ToGeometryString()})";
+            else
+                return base.GetHLSLVariableName(isSubgraphProperty, mode);
+        }
+
+        internal override string GetPropertyBlockString()
+        {
+            string valueString = NodeUtils.FloatToShaderValueShaderLabSafe(value);
+
             switch (floatType)
             {
                 case FloatType.Slider:
-                    result.Append("\", Range(");
-                    result.Append(m_RangeValues.x + ", " + m_RangeValues.y);
-                    result.Append(")) = ");
-                    break;
+                    return $"{hideTagString}{referenceName}(\"{displayName}\", Range({NodeUtils.FloatToShaderValueShaderLabSafe(m_RangeValues.x)}, {NodeUtils.FloatToShaderValueShaderLabSafe(m_RangeValues.y)})) = {valueString}";
                 case FloatType.Integer:
-                    result.Append("\", Int) = ");
-                    break;
+                    return $"{hideTagString}{referenceName}(\"{displayName}\", Int) = {((int)value).ToString(CultureInfo.InvariantCulture)}";
+                case FloatType.Enum:
+                    return $"{hideTagString}{enumTagString}{referenceName}(\"{displayName}\", Float) = {valueString}";
                 default:
-                    result.Append("\", Float) = ");
-                    break;
+                    return $"{hideTagString}{referenceName}(\"{displayName}\", Float) = {valueString}";
             }
-            result.Append(value);
-            return result.ToString();
         }
 
-        public override string GetPropertyDeclarationString(string delimiter = ";")
+        internal override string GetPropertyAsArgumentString(string precisionString)
         {
-            return string.Format("float {0}{1}", referenceName, delimiter);
+            return $"{concreteGeometryValueType.ToGeometryString(precisionString)} {referenceName}";
         }
 
-        public override PreviewProperty GetPreviewGeometryProperty()
+        internal override void ForeachHLSLProperty(Action<HLSLProperty> action)
         {
-            return new PreviewProperty(PropertyType.Vector1)
-            {
-                name = referenceName,
-                floatValue = value
-            };
+            HLSLDeclaration decl = GetDefaultHLSLDeclaration();
+            action(new HLSLProperty(HLSLType._float, referenceName, decl, concretePrecision));
         }
 
-        public override INode ToConcreteNode()
+        internal override AbstractGeometryNode ToConcreteNode()
         {
             switch (m_FloatType)
             {
@@ -109,20 +170,33 @@ namespace BXGeometryGraph
                 case FloatType.Integer:
                     return new IntegerNode { value = (int)value };
                 default:
-                    // TODO
-                    //var node = new Vector1Node();
-                    //node.FindInputSlot<Vector1GeometrySlot>(Vector1Node.InputSlotXId).value = value;
-                    //return node;
-                    return new SliderNode { value = new Vector3(value, m_RangeValues.x, m_RangeValues.y) };
+                    var node = new Vector1Node();
+                    node.FindInputSlot<Vector1GeometrySlot>(Vector1Node.InputSlotXId).value = value;
+                    return node;
             }
         }
 
-        public override IGeometryProperty Copy()
+        internal override PreviewProperty GetPreviewGeometryProperty()
         {
-            var copied = new Vector1GeometryProperty();
-            copied.displayName = displayName;
-            copied.value = value;
-            return copied;
+            return new PreviewProperty(propertyType)
+            {
+                name = referenceName,
+                floatValue = value
+            };
+        }
+
+        internal override GeometryInput Copy()
+        {
+            return new Vector1GeometryProperty()
+            {
+                displayName = displayName,
+                value = value,
+                floatType = floatType,
+                rangeValues = rangeValues,
+                enumType = enumType,
+                enumNames = enumNames,
+                enumValues = enumValues,
+            };
         }
     }
 }

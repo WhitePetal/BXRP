@@ -8,11 +8,11 @@ using UnityEngine.UIElements.Experimental;
 
 namespace BXGeometryGraph
 {
-	public class PortInputView : GraphElement, IDisposable
+	class PortInputView : GraphElement, IDisposable
 	{
-		private const string k_EdgeColorProperty = "edge-color";
+		readonly CustomStyleProperty<Color> k_EdgeColorProperty = new CustomStyleProperty<Color>("--edge-color");
 
-		private Color m_EdgeColor;
+		private Color m_EdgeColor = Color.red;
 
 		public Color edgeColor
 		{
@@ -41,8 +41,8 @@ namespace BXGeometryGraph
 
 			m_EdgeControl = new EdgeControl
 			{
-				@from = new Vector2(212f - 21f, 11.5f),
-				to = new Vector2(212f, 11.5f),
+				@from = new Vector2(232f - 21f, 11.5f),
+				to = new Vector2(232f, 11.5f),
 				edgeWidth = 2,
 				pickingMode = PickingMode.Ignore
 			};
@@ -50,9 +50,7 @@ namespace BXGeometryGraph
 
 			m_Container = new VisualElement { name = "container" };
 			{
-				m_Control = this.slot.InstantiateControl();
-				if (m_Control != null)
-					m_Container.Add(m_Control);
+				CreateControl();
 
 				var slotElement = new VisualElement { name = "slot" };
 				{
@@ -62,14 +60,17 @@ namespace BXGeometryGraph
 			}
 			Add(m_Container);
 
-			m_Container.visible = m_EdgeControl.visible = m_Control != null;
+			m_Container.Add(new VisualElement() { name = "disabledOverlay", pickingMode = PickingMode.Ignore });
+			RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
 		}
 
-		protected override void OnCustomStyleResolved(ICustomStyle style)
+		void OnCustomStyleResolved(CustomStyleResolvedEvent e)
 		{
-			base.OnCustomStyleResolved(style);
-			CustomStyleProperty<Color> edgeColorProperty = new CustomStyleProperty<Color>(k_EdgeColorProperty);
-			style.TryGetValue(edgeColorProperty, out m_EdgeColor);
+			Color colorValue;
+
+			if (e.customStyle.TryGetValue(k_EdgeColorProperty, out colorValue))
+				m_EdgeColor = colorValue;
+
 			m_EdgeControl.UpdateLayout();
 			m_EdgeControl.inputColor = edgeColor;
 			m_EdgeControl.outputColor = edgeColor;
@@ -92,25 +93,40 @@ namespace BXGeometryGraph
 			RemoveFromClassList("type" + m_SlotType);
 			m_SlotType = slot.concreteValueType;
 			AddToClassList("type" + m_SlotType);
-			if(m_Control != null)
+			if (m_Control != null)
 			{
-				var disposable = m_Control as IDisposable;
-				if (disposable != null)
+				if (m_Control is IDisposable disposable)
 					disposable.Dispose();
 				m_Container.Remove(m_Control);
 			}
-			m_Control = slot.InstantiateControl();
-			if (m_Control != null)
-				m_Container.Insert(0, m_Control);
+			CreateControl();
+		}
 
-			m_Container.visible = m_EdgeControl.visible = m_Control != null;
+		void CreateControl()
+		{
+			// Specially designated properties (Use Custom Binding) are shown as a label on the slot when the slot is disconnected, with no ability to set an explicit default.
+			// If the port for this property is connected to, it will use the regular slot control.
+			m_Control = (!slot.isConnected && slot.IsConnectionTestable()) ? slot.InstantiateCustomControl() : slot.InstantiateControl();
+			if (m_Control != null)
+			{
+				m_Container.Insert(0, m_Control);
+			}
+			else
+			{
+				// Some slot types don't support an input control, so hide this
+				m_Container.visible = m_EdgeControl.visible = false;
+			}
 		}
 
 		public void Dispose()
 		{
-			var disposable = m_Control as IDisposable;
-			if (disposable != null)
+			if (m_Control is IDisposable disposable)
 				disposable.Dispose();
+
+			styleSheets.Clear();
+			m_Control = null;
+			m_EdgeControl = null;
+			UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
 		}
 	}
 }

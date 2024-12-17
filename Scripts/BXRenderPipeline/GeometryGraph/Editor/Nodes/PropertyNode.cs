@@ -9,7 +9,7 @@ namespace BXGeometryGraph
 {
     [Serializable]
     [Title("Input", "Property")]
-    public class PropertyNode : AbstractGeometryNode, IGeneratesBodyCode, IOnAssetEnabled, IGeometryInputObserver
+    class PropertyNode : AbstractGeometryNode, IGeneratesShaderBodyCode, IOnAssetEnabled, IGeometryInputObserver
     {
         [SerializeField]
         private JsonRef<AbstractGeometryProperty> m_Property;
@@ -69,149 +69,147 @@ namespace BXGeometryGraph
                 foundSlot.displayName = newDisplayName;
         }
 
-        private void UpdateNode()
+        public void OnEnable()
         {
-            var graph = owner as AbstructGeometryGraph;
-            var property = graph.properties.FirstOrDefault(x => x.guid == propertyGuid);
-            if (property == null)
-                return;
-
-            if (property is Vector1GeometryProperty)
-            {
-                AddSlot(new Vector1GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, 0));
-                RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            }
-            else if (property is Vector2GeometryProperty)
-            {
-                AddSlot(new Vector2GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
-                RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            }
-            else if (property is Vector3GeometryProperty)
-            {
-                AddSlot(new Vector3GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
-                RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            }
-            else if (property is Vector4GeometryProperty)
-            {
-                AddSlot(new Vector4GoemetrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
-                RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            }
-            //else if (property is ColorShaderProperty)
-            //{
-            //    AddSlot(new Vector4MaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
-            //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            //}
-            //else if (property is TextureGeometryProperty)
-            //{
-            //    AddSlot(new Texture2DMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
-            //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            //}
-            //else if (property is CubemapShaderProperty)
-            //{
-            //    AddSlot(new CubemapMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
-            //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            //}
-            //else if (property is BooleanShaderProperty)
-            //{
-            //    AddSlot(new BooleanMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output, false));
-            //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
-            //}
+            AddOutputSlot();
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
-        {
-            var graph = owner as AbstructGeometryGraph;
-            var property = graph.properties.FirstOrDefault(x => x.guid == propertyGuid);
-            if (property == null)
-                return;
+        public const int OutputSlotId = 0;
 
-            if (property is Vector1GeometryProperty)
+        void AddOutputSlot()
+        {
+            if (property is MultiJsonInternal.UnknownGeometryPropertyType uspt)
             {
-                var result = string.Format("{0} {1} = {2};"
-                        , precision
-                        , GetVariableNameForSlot(OutputSlotId)
-                        , property.referenceName);
-                visitor.AddGeometryChunk(result, true);
+                // keep existing slots, don't modify them
+                return;
             }
-            else if (property is Vector2GeometryProperty)
+            switch (property.concreteGeometryValueType)
             {
-                var result = string.Format("{0}2 {1} = {2};"
-                        , precision
-                        , GetVariableNameForSlot(OutputSlotId)
-                        , property.referenceName);
-                visitor.AddGeometryChunk(result, true);
+                //case ConcreteSlotValueType.Boolean:
+                    //AddSlot(new BooleanMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output, false));
+                    //RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                    //break;
+                case ConcreteSlotValueType.Vector1:
+                    AddSlot(new Vector1GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, 0));
+                    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                    break;
+                case ConcreteSlotValueType.Vector2:
+                    AddSlot(new Vector2GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
+                    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                    break;
+                case ConcreteSlotValueType.Vector3:
+                    AddSlot(new Vector3GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
+                    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                    break;
+                //case ConcreteSlotValueType.Vector4:
+                //    AddSlot(new Vector4GeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output, Vector4.zero));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Matrix2:
+                //    AddSlot(new Matrix2MaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Matrix3:
+                //    AddSlot(new Matrix3MaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Matrix4:
+                //    AddSlot(new Matrix4MaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Texture2D:
+                //    AddSlot(new Texture2DMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Texture2DArray:
+                //    AddSlot(new Texture2DArrayMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Texture3D:
+                //    AddSlot(new Texture3DMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Cubemap:
+                //    AddSlot(new CubemapMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.SamplerState:
+                //    AddSlot(new SamplerStateMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.Gradient:
+                //    AddSlot(new GradientMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                //case ConcreteSlotValueType.VirtualTexture:
+                //    AddSlot(new VirtualTextureMaterialSlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                //    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                //    break;
+                case ConcreteSlotValueType.Geometry:
+                    AddSlot(new GeometryGeometrySlot(OutputSlotId, property.displayName, "Out", SlotType.Output));
+                    RemoveSlotsNameNotMatching(new[] { OutputSlotId });
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-            else if (property is Vector3GeometryProperty)
-            {
-                var result = string.Format("{0}3 {1} = {2};"
-                        , precision
-                        , GetVariableNameForSlot(OutputSlotId)
-                        , property.referenceName);
-                visitor.AddGeometryChunk(result, true);
-            }
-            else if (property is Vector4GeometryProperty)
-            {
-                var result = string.Format("{0}4 {1} = {2};"
-                        , precision
-                        , GetVariableNameForSlot(OutputSlotId)
-                        , property.referenceName);
-                visitor.AddGeometryChunk(result, true);
-            }
-            //else if (property is ColorShaderProperty)
-            //{
-            //    var result = string.Format("{0}4 {1} = {2};"
-            //            , precision
-            //            , GetVariableNameForSlot(OutputSlotId)
-            //            , property.referenceName);
-            //    visitor.AddGeometryChunk(result, true);
-            //}
-            //else if (property is BooleanShaderProperty)
-            //{
-            //    var result = string.Format("{0} {1} = {2};"
-            //            , precision
-            //            , GetVariableNameForSlot(OutputSlotId)
-            //            , property.referenceName);
-            //    visitor.AddGeometryChunk(result, true);
-            //}
+        }
+
+        public void GenerateNodeCode(ShaderStringBuilder sb, GenerationMode mode)
+        {
+            // TODO
         }
 
         public override string GetVariableNameForSlot(int slotId)
         {
-            var graph = owner as AbstructGeometryGraph;
-            var property = graph.properties.FirstOrDefault(x => x.guid == propertyGuid);
+            // TODO: we should switch VirtualTexture away from the macro-based variables and towards using the same approach as Texture2D
+            switch (property.propertyType)
+            {
+                case PropertyType.VirtualTexture:
+                    return property.GetHLSLVariableName(owner.isSubGraph, GenerationMode.ForReals);
+            }
 
-            //if (!(property is TextureGeometryProperty) && !(property is CubemapShaderProperty))
-                //return base.GetVariableNameForSlot(slotId);
-
-            return property.referenceName;
+            return base.GetVariableNameForSlot(slotId);
         }
 
-        protected override bool CalculateNodeHasError()
+        public string GetConnectionStateVariableNameForSlot(int slotId)
         {
-            var graph = owner as AbstructGeometryGraph;
-
-            if (!graph.properties.Any(x => x.guid == propertyGuid))
-                return true;
-
-            return false;
+            return GeometryInput.GetConnectionStateVariableName(GetVariableNameForSlot(slotId));
         }
 
-        public override void OnBeforeSerialize()
+        protected override void CalculateNodeHasError()
         {
-            base.OnBeforeSerialize();
-            m_PropertyGuidSerialized = m_PropertyGuid.ToString();
+            if (property == null || !owner.properties.Any(x => x == property))
+            {
+                owner.AddConcretizationError(objectId, "Property Node has no associated Blackboard property.");
+            }
+            else if (property is MultiJsonInternal.UnknownGeometryPropertyType)
+            {
+                owner.AddValidationError(objectId, "Property is of unknown type, a package may be missing.", GeometryCompilerMessageSeverity.Warning);
+            }
         }
 
-        public override void OnAfterDeserialize()
+        public override void UpdatePrecision(List<GeometrySlot> inputSlots)
         {
-            base.OnAfterDeserialize();
-            if (!string.IsNullOrEmpty(m_PropertyGuidSerialized))
-                m_PropertyGuid = new Guid(m_PropertyGuidSerialized);
+            // Get precision from Property
+            if (property == null)
+            {
+                owner.AddConcretizationError(objectId, string.Format("No matching poperty found on owner for node {0}", objectId));
+                hasError = true;
+                return;
+            }
+
+            // this node's precision is always controlled by the property precision
+            precision = property.precision;
+
+            graphPrecision = precision.ToGraphPrecision(GraphPrecision.Graph);
+            concretePrecision = graphPrecision.ToConcrete(owner.graphDefaultConcretePrecision);
         }
 
-        public void OnEnable()
+        public void OnShaderInputUpdated(ModificationScope modificationScope)
         {
-            UpdateNode();
+            if (modificationScope == ModificationScope.Layout)
+                UpdateNodeDisplayName(property.displayName);
+            Dirty(modificationScope);
         }
     }
 }

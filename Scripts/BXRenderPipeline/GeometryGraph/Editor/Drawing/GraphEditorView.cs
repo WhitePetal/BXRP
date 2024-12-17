@@ -28,21 +28,37 @@ namespace BXGeometryGraph
 		public bool isBlackboardVisible = true;
 		public bool isPreviewVisible = true;
 		public bool isInspectorVisible = true;
-		public string colorProvider = NoColors.
+		public string colorProvider = NoColors.Title;
     }
 
 	public class GraphEditorView : VisualElement, IDisposable
 	{
 		private GeometryGraphView m_GraphView;
 		//private MasterPreviewViews m_MasterPreviewView;
+		//private InspectorView m_InspectorView;
+
+		private GraphData m_Graph;
+		private PreviewManager m_PreviewManager;
+		private MessageManager m_MessageManager;
+		private SearchWindowProvider m_SearchWindowProvider;
+		private EdgeConnectorListener m_EdgeConnectorListener;
+		private VisualElement m_HoveredContextView;
+
+		private BlackboardController m_BlackboardController;
+
+		internal BlackboardController blackboardController
+		{
+			get => m_BlackboardController;
+			set
+			{
+				if (value != null)
+					m_BlackboardController = value;
+			}
+		}
+
 
 		private EditorWindow m_EditorWindow;
 
-		private AbstructGeometryGraph m_Graph;
-		private PreviewManager m_PreviewManager;
-		private SearchWindowProvider m_SearchWindowProvider;
-		private IEdgeConnectorListener m_EdgeConnectorListener;
-		private BlackboardProvider m_BlackboardProvider;
 
 		private const string k_FloatingWindowsLayoutKey = "BXGeometryGraph.FloatingWindowsLayout";
 		private FloatingWindowsLayout m_FloatingWindowsLayout;

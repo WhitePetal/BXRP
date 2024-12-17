@@ -1,64 +1,761 @@
 using BXGraphing;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
 namespace BXGeometryGraph
 {
+	[HasDependencies(typeof(MinimalSubGraphNode))]
 	[Title("Utility", "Sub-graph")]
-	public class SubGraphNode : AbstractGeometryNode,
-		IGeneratesBodyCode,
-		IOnAssetEnabled
+	class SubGraphNode : AbstractGeometryNode,
+		IGeneratesShaderBodyCode,
+		IOnAssetEnabled,
+		IGeneratesShaderFunction,
+		IMayRequireGeometry,
+		IDisposable
 	{
+		[Serializable]
+		public class MinimalSubGraphNode : IHasDependencies
+		{
+			[SerializeField]
+			private string m_SerializedSubGraph = string.Empty;
+
+			public void GetSourceAssetDependencies(AssetCollection assetCollection)
+			{
+				var assetReference = JsonUtility.FromJson<SubGraphAssetReference>(m_SerializedSubGraph);
+				string guidString = assetReference?.subGraph?.guid;
+				if (!string.IsNullOrEmpty(guidString) && GUID.TryParse(guidString, out GUID guid))
+				{
+					// subgraphs are read as artifacts
+					// they also should be pulled into .unitypackages
+					assetCollection.AddAssetDependency(
+						guid,
+						AssetCollection.Flags.ArtifactDependency |
+						AssetCollection.Flags.IsSubGraph |
+						AssetCollection.Flags.IncludeInExportPackage);
+				}
+			}
+		}
+
+		[Serializable]
+		class SubGraphHelper
+		{
+			public SubGraphAsset subGraph;
+		}
+
+		[Serializable]
+		class SubGraphAssetReference
+		{
+			public AssetReference subGraph = default;
+
+			public override string ToString()
+			{
+				return $"subGraph={subGraph}";
+			}
+		}
+
+		[Serializable]
+		class AssetReference
+		{
+			public long fileID = default;
+			public string guid = default;
+			public int type = default;
+
+			public override string ToString()
+			{
+				return $"fileID={fileID}, guid={guid}, type={type}";
+			}
+		}
+
 		[SerializeField]
 		private string m_SerializedSubGraph = string.Empty;
 
-		// TODO
-//#if UNITY_EDITOR
-//		[ObjectControl("")]
-//		public GeometrySubGraphAsset subGraphAsset
-//		{
-//			get
-//			{
-//				if (string.IsNullOrEmpty(m_SerializedSubGraph))
-//					return null;
-
-//				var helper = new SubGraphHelper();
-//				EditorJsonUtility.FromJsonOverwrite(m_SerializedSubGraph, helper);
-//				return helper.subGraph;
-//			}
-//			set
-//			{
-//				if (subGraphAsset == value)
-//					return;
-
-//				var helper = new SubGraphHelper();
-//				helper.subGraph = value;
-//				m_SerializedSubGraph = EditorJsonUtility.ToJson(helper, true);
-//				UpdateSlots();
-
-//				Dirty(ModificationScope.Topological);
-//			}
-//		}
-//#else
-//        public MaterialSubGraphAsset subGraphAsset {get; set; }
-//#endif
+		[NonSerialized]
+		private SubGraphAsset m_SubGraph; // This should not be accessed directly by most code -- use the asset property instead, and check for NULL! :)
 
 		[SerializeField]
-		private class SubGraphHelper
+		private List<string> m_PropertyGuids = new List<string>();
+
+		[SerializeField]
+		private List<int> m_PropertyIds = new List<int>();
+
+		[SerializeField]
+		private List<string> m_Dropdowns = new List<string>();
+
+		[SerializeField]
+		private List<string> m_DropdownSelectedEntries = new List<string>();
+
+		public string subGraphGuid
 		{
-			//public GeometrySubGraphAsset subGraph;
+			get
+			{
+				var assetReference = JsonUtility.FromJson<SubGraphAssetReference>(m_SerializedSubGraph);
+				return assetReference?.subGraph?.guid;
+			}
 		}
 
-		public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+		private void LoadSubGraph()
+        {
+			if(m_SubGraph == null)
+            {
+				if (string.IsNullOrEmpty(m_SerializedSubGraph))
+					return;
+
+				var graphGuid = subGraphGuid;
+				var assetPath = AssetDatabase.GUIDToAssetPath(graphGuid);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+					// this happens if the editor has never seen the GUID
+					// error will be printed by validation code in this case
+					return;
+				}
+				m_SubGraph = AssetDatabase.LoadAssetAtPath<SubGraphAsset>(assetPath);
+				if(m_SubGraph == null)
+                {
+					// this happens if the editor has seen the GUID, but the file has been deleted since then
+					// error will be printed by validation code in this case
+					return;
+				}
+				m_SubGraph.LoadGraphData();
+				m_SubGraph.LoadDependencyData();
+
+				name = m_SubGraph.name;
+            }
+        }
+
+		public SubGraphAsset asset
+        {
+            get
+            {
+				LoadSubGraph();
+				return m_SubGraph;
+            }
+            set
+            {
+				if (asset == value)
+					return;
+
+				var helper = new SubGraphHelper();
+				helper.subGraph = value;
+				m_SerializedSubGraph = EditorJsonUtility.ToJson(helper, true);
+				m_SubGraph = null;
+				UpdateSlots();
+
+				Dirty(ModificationScope.Topological);
+            }
+        }
+
+		public override bool hasPreview => true;
+
+        public override PreviewMode previewMode
+        {
+            get
+            {
+				PreviewMode mode = m_PreviewMode;
+				if ((mode == PreviewMode.Inherit) && (asset != null))
+					mode = asset.previewMode;
+				return mode;
+            }
+        }
+
+		public SubGraphNode()
 		{
-			throw new System.NotImplementedException();
+			name = "Sub Graph";
+		}
+
+		public override bool allowedInSubGraph => true;
+
+        public override bool canSetPrecision
+        {
+            get
+            {
+				return asset?.subGraphGraphPrecision == GraphPrecision.Graph;
+            }
+        }
+
+        public override void GetInputSlots<T>(GeometrySlot startingSlot, List<T> foundSlots)
+        {
+			var allSlots = new List<T>();
+			GetInputSlots<T>(allSlots);
+			var info = asset?.GetOutputDependencies(startingSlot.RawDisplayName());
+			if(info != null)
+            {
+				foreach(var slot in allSlots)
+                {
+					if (info.ContainsSlot(slot))
+						foundSlots.Add(slot);
+                }
+            }
+        }
+
+        public override void GetOutputSlots<T>(GeometrySlot startingSlot, List<T> foundSlots)
+        {
+			var allSlots = new List<T>();
+			GetOutputSlots<T>(allSlots);
+			var info = asset?.GetInputDependencies(startingSlot.RawDisplayName());
+			if(info != null)
+            {
+				foreach(var slot in allSlots)
+                {
+					if (info.ContainsSlot(slot))
+						foundSlots.Add(slot);
+                }
+            }
+        }
+
+		private GeometryStageCapability GetSlotCapability(GeometrySlot slot)
+        {
+			SlotDependencyInfo dependencyInfo;
+			if (slot.isInputSlot)
+				dependencyInfo = asset?.GetInputDependencies(slot.RawDisplayName());
+			else
+				dependencyInfo = asset?.GetOutputDependencies(slot.RawDisplayName());
+
+			if (dependencyInfo != null)
+				return dependencyInfo.capabilities;
+
+			return GeometryStageCapability.All;
+        }
+
+		public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
+        {
+			var outputGraphPrecision = asset?.outputGraphPrecision ?? GraphPrecision.Single;
+			var outputPrecision = outputGraphPrecision.ToConcrete(concretePrecision);
+
+			if(asset == null || hasError)
+            {
+				var outputSlots = new List<GeometrySlot>();
+				GetOutputSlots(outputSlots);
+
+				foreach(var slot in outputSlots)
+                {
+					sb.AppendLine($"{slot.concreteValueType.ToGeometryString(outputPrecision)} {GetVariableNameForSlot(slot.id)} = {slot.GetDefaultValue(GenerationMode.ForReals)};");
+				}
+
+				return;
+            }
+
+			var inputVariableName = $"_{GetVariableNameForNode()}";
+
+			GenerationUtils.GenerateSurfaceInputTransferCode(sb, asset.requirements, asset.inputStructName, inputVariableName);
+
+			// declare output variables
+			foreach (var outSlot in asset.outputs)
+				sb.AppendLine("{0} {1};", outSlot.concreteValueType.ToGeometryString(outputPrecision), GetVariableNameForSlot(outSlot.id));
+
+			var arguments = new List<string>();
+			foreach (AbstractGeometryProperty prop in asset.inputs)
+			{
+				// setup the property concrete precision (fallback to node concrete precision when it's switchable)
+				prop.SetupConcretePrecision(this.concretePrecision);
+				var inSlotId = m_PropertyIds[m_PropertyGuids.IndexOf(prop.guid.ToString())];
+				arguments.Add(GetSlotValue(inSlotId, generationMode, prop.concretePrecision));
+
+				if (prop.isConnectionTestable)
+					arguments.Add(IsSlotConnected(inSlotId) ? "true" : "false");
+			}
+
+			var dropdowns = asset.dropdowns;
+			foreach (var dropdown in dropdowns)
+			{
+				var name = GetDropdownEntryName(dropdown.referenceName);
+				if (dropdown.ContainsEntry(name))
+					arguments.Add(dropdown.IndexOfName(name).ToString());
+				else
+					arguments.Add(dropdown.value.ToString());
+			}
+
+			// pass surface inputs through
+			arguments.Add(inputVariableName);
+
+			foreach (var outSlot in asset.outputs)
+				arguments.Add(GetVariableNameForSlot(outSlot.id));
+
+			foreach (var feedbackSlot in asset.vtFeedbackVariables)
+			{
+				string feedbackVar = GetVariableNameForNode() + "_" + feedbackSlot;
+				sb.AppendLine("{0} {1};", ConcreteSlotValueType.Vector4.ToGeometryString(ConcretePrecision.Single), feedbackVar);
+				arguments.Add(feedbackVar);
+			}
+
+			sb.TryAppendIndentation();
+			sb.Append(asset.functionName);
+			sb.Append("(");
+			bool firstArg = true;
+			foreach (var arg in arguments)
+			{
+				if (!firstArg)
+					sb.Append(", ");
+				firstArg = false;
+				sb.Append(arg);
+			}
+			sb.Append(");");
+			sb.AppendNewLine();
 		}
 
 		public void OnEnable()
-		{
-			throw new System.NotImplementedException();
+        {
+			UpdateSlots();
+        }
+
+		public bool Reload(HashSet<string> changedFileDependencyGUIDs)
+        {
+			if (!changedFileDependencyGUIDs.Contains(subGraphGuid))
+				return false;
+
+			if (asset == null)
+				// asset missing or deleted
+				return false;
+
+			if (changedFileDependencyGUIDs.Contains(asset.assetGuid) || asset.descendents.Any(changedFileDependencyGUIDs.Contains))
+			{
+				m_SubGraph = null;
+				UpdateSlots();
+
+				if (hasError)
+				{
+					return true;
+				}
+
+				owner.ClearErrorsForNode(this);
+				ValidateNode();
+				Dirty(ModificationScope.Graph);
+			}
+
+			return true;
 		}
-	}
+
+		public override void UpdatePrecision(List<GeometrySlot> inputSlots)
+		{
+			if (asset != null)
+			{
+				if (asset.subGraphGraphPrecision == GraphPrecision.Graph)
+				{
+					// subgraph is defined to be switchable, so use the default behavior to determine precision
+					base.UpdatePrecision(inputSlots);
+				}
+				else
+				{
+					// subgraph sets a specific precision, force that
+					graphPrecision = asset.subGraphGraphPrecision;
+					concretePrecision = graphPrecision.ToConcrete(owner.graphDefaultConcretePrecision);
+				}
+			}
+			else
+			{
+				// no subgraph asset; use default behavior
+				base.UpdatePrecision(inputSlots);
+			}
+		}
+
+		public virtual void UpdateSlots()
+        {
+			var validNames = new List<int>();
+			if (asset == null)
+				return;
+
+			var props = asset.inputs;
+			var toFix = new HashSet<(SlotReference from, SlotReference to)>();
+			foreach(var prop in props)
+            {
+				SlotValueType valueType = prop.concreteGeometryValueType.ToSlotValueType();
+				var propertyString = prop.guid.ToString();
+				var propertyIndex = m_PropertyGuids.IndexOf(propertyString);
+				if(propertyIndex < 0)
+                {
+					propertyIndex = m_PropertyGuids.Count;
+					m_PropertyGuids.Add(propertyString);
+					m_PropertyIds.Add(prop.guid.GetHashCode());
+                }
+				var id = m_PropertyIds[propertyIndex];
+
+				//for whatever reason, it seems like shader property ids changed between 21.2a17 and 21.2b1
+				//tried tracking it down, couldnt find any reason for it, so we gotta fix it in post (after we deserialize)
+				List<GeometrySlot> inputs = new List<GeometrySlot>();
+				GeometrySlot found = null;
+				GetInputSlots(inputs);
+				foreach (var input in inputs)
+				{
+					if (input.geometryOutputName == prop.referenceName && input.id != id)
+					{
+						found = input;
+						break;
+					}
+				}
+
+				GeometrySlot slot = GeometrySlot.CreateGeometrySlot(valueType, id, prop.displayName, prop.referenceName, SlotType.Input, Vector4.zero, GeometryStageCapability.All);
+
+                // Copy defaults
+                switch (prop.concreteGeometryValueType)
+                {
+					//case ConcreteSlotValueType.SamplerState:
+					//	{
+					//		var tSlot = slot as SamplerStateMaterialSlot;
+					//		var tProp = prop as SamplerStateShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.defaultSamplerState = tProp.value;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Matrix4:
+					//	{
+					//		var tSlot = slot as Matrix4MaterialSlot;
+					//		var tProp = prop as Matrix4ShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.value = tProp.value;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Matrix3:
+					//	{
+					//		var tSlot = slot as Matrix3MaterialSlot;
+					//		var tProp = prop as Matrix3ShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.value = tProp.value;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Matrix2:
+					//	{
+					//		var tSlot = slot as Matrix2MaterialSlot;
+					//		var tProp = prop as Matrix2ShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.value = tProp.value;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Texture2D:
+					//	{
+					//		var tSlot = slot as Texture2DInputMaterialSlot;
+					//		var tProp = prop as Texture2DShaderProperty;
+					//		if (tSlot != null && tProp != null)
+
+					//			tSlot.texture = tProp.value.texture;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Texture2DArray:
+					//	{
+					//		var tSlot = slot as Texture2DArrayInputMaterialSlot;
+					//		var tProp = prop as Texture2DArrayShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.textureArray = tProp.value.textureArray;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Texture3D:
+					//	{
+					//		var tSlot = slot as Texture3DInputMaterialSlot;
+					//		var tProp = prop as Texture3DShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.texture = tProp.value.texture;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Cubemap:
+					//	{
+					//		var tSlot = slot as CubemapInputMaterialSlot;
+					//		var tProp = prop as CubemapShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.cubemap = tProp.value.cubemap;
+					//	}
+					//	break;
+					//case ConcreteSlotValueType.Gradient:
+					//	{
+					//		var tSlot = slot as GradientInputMaterialSlot;
+					//		var tProp = prop as GradientShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.value = tProp.value;
+					//	}
+					//	break;
+					case ConcreteSlotValueType.Vector4:
+						{
+							var tSlot = slot as Vector4GoemetrySlot;
+							var vector4Prop = prop as Vector4GeometryProperty;
+							//var colorProp = prop as ColorGeometryProperty;
+							if (tSlot != null && vector4Prop != null)
+								tSlot.value = vector4Prop.value;
+							//else if (tSlot != null && colorProp != null)
+								//tSlot.value = colorProp.value;
+						}
+						break;
+					case ConcreteSlotValueType.Vector3:
+						{
+							var tSlot = slot as Vector3GeometrySlot;
+							var tProp = prop as Vector3GeometryProperty;
+							if (tSlot != null && tProp != null)
+								tSlot.value = tProp.value;
+						}
+						break;
+					case ConcreteSlotValueType.Vector2:
+						{
+							var tSlot = slot as Vector2GeometrySlot;
+							var tProp = prop as Vector2GeometryProperty;
+							if (tSlot != null && tProp != null)
+								tSlot.value = tProp.value;
+						}
+						break;
+					case ConcreteSlotValueType.Vector1:
+						{
+							var tSlot = slot as Vector1GeometrySlot;
+							var tProp = prop as Vector1GeometryProperty;
+							if (tSlot != null && tProp != null)
+								tSlot.value = tProp.value;
+						}
+						break;
+					//case ConcreteSlotValueType.Boolean:
+					//	{
+					//		var tSlot = slot as BooleanMaterialSlot;
+					//		var tProp = prop as BooleanShaderProperty;
+					//		if (tSlot != null && tProp != null)
+					//			tSlot.value = tProp.value;
+					//	}
+					//	break;
+					case ConcreteSlotValueType.Geometry:
+                        {
+							var tSlot = slot as GeometryGeometrySlot;
+							var tProp = prop as GeometryGeometryProperty;
+							//if (tSlot != null && tProp != null)
+								//tSlot.value = tProp.value;
+                        }
+						break;
+				}
+
+				AddSlot(slot);
+				validNames.Add(id);
+
+				if(found != null)
+                {
+					List<IEdge> edges = new List<IEdge>();
+					owner.GetEdges(found.slotReference, edges);
+					foreach(var edge in edges)
+                    {
+						toFix.Add((edge.outputSlot, slot.slotReference));
+                    }
+                }
+			}
+
+			foreach (var slot in asset.outputs)
+			{
+				var outputStage = GetSlotCapability(slot);
+				var newSlot = GeometrySlot.CreateGeometrySlot(slot.valueType, slot.id, slot.RawDisplayName(),
+					slot.geometryOutputName, SlotType.Output, Vector4.zero, outputStage, slot.hidden);
+				AddSlot(newSlot);
+				validNames.Add(slot.id);
+			}
+
+			RemoveSlotsNameNotMatching(validNames, true);
+
+			// sort slot order to match subgraph property order
+			SetSlotOrder(validNames);
+
+			foreach (var (from, to) in toFix)
+			{
+				//for whatever reason, in this particular error fix, GraphView will incorrectly either add two edgeViews or none
+				//but it does work correctly if we dont notify GraphView of this added edge. Gross.
+				owner.UnnotifyAddedEdge(owner.Connect(from, to));
+			}
+		}
+
+		private void ValidateGeometryStage()
+        {
+			if(asset != null)
+            {
+				List<GeometrySlot> slots = new List<GeometrySlot>();
+				GetInputSlots(slots);
+				GetOutputSlots(slots);
+
+				foreach (GeometrySlot slot in slots)
+					slot.stageCapability = GetSlotCapability(slot);
+			}
+        }
+
+        public override void ValidateNode()
+        {
+            base.ValidateNode();
+
+			if (asset == null)
+			{
+				hasError = true;
+				var assetGuid = subGraphGuid;
+				var assetPath = string.IsNullOrEmpty(subGraphGuid) ? null : AssetDatabase.GUIDToAssetPath(assetGuid);
+				if (string.IsNullOrEmpty(assetPath))
+				{
+					owner.AddValidationError(objectId, $"Could not find Sub Graph asset with GUID {assetGuid}.");
+				}
+				else
+				{
+					owner.AddValidationError(objectId, $"Could not load Sub Graph asset at \"{assetPath}\" with GUID {assetGuid}.");
+				}
+
+				return;
+			}
+
+			if (owner.isSubGraph && (asset.descendents.Contains(owner.assetGuid) || asset.assetGuid == owner.assetGuid))
+			{
+				hasError = true;
+				owner.AddValidationError(objectId, $"Detected a recursion in Sub Graph asset at \"{AssetDatabase.GUIDToAssetPath(subGraphGuid)}\" with GUID {subGraphGuid}.");
+			}
+			else if (!asset.isValid)
+			{
+				hasError = true;
+				owner.AddValidationError(objectId, $"Sub Graph has errors, asset at \"{AssetDatabase.GUIDToAssetPath(subGraphGuid)}\" with GUID {subGraphGuid}.");
+			}
+			else if (!owner.isSubGraph && owner.activeTargets.Any(x => asset.unsupportedTargets.Contains(x)))
+			{
+				SetOverrideActiveState(ActiveState.ExplicitInactive);
+				owner.AddValidationError(objectId, $"Sub Graph contains nodes that are unsupported by the current active targets, asset at \"{AssetDatabase.GUIDToAssetPath(subGraphGuid)}\" with GUID {subGraphGuid}.");
+			}
+
+			// detect disconnected VT properties, and VT layer count mismatches
+			//foreach (var paramProp in asset.inputs)
+			//{
+			//	if (paramProp is VirtualTextureShaderProperty vtProp)
+			//	{
+			//		int paramLayerCount = vtProp.value.layers.Count;
+
+			//		var argSlotId = m_PropertyIds[m_PropertyGuids.IndexOf(paramProp.guid.ToString())];      // yikes
+			//		if (!IsSlotConnected(argSlotId))
+			//		{
+			//			owner.AddValidationError(objectId, $"A VirtualTexture property must be connected to the input slot \"{paramProp.displayName}\"");
+			//		}
+			//		else
+			//		{
+			//			var argProp = GetSlotProperty(argSlotId) as VirtualTextureShaderProperty;
+			//			if (argProp != null)
+			//			{
+			//				int argLayerCount = argProp.value.layers.Count;
+
+			//				if (argLayerCount != paramLayerCount)
+			//					owner.AddValidationError(objectId, $"Input \"{paramProp.displayName}\" has different number of layers from the connected property \"{argProp.displayName}\"");
+			//			}
+			//			else
+			//			{
+			//				owner.AddValidationError(objectId, $"Input \"{paramProp.displayName}\" is not connected to a valid VirtualTexture property");
+			//			}
+			//		}
+
+			//		break;
+			//	}
+			//}
+
+			ValidateGeometryStage();
+		}
+
+        public override void CollectGeometryProperties(PropertyCollector visitor, GenerationMode generationMode)
+        {
+            base.CollectGeometryProperties(visitor, generationMode);
+
+			if (asset == null)
+				return;
+
+			foreach (var property in asset.nodeProperties)
+			{
+				visitor.AddGeometryProperty(property);
+			}
+		}
+
+		public AbstractGeometryProperty GetGeometryProperty(int id)
+        {
+			var index = m_PropertyIds.IndexOf(id);
+			if (index >= 0)
+			{
+				var guid = m_PropertyGuids[index];
+				return asset?.inputs.Where(x => x.guid.ToString().Equals(guid)).FirstOrDefault();
+			}
+			return null;
+		}
+
+        //public void CollectShaderKeywords(KeywordCollector keywords, GenerationMode generationMode)
+        //{
+        //	if (asset == null)
+        //		return;
+
+        //	foreach (var keyword in asset.keywords)
+        //	{
+        //		keywords.AddShaderKeyword(keyword as ShaderKeyword);
+        //	}
+        //}
+
+        public override void CollectPreviewGeometryProperties(List<PreviewProperty> properties)
+        {
+            base.CollectPreviewGeometryProperties(properties);
+
+			if (asset == null)
+				return;
+
+			foreach (var property in asset.nodeProperties)
+			{
+				properties.Add(property.GetPreviewGeometryProperty());
+			}
+		}
+
+		public virtual void GenerateNodeFunction(FunctionRegistry registry, GenerationMode generationMode)
+        {
+			if (asset == null || hasError)
+				return;
+
+			var graphData = registry.builder.currentNode.owner;
+			var graphDefaultConcretePrecision = graphData.graphDefaultConcretePrecision;
+
+			foreach(var function in asset.functions)
+            {
+				var name = function.key;
+				var source = function.value;
+				var graphPrecisionFlags = function.graphPrecisionFlags;
+
+				// the subgraph may use multiple precision variants of this function internally
+				// here we iterate through all the requested precisions and forward those requests out to the graph
+				for(int requestedGraphPrecision = 0; requestedGraphPrecision <= (int)GraphPrecision.Half; ++requestedGraphPrecision)
+                {
+					// only provide requested precisions
+					if ((graphPrecisionFlags & (1 << requestedGraphPrecision)) != 0)
+					{
+						// when a function coming from a subgraph asset has a graph precision of "Graph",
+						// that means it is up to the subgraph NODE to decide (i.e. us!)
+						GraphPrecision actualGraphPrecision = (GraphPrecision)requestedGraphPrecision;
+
+						// subgraph asset setting falls back to this node setting (when switchable)
+						actualGraphPrecision = actualGraphPrecision.GraphFallback(this.graphPrecision);
+
+						// which falls back to the graph default concrete precision
+						ConcretePrecision actualConcretePrecision = actualGraphPrecision.ToConcrete(graphDefaultConcretePrecision);
+
+						// forward the function into the current graph
+						registry.ProvideFunction(name, actualGraphPrecision, actualConcretePrecision, sb => sb.AppendLines(source));
+					}
+				}
+			}
+		}
+
+		public bool RequiresGeometry(GeometryStageCapability stageCapability = GeometryStageCapability.All)
+		{
+			if (asset == null)
+				return false;
+
+			return asset.requirements.requiresGeometry;
+		}
+
+		public string GetDropdownEntryName(string referenceName)
+		{
+			var index = m_Dropdowns.IndexOf(referenceName);
+			return index >= 0 ? m_DropdownSelectedEntries[index] : string.Empty;
+		}
+
+		public void SetDropdownEntryName(string referenceName, string value)
+		{
+			var index = m_Dropdowns.IndexOf(referenceName);
+			if (index >= 0)
+			{
+				m_DropdownSelectedEntries[index] = value;
+			}
+			else
+			{
+				m_Dropdowns.Add(referenceName);
+				m_DropdownSelectedEntries.Add(value);
+			}
+		}
+
+		public override void Dispose()
+		{
+			base.Dispose();
+			m_SubGraph = null;
+		}
+    }
 }

@@ -3,31 +3,27 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BXGraphing
+namespace BXGeometryGraph
 {
     [System.Serializable]
-    public struct SlotReference : ISerializationCallbackReceiver, IEquatable<SlotReference>
+    struct SlotReference : IEquatable<SlotReference>, IComparable<SlotReference>
     {
+        [SerializeField]
+        private JsonRef<AbstractGeometryNode> m_Node;
+
         [SerializeField]
         private int m_SlotId;
 
-        [NonSerialized]
-        private Guid m_NodeGUID;
 
-        [SerializeField]
-        private string m_NodeGUIDSerialized;
-
-
-        public SlotReference(Guid nodeGuid, int slotId)
+        public SlotReference(AbstractGeometryNode node, int slotId)
         {
-            m_NodeGUID = nodeGuid;
+            m_Node = node;
             m_SlotId = slotId;
-            m_NodeGUIDSerialized = string.Empty;
         }
 
-        public Guid nodeGuid
+        public AbstractGeometryNode node
         {
-            get { return m_NodeGUID; }
+            get { return m_Node; }
         }
 
         public int slotId
@@ -35,37 +31,36 @@ namespace BXGraphing
             get { return m_SlotId; }
         }
 
-        public void OnBeforeSerialize()
-        {
-            m_NodeGUIDSerialized = m_NodeGUID.ToString();
-        }
-
-        public void OnAfterDeserialize()
-        {
-            m_NodeGUID = new Guid(m_NodeGUIDSerialized);
-        }
+        public GeometrySlot slot => m_Node.value?.FindSlot<GeometrySlot>(m_SlotId);
 
         public bool Equals(SlotReference other)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return m_SlotId == other.m_SlotId && m_NodeGUID.Equals(other.m_NodeGUID);
+            return m_SlotId == other.m_SlotId && m_Node.value == other.m_Node.value;
         }
 
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((SlotReference)obj);
+            return obj.GetType() == GetType() && Equals((SlotReference)obj);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return (m_SlotId * 397) ^ m_NodeGUID.GetHashCode();
+                return (m_SlotId * 397) ^ m_Node.GetHashCode();
             }
+        }
+
+        public int CompareTo(SlotReference other)
+        {
+            var nodeIdComparison = m_Node.value.objectId.CompareTo(other.m_Node.value.objectId);
+            if (nodeIdComparison != 0)
+            {
+                return nodeIdComparison;
+            }
+
+            return m_SlotId.CompareTo(other.m_SlotId);
         }
     }
 }

@@ -14,6 +14,8 @@ namespace BXGeometryGraph
         Matrix3,
         Matrix2,
         Texture2D,
+        Texture2DArray,
+        Texture3D,
         Cubemap,
         Gradient,
         DynamicVector,
@@ -22,7 +24,10 @@ namespace BXGeometryGraph
         Vector2,
         Vector1,
         Dynamic,
-        Boolean
+        Boolean,
+        VirtualTexture,
+        PropertyConnectionState,
+        Geometry,
     }
 
     public enum ConcreteSlotValueType
@@ -42,7 +47,8 @@ namespace BXGeometryGraph
         Vector1,
         Boolean,
         VirtualTexture,
-        PropertyConnectionState
+        PropertyConnectionState,
+        Geometry
     }
 
     public static class SlotValueHelper

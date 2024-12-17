@@ -110,7 +110,7 @@ namespace BXGeometryGraph
                                                   && GetDefaultHLSLDeclaration() != HLSLDeclaration.Global;
 
         // the more complex interface for complex properties (defaulted for simple properties)
-        internal virtual void AppendPropertyBlockStrings(GeometryStringBuilder builder)
+        internal virtual void AppendPropertyBlockStrings(ShaderStringBuilder builder)
         {
             builder.AppendLine(GetPropertyBlockString());
         }
@@ -124,7 +124,7 @@ namespace BXGeometryGraph
 
         internal abstract string GetPropertyAsArgumentString(string precisionString);
         internal abstract AbstractGeometryNode ToConcreteNode();
-        internal abstract PreviewProperty GetPreviewMaterialProperty();
+        internal abstract PreviewProperty GetPreviewGeometryProperty();
 
         public virtual string GetPropertyTypeString()
         {
@@ -141,7 +141,7 @@ namespace BXGeometryGraph
         [SerializeField]
         private T m_Value;
 
-        public T value
+        public virtual T value
         {
             get { return m_Value; }
             set { m_Value = value; }
@@ -215,6 +215,38 @@ namespace BXGeometryGraph
         public HLSLType type;
         public ConcretePrecision precision;
         public HLSLDeclaration declaration;
-        //public Action<ShaderStringBuilder> customDeclaration;
+        public Action<ShaderStringBuilder> customDeclaration;
+
+        public HLSLProperty(HLSLType type, string name, HLSLDeclaration declaration, ConcretePrecision precision = ConcretePrecision.Single)
+        {
+            this.type = type;
+            this.name = name;
+            this.declaration = declaration;
+            this.precision = precision;
+            this.customDeclaration = null;
+        }
+
+        public bool ValueEquals(HLSLProperty other)
+        {
+            if ((name != other.name) ||
+                (type != other.type) ||
+                (precision != other.precision) ||
+                (declaration != other.declaration) ||
+                ((customDeclaration == null) != (other.customDeclaration == null)))
+            {
+                return false;
+            }
+            else if (customDeclaration != null)
+            {
+                var ssb = new ShaderStringBuilder();
+                var ssbother = new ShaderStringBuilder();
+                customDeclaration(ssb);
+                other.customDeclaration(ssbother);
+                if (ssb.ToCodeBlock() != ssbother.ToCodeBlock())
+                    return false;
+            }
+            return true;
+
+        }
     }
 }

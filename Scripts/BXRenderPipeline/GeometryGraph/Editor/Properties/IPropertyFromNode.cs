@@ -6,7 +6,7 @@ namespace BXGeometryGraph
 {
     internal interface IPropertyFromNode
     {
-        IGeometryProperty AsGeometryProperty();
+        AbstractGeometryProperty AsGeometryProperty();
         int outputSlotID { get; }
     }
 }

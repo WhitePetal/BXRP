@@ -2,17 +2,26 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using BXGraphing;
+using System;
 
 namespace BXGeometryGraph
 {
     [System.Serializable]
-    public class Edge : IEdge
+    class Edge : IEdge, IComparable<Edge>
     {
         [SerializeField]
         private SlotReference m_OutputSlot;
-
         [SerializeField]
         private SlotReference m_InputSlot;
+
+        public Edge()
+        { }
+
+        public Edge(SlotReference outputSlot, SlotReference inputSlot)
+        {
+            m_OutputSlot = outputSlot;
+            m_InputSlot = inputSlot;
+        }
 
         public SlotReference outputSlot
         {
@@ -22,17 +31,6 @@ namespace BXGeometryGraph
         public SlotReference inputSlot
         {
             get { return m_InputSlot; }
-        }
-
-        public Edge()
-        {
-
-        }
-
-        public Edge(SlotReference outputSlot, SlotReference inputSlot)
-        {
-            m_OutputSlot = outputSlot;
-            m_InputSlot = inputSlot;
         }
 
         protected bool Equals(Edge other)
@@ -61,6 +59,14 @@ namespace BXGeometryGraph
                 return (m_OutputSlot.GetHashCode() * 397) ^ m_InputSlot.GetHashCode();
             }
         }
-    }
 
+        public int CompareTo(Edge other)
+        {
+            if (ReferenceEquals(this, other)) return 0;
+            if (ReferenceEquals(null, other)) return 1;
+            var outputSlotComparison = m_OutputSlot.CompareTo(other.m_OutputSlot);
+            if (outputSlotComparison != 0) return outputSlotComparison;
+            return m_InputSlot.CompareTo(other.m_InputSlot);
+        }
+    }
 }

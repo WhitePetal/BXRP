@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace BXGeometryGraph
 {
     [System.Serializable]
-    public abstract class GeometrySlot : JsonObject, IDisposable
+    abstract class GeometrySlot : JsonObject, IGroupItem, IRectInterface
     {
         const string k_NotInit = "Not Initilaized";
 
@@ -28,23 +28,30 @@ namespace BXGeometryGraph
         [SerializeField]
         private string m_GeometryOutputName;
 
-        //[SerializeField]
-        //ShaderStage m_ShaderStage;
+        [SerializeField]
+        GeometryStageCapability m_StageCapability;
 
         private bool m_HasError;
+
+        public GeometryStageCapability stageCapability
+        {
+            get { return m_StageCapability; }
+            set { m_StageCapability = value; }
+        }
 
         protected GeometrySlot()
         {
 
         }
 
-        protected GeometrySlot(int slotId, string displayName, string geometryOutputName, SlotType slotType, bool hidden = false)
+        protected GeometrySlot(int slotId, string displayName, string geometryOutputName, SlotType slotType, GeometryStageCapability stageCapability = GeometryStageCapability.All, bool hidden = false)
         {
             m_Id = slotId;
             m_DisplayName = displayName;
             m_SlotType = slotType;
             m_Hidden = hidden;
             m_GeometryOutputName = geometryOutputName;
+            this.stageCapability = stageCapability;
         }
 
         internal void SetInternalData(SlotType slotType, string geometryOutputName)
@@ -57,11 +64,11 @@ namespace BXGeometryGraph
         {
             if(owner is SubGraphNode sgNode)
             {
-                //var property = sgNode.GetGeometryProperty(id);
-                //if(property != null)
-                //{
-                //    return property.isConnectionTestable;
-                //}
+                var property = sgNode.GetGeometryProperty(id);
+                if (property != null)
+                {
+                    return property.isConnectionTestable;
+                }
             }
             else if(owner is PropertyNode propertyNode)
             {
@@ -86,10 +93,6 @@ namespace BXGeometryGraph
             return null;
         }
 
-        public abstract SlotValueType valueType { get; }
-
-        public abstract ConcreteSlotValueType concreteValueType { get; }
-
         private static string ConcreteSlotValueTypeAsString(ConcreteSlotValueType type)
         {
             switch (type)
@@ -113,11 +116,19 @@ namespace BXGeometryGraph
                 case ConcreteSlotValueType.SamplerState:
                     return "(SS)";
                 case ConcreteSlotValueType.Texture2D:
-                    return "(T)";
+                    return "(T2)";
+                case ConcreteSlotValueType.Texture2DArray:
+                    return "(T2A)";
+                case ConcreteSlotValueType.Texture3D:
+                    return "(T3)";
                 case ConcreteSlotValueType.Cubemap:
                     return "(C)";
                 case ConcreteSlotValueType.Gradient:
                     return "(G)";
+                case ConcreteSlotValueType.VirtualTexture:
+                    return "(VT)";
+                case ConcreteSlotValueType.PropertyConnectionState:
+                    return "(P)";
                 default:
                     return "(E)";
             }
@@ -134,22 +145,75 @@ namespace BXGeometryGraph
             return m_DisplayName;
         }
 
-        public static GeometrySlot CreateGeometrySlot(SlotValueType type, int slotId, string displayName, string geometryOutputName, SlotType slotType, Vector4 defaultValue, bool hidden = false)
+        public static GeometrySlot CreateGeometrySlot(SlotValueType type, int slotId, string displayName, string geometryOutputName, SlotType slotType, Vector4 defaultValue, GeometryStageCapability geometryStageCapability = GeometryStageCapability.All, bool hidden = false)
         {
-            //switch (type)
-            //{
-            //case SlotValueType.SamplerState:
-            //}
+            switch (type)
+            {
+                //case SlotValueType.SamplerState:
+                    //return new SamplerStateMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.DynamicMatrix:
+                    //return new DynamicMatrixMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Matrix4:
+                    //return new Matrix4MaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Matrix3:
+                    //return new Matrix3MaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Matrix2:
+                    //return new Matrix2MaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Texture2D:
+                    //return slotType == SlotType.Input
+                        //? new Texture2DInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new Texture2DMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Texture2DArray:
+                    //return slotType == SlotType.Input
+                        //? new Texture2DArrayInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new Texture2DArrayMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Texture3D:
+                    //return slotType == SlotType.Input
+                        //? new Texture3DInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new Texture3DMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Cubemap:
+                    //return slotType == SlotType.Input
+                        //? new CubemapInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new CubemapMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.VirtualTexture:
+                    //return slotType == SlotType.Input
+                        //? new VirtualTextureInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new VirtualTextureMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.Gradient:
+                    //return slotType == SlotType.Input
+                        //? new GradientInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
+                        //: new GradientMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                //case SlotValueType.DynamicVector:
+                    //return new DynamicVectorMaterialSlot(slotId, displayName, shaderOutputName, slotType, defaultValue, shaderStageCapability, hidden);
+                case SlotValueType.Vector4:
+                    return new Vector4GoemetrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
+                case SlotValueType.Vector3:
+                    return new Vector3GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
+                case SlotValueType.Vector2:
+                    return new Vector2GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
+                case SlotValueType.Vector1:
+                    return new Vector1GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue.x, geometryStageCapability, hidden: hidden);
+                //case SlotValueType.Dynamic:
+                //return new DynamicValueMaterialSlot(slotId, displayName, shaderOutputName, slotType, new Matrix4x4(defaultValue, Vector4.zero, Vector4.zero, Vector4.zero), shaderStageCapability, hidden);
+                //case SlotValueType.Boolean:
+                //return new BooleanMaterialSlot(slotId, displayName, shaderOutputName, slotType, false, shaderStageCapability, hidden);
+                //case SlotValueType.PropertyConnectionState:
+                //return new PropertyConnectionStateMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
+                case SlotValueType.Geometry:
+                    return new GeometryGeometrySlot(slotId, displayName, geometryOutputName, slotType, geometryStageCapability, hidden);
+            }
+
             throw new ArgumentOutOfRangeException("type", type, null);
         }
 
-        public INode owner { get; set; }
-
         public SlotReference slotReference
         {
-            get { return new SlotReference(owner.guid, m_Id); }
+            get { return new SlotReference(owner, m_Id); }
         }
 
+        public AbstractGeometryNode owner { get; set; }
+
+        // if hidden, the slot does not create a port in the UI
         public bool hidden
         {
             get { return m_Hidden; }
@@ -159,12 +223,6 @@ namespace BXGeometryGraph
         public int id
         {
             get { return m_Id; }
-        }
-
-        public int priority
-        {
-            get { return m_Priority; }
-            set { m_Priority = value; }
         }
 
         public bool isInputSlot
@@ -196,17 +254,17 @@ namespace BXGeometryGraph
             }
         }
 
+        public abstract bool isDefaultValue { get; }
+
+        public abstract SlotValueType valueType { get; }
+
+        public abstract ConcreteSlotValueType concreteValueType { get; }
+
         public string geometryOutputName
         {
             get { return m_GeometryOutputName; }
             set { m_GeometryOutputName = value; }
         }
-
-        //public ShaderStage shaderStage
-        //{
-        //    get { return m_ShaderStage; }
-        //    set { m_ShaderStage = value; }
-        //}
 
         public bool hasError
         {
@@ -214,14 +272,12 @@ namespace BXGeometryGraph
             set { m_HasError = value; }
         }
 
-        private bool IsCompatiblewWithInputSlotType(SlotValueType inputType)
+        public bool IsUsingDefaultValue()
         {
-            //switch (inputType)
-            //{
-
-            //}
-            throw new NotImplementedException("NotImplement IsCompatiblewWithInputSlotType");
-            return false;
+            if (!isConnected && isDefaultValue)
+                return true;
+            else
+                return false;
         }
 
         public bool IsCompatibleWith(GeometrySlot otherSlot)
@@ -229,79 +285,69 @@ namespace BXGeometryGraph
             return otherSlot != null
                 && otherSlot.owner != owner
                 && otherSlot.isInputSlot != isInputSlot
-                && (isInputSlot
-                    ? otherSlot.IsCompatiblewWithInputSlotType(valueType)
-                    : IsCompatiblewWithInputSlotType(otherSlot.valueType));
+                && !hidden
+                && !otherSlot.hidden
+                && ((isInputSlot
+                    ? SlotValueHelper.AreCompatible(valueType, otherSlot.concreteValueType, otherSlot.IsConnectionTestable())
+                    : SlotValueHelper.AreCompatible(otherSlot.valueType, concreteValueType, IsConnectionTestable())));
         }
 
-        protected virtual string ConcreteSlotValueAsVariable(AbstractGeometryNode.OutputPrecision precision)
+        public bool IsCompatibleStageWith(GeometrySlot otherSlot)
         {
-            return "error";
+            var startStage = otherSlot.stageCapability;
+            if (startStage == GeometryStageCapability.All || otherSlot.owner is SubGraphNode)
+                startStage = NodeUtils.GetEffectiveGeometryStageCapability(otherSlot, true)
+                    & NodeUtils.GetEffectiveGeometryStageCapability(otherSlot, false);
+            return IsCompatibleStageWith(startStage);
+        }
+
+        internal bool IsCompatibleStageWith(GeometryStageCapability capability)
+        {
+            return capability == GeometryStageCapability.All || stageCapability == GeometryStageCapability.All || stageCapability == capability;
+        }
+
+        public string GetDefaultValue(GenerationMode generationMode, ConcretePrecision concretePrecision)
+        {
+            string defaultValue = GetDefaultValue(generationMode);
+            return defaultValue.Replace(PrecisionUtil.Token, concretePrecision.ToGeometryString());
         }
 
         public virtual string GetDefaultValue(GenerationMode generationMode)
         {
-            var geoOwner = owner as AbstractGeometryNode;
-
-            if(geoOwner == null)
+            var matOwner = owner as AbstractGeometryNode;
+            if (matOwner == null)
                 throw new Exception(string.Format("Slot {0} either has no owner, or the owner is not a {1}", this, typeof(AbstractGeometryNode)));
 
-            if(generationMode.IsPreview())
-                return geoOwner.GetVariableNameForSlot(id);
+            if (generationMode.IsPreview() && matOwner.isActive)
+                return matOwner.GetVariableNameForSlot(id);
 
-            return ConcreteSlotValueAsVariable(geoOwner.precision);
+            return ConcreteSlotValueAsVariable();
+        }
+
+        protected virtual string ConcreteSlotValueAsVariable()
+        {
+            return "error";
         }
 
         public abstract void AddDefaultProperty(PropertyCollector properties, GenerationMode generationMode);
-
-        protected static PropertyType ConvertConcreteSlotValueTypeToPropertyType(ConcreteSlotValueType slotValue)
-        {
-            switch (slotValue)
-            {
-                case ConcreteSlotValueType.Texture2D:
-                    return PropertyType.Texture;
-                case ConcreteSlotValueType.Cubemap:
-                    return PropertyType.Cubemap;
-                case ConcreteSlotValueType.Gradient:
-                    return PropertyType.Gradient;
-                case ConcreteSlotValueType.Boolean:
-                    return PropertyType.Boolean;
-                case ConcreteSlotValueType.Vector1:
-                    return PropertyType.Vector1;
-                case ConcreteSlotValueType.Vector2:
-                    return PropertyType.Vector2;
-                case ConcreteSlotValueType.Vector3:
-                    return PropertyType.Vector3;
-                case ConcreteSlotValueType.Vector4:
-                    return PropertyType.Vector4;
-                case ConcreteSlotValueType.Matrix2:
-                    return PropertyType.Matrix2;
-                case ConcreteSlotValueType.Matrix3:
-                    return PropertyType.Matrix3;
-                case ConcreteSlotValueType.Matrix4:
-                    return PropertyType.Matrix4;
-                case ConcreteSlotValueType.SamplerState:
-                    return PropertyType.SamplerState;
-                default:
-                    return PropertyType.Vector4;
-            }
-        }
 
         public virtual void GetPreviewProperties(List<PreviewProperty> properties, string name)
         {
             properties.Add(default(PreviewProperty));
         }
 
-        public abstract void CopyValueFrom(GeometrySlot foundSlot);
-
-        private bool Equals(GeometrySlot other)
+        public virtual void AppendHLSLParameterDeclaration(ShaderStringBuilder sb, string paramName)
         {
-            return m_Id == other.m_Id && owner.guid.Equals(other.owner.guid);
+            sb.Append(concreteValueType.ToGeometryString());
+            sb.Append(" ");
+            sb.Append(paramName);
         }
 
-        public bool Equals(ISlot other)
+        public abstract void CopyValuesFrom(GeometrySlot foundSlot);
+
+        public bool Equals(GeometrySlot other)
         {
-            return Equals(other as object);
+            return m_Id == other.m_Id && owner == other.owner;
         }
 
         public override bool Equals(object obj)
@@ -322,7 +368,21 @@ namespace BXGeometryGraph
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            owner = null;
+        }
+
+        // this tracks old CustomFunctionNode slots that are expecting the old bare resource inputs
+        // rather than the new structure-based inputs
+        internal virtual bool bareResource { get { return false; } set { } }
+
+        public virtual void CopyDefaultValue(GeometrySlot other)
+        {
+            m_Id = other.m_Id;
+            m_DisplayName = other.m_DisplayName;
+            m_SlotType = other.m_SlotType;
+            m_Hidden = other.m_Hidden;
+            m_GeometryOutputName = other.m_GeometryOutputName;
+            m_StageCapability = other.m_StageCapability;
         }
     }
 }

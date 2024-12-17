@@ -20,5 +20,10 @@ namespace BXGeometryGraph
                 return Enumerable.Empty<Type>();
             }
         }
+
+        public static IEnumerable<T> ToEnumerable<T>(this T item)
+        {
+            yield return item;
+        }
     }
 }
