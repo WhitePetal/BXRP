@@ -8,7 +8,7 @@ using UnityEngine.UIElements.Experimental;
 namespace BXGeometryGraph
 {
 	[Serializable]
-	public class WindowDockingLayout
+	internal class WindowDockingLayout
 	{
 		[SerializeField]
 		private bool m_DockingLeft;
@@ -52,6 +52,7 @@ namespace BXGeometryGraph
 		public Vector2 size
 		{
 			get { return m_Size; }
+            set { m_Size = value; }
 		}
 
 		public void CalculateDockingCornerAndOffset(Rect layout, Rect parentLayout)

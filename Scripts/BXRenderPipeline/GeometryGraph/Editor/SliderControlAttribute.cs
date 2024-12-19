@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 namespace BXGeometryGraph
 {
     [AttributeUsage(AttributeTargets.Property)]
-    public class SliderControlAttribute : Attribute, IControlAttribute
+    class SliderControlAttribute : Attribute, IControlAttribute
     {
         private string m_Label;
         private bool m_DisplayMinMax;
@@ -27,7 +27,7 @@ namespace BXGeometryGraph
         }
     }
 
-    public class SliderControlView : VisualElement, INodeModificationListener
+    class SliderControlView : VisualElement, INodeModificationListener
     {
         private AbstractGeometryNode m_Node;
         private PropertyInfo m_PropertyInfo;

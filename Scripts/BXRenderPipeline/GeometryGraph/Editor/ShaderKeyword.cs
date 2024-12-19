@@ -6,13 +6,13 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Serializable]
-    public class ShaderKeyword : GeometryInput
+    class ShaderKeyword : GeometryInput
     {
-        internal override ConcreteSlotValueType concreteShaderValueType => throw new NotImplementedException();
-
         internal override bool isExposable => throw new NotImplementedException();
 
         internal override bool isRenamable => throw new NotImplementedException();
+
+        internal override ConcreteSlotValueType concreteGeometryValueType => throw new NotImplementedException();
 
         internal override GeometryInput Copy()
         {

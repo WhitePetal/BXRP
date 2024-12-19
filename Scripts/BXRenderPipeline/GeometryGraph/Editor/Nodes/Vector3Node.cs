@@ -6,10 +6,10 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Title("Input", "Basic", "Vector 3")]
-    public class Vector3Node : AbstractGeometryNode, IGeneratesBodyCode, IPropertyFromNode
+    class Vector3Node : AbstractGeometryNode, IGeneratesShaderBodyCode, IPropertyFromNode
     {
         [SerializeField]
-        private Vector3 m_Value;
+        private Vector3 m_Value = Vector3.zero;
 
         const string kInputSlotXName = "X";
         const string kInputSlotYName = "Y";
@@ -24,6 +24,7 @@ namespace BXGeometryGraph
         public Vector3Node()
         {
             name = "Vector 3";
+            synonyms = new string[] { "3", "v3", "vec3", "float3" };
             UpdateNodeAfterDeserialization();
         }
 
@@ -41,23 +42,22 @@ namespace BXGeometryGraph
             RemoveSlotsNameNotMatching(new[] { OutputSlotId, InputSlotXId, InputSlotYId, InputSlotZId });
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
         {
             var inputXValue = GetSlotValue(InputSlotXId, generationMode);
             var inputYValue = GetSlotValue(InputSlotYId, generationMode);
             var inputZValue = GetSlotValue(InputSlotZId, generationMode);
             var outputName = GetVariableNameForSlot(outputSlotID);
 
-            var s = string.Format("{0}3 {1} = {0}3({2},{3},{4});",
-                precision,
+            var s = string.Format("$precision3 {0} = $precision3({1}, {2}, {3});",
                 outputName,
                 inputXValue,
                 inputYValue,
                 inputZValue);
-            visitor.AddGeometryChunk(s, false);
+            sb.AppendLine(s);
         }
 
-        public IGeometryProperty AsGeometryProperty()
+        public AbstractGeometryProperty AsGeometryProperty()
         {
             var slotX = FindInputSlot<Vector1GeometrySlot>(InputSlotXId);
             var slotY = FindInputSlot<Vector1GeometrySlot>(InputSlotYId);

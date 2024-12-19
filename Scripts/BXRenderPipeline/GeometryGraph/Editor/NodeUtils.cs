@@ -482,7 +482,7 @@ namespace BXGeometryGraph
             return capabilities;
         }
 
-        public static GeometryStageCapability GetEffectiveShaderStageCapability(GeometrySlot initialSlot, bool goingBackwards, Dictionary<SlotReference, GeometryStageCapability> lookUp = null)
+        public static GeometryStageCapability GetEffectiveGeometryStageCapability(GeometrySlot initialSlot, bool goingBackwards, Dictionary<SlotReference, GeometryStageCapability> lookUp = null)
         {
             if (lookUp == null)
                 lookUp = new Dictionary<SlotReference, GeometryStageCapability>();

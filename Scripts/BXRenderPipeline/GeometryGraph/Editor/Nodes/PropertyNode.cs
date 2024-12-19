@@ -154,7 +154,7 @@ namespace BXGeometryGraph
             }
         }
 
-        public void GenerateNodeCode(ShaderStringBuilder sb, GenerationMode mode)
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode mode)
         {
             // TODO
         }
@@ -205,7 +205,7 @@ namespace BXGeometryGraph
             concretePrecision = graphPrecision.ToConcrete(owner.graphDefaultConcretePrecision);
         }
 
-        public void OnShaderInputUpdated(ModificationScope modificationScope)
+        public void OnGeometryInputUpdated(ModificationScope modificationScope)
         {
             if (modificationScope == ModificationScope.Layout)
                 UpdateNodeDisplayName(property.displayName);

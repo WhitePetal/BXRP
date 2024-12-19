@@ -1,0 +1,60 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace BXGeometryGraph
+{
+    [GGPropertyDrawer(typeof(Enum))]
+    public class EnumPropertyDrawer : IPropertyDrawer
+    {
+        internal delegate void ValueChangedCallback(Enum newValue);
+
+        internal VisualElement CreateGUI(
+            ValueChangedCallback valueChangedCallback,
+            Enum fieldToDraw,
+            string labelName,
+            Enum defaultValue,
+            out VisualElement propertyVisualElement,
+            int indentLevel = 0,
+            string tooltip = null)
+        {
+            var row = new PropertyRow(PropertyDrawerUtils.CreateLabel(labelName, indentLevel));
+            row.tooltip = tooltip;
+            propertyVisualElement = new EnumField(defaultValue);
+            row.Add((EnumField)propertyVisualElement, (field) =>
+            {
+                field.value = fieldToDraw;
+            });
+
+            if (valueChangedCallback != null)
+            {
+                var enumField = (EnumField)propertyVisualElement;
+                enumField.RegisterValueChangedCallback(evt => valueChangedCallback(evt.newValue));
+            }
+
+            return row;
+        }
+
+        public Action inspectorUpdateDelegate { get; set; }
+
+        public VisualElement DrawProperty(
+            PropertyInfo propertyInfo,
+            object actualObject,
+            InspectableAttribute attribute)
+        {
+            return this.CreateGUI(newEnumValue =>
+                propertyInfo.GetSetMethod(true).Invoke(actualObject, new object[] { newEnumValue }),
+                (Enum)propertyInfo.GetValue(actualObject),
+                attribute.labelName,
+                (Enum)attribute.defaultValue,
+                out var propertyVisualElement);
+
+            
+        }
+
+        void IPropertyDrawer.DisposePropertyDrawer() { }
+    }
+}

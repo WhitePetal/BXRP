@@ -1,0 +1,50 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace BXGeometryGraph
+{
+    class PropertySheet : VisualElement
+    {
+        VisualElement m_ContentContainer;
+        VisualElement m_HeaderContainer;
+        VisualElement m_WarningContainer;
+        Label m_Header;
+        public override VisualElement contentContainer
+        {
+            get { return m_ContentContainer; }
+        }
+
+        public VisualElement warningContainer => m_WarningContainer;
+
+        public VisualElement headerContainer
+        {
+            get => m_HeaderContainer;
+            set
+            {
+                var first = m_HeaderContainer.Children().FirstOrDefault();
+                if (first != null)
+                    first.RemoveFromHierarchy();
+
+                m_HeaderContainer.Add(value);
+            }
+        }
+
+        public PropertySheet(Label header = null)
+        {
+            styleSheets.Add(Resources.Load<StyleSheet>("Styles/PropertySheet"));
+            m_ContentContainer = new VisualElement { name = "content" };
+            m_HeaderContainer = new VisualElement { name = "header" };
+            m_WarningContainer = new VisualElement { name = "error" };
+            m_WarningContainer.Add(new Label(""));
+            if (header != null)
+                m_HeaderContainer.Add(header);
+
+            m_ContentContainer.Add(m_HeaderContainer);
+            m_ContentContainer.Add(m_WarningContainer);
+            hierarchy.Add(m_ContentContainer);
+        }
+    }
+}

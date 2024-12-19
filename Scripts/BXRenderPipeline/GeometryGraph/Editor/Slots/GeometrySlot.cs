@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace BXGeometryGraph
 {
     [System.Serializable]
-    abstract class GeometrySlot : JsonObject, IGroupItem, IRectInterface
+    abstract class GeometrySlot : JsonObject, IDisposable
     {
         const string k_NotInit = "Not Initilaized";
 
@@ -129,6 +129,8 @@ namespace BXGeometryGraph
                     return "(VT)";
                 case ConcreteSlotValueType.PropertyConnectionState:
                     return "(P)";
+                case ConcreteSlotValueType.Geometry:
+                    return "(Geo)";
                 default:
                     return "(E)";
             }
@@ -186,7 +188,7 @@ namespace BXGeometryGraph
                 //case SlotValueType.DynamicVector:
                     //return new DynamicVectorMaterialSlot(slotId, displayName, shaderOutputName, slotType, defaultValue, shaderStageCapability, hidden);
                 case SlotValueType.Vector4:
-                    return new Vector4GoemetrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
+                    return new Vector4GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
                 case SlotValueType.Vector3:
                     return new Vector3GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
                 case SlotValueType.Vector2:
@@ -200,7 +202,7 @@ namespace BXGeometryGraph
                 //case SlotValueType.PropertyConnectionState:
                 //return new PropertyConnectionStateMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
                 case SlotValueType.Geometry:
-                    return new GeometryGeometrySlot(slotId, displayName, geometryOutputName, slotType, geometryStageCapability, hidden);
+                    return new GeometryGeometrySlot(slotId, displayName, geometryOutputName, slotType, geometryStageCapability, hidden: hidden);
             }
 
             throw new ArgumentOutOfRangeException("type", type, null);

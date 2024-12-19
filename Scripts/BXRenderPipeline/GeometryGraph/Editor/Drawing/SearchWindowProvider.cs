@@ -323,176 +323,176 @@ namespace BXGeometryGraph
                 });
             }
         }
+    }
 
-        class SearcherProvider : SearchWindowProvider
+    class SearcherProvider : SearchWindowProvider
+    {
+        public Searcher LoadSearchWindow()
         {
-            public Searcher LoadSearchWindow()
+            if (regenerateEntries)
             {
-                if (regenerateEntries)
-                {
-                    GenerateNodeEntries();
-                    regenerateEntries = false;
-                }
-
-                // create empty root for searcher tree
-                var root = new List<SearcherItem>();
-                var dummyEntry = new NodeEntry();
-
-                foreach (var nodeEntry in currentNodeEntries)
-                {
-                    SearcherItem item = null;
-                    SearcherItem parent = null;
-                    for (int i = 0; i < nodeEntry.title.Length; i++)
-                    {
-                        var pathEntry = nodeEntry.title[i];
-                        List<SearcherItem> children = parent != null ? parent.Children : root;
-                        item = children.Find(x => x.Name == pathEntry);
-
-                        if (item == null)
-                        {
-                            //if we have slot entries and are at a leaf, add the slot name to the entry title
-                            if (nodeEntry.compatibleSlotId != -1 && i == nodeEntry.title.Length - 1)
-                                item = new SearchNodeItem(pathEntry + ": " + nodeEntry.slotName, nodeEntry, nodeEntry.node.synonyms);
-                            //if we don't have slot entries and are at a leaf, add userdata to the entry
-                            else if (nodeEntry.compatibleSlotId == -1 && i == nodeEntry.title.Length - 1)
-                                item = new SearchNodeItem(pathEntry, nodeEntry, nodeEntry.node.synonyms);
-                            //if we aren't a leaf, don't add user data
-                            else
-                                item = new SearchNodeItem(pathEntry, dummyEntry, null);
-
-                            if (parent != null)
-                            {
-                                parent.AddChild(item);
-                            }
-                            else
-                            {
-                                children.Add(item);
-                            }
-                        }
-
-                        parent = item;
-
-                        if (parent.Depth == 0 && !root.Contains(parent))
-                            root.Add(parent);
-                    }
-                }
-
-                var nodeDatabase = SearcherDatabase.Create(root, string.Empty, false);
-
-                return new Searcher(nodeDatabase, new SearchWindowAdapter("Create Node"));
+                GenerateNodeEntries();
+                regenerateEntries = false;
             }
 
-            public bool OnSearcherSelectEntry(SearcherItem entry, Vector2 screenMousePosition)
+            // create empty root for searcher tree
+            var root = new List<SearcherItem>();
+            var dummyEntry = new NodeEntry();
+
+            foreach (var nodeEntry in currentNodeEntries)
             {
-                if (entry == null || (entry as SearchNodeItem).NodeGUID.node == null)
+                SearcherItem item = null;
+                SearcherItem parent = null;
+                for (int i = 0; i < nodeEntry.title.Length; i++)
+                {
+                    var pathEntry = nodeEntry.title[i];
+                    List<SearcherItem> children = parent != null ? parent.Children : root;
+                    item = children.Find(x => x.Name == pathEntry);
+
+                    if (item == null)
+                    {
+                        //if we have slot entries and are at a leaf, add the slot name to the entry title
+                        if (nodeEntry.compatibleSlotId != -1 && i == nodeEntry.title.Length - 1)
+                            item = new SearchNodeItem(pathEntry + ": " + nodeEntry.slotName, nodeEntry, nodeEntry.node.synonyms);
+                        //if we don't have slot entries and are at a leaf, add userdata to the entry
+                        else if (nodeEntry.compatibleSlotId == -1 && i == nodeEntry.title.Length - 1)
+                            item = new SearchNodeItem(pathEntry, nodeEntry, nodeEntry.node.synonyms);
+                        //if we aren't a leaf, don't add user data
+                        else
+                            item = new SearchNodeItem(pathEntry, dummyEntry, null);
+
+                        if (parent != null)
+                        {
+                            parent.AddChild(item);
+                        }
+                        else
+                        {
+                            children.Add(item);
+                        }
+                    }
+
+                    parent = item;
+
+                    if (parent.Depth == 0 && !root.Contains(parent))
+                        root.Add(parent);
+                }
+            }
+
+            var nodeDatabase = SearcherDatabase.Create(root, string.Empty, false);
+
+            return new Searcher(nodeDatabase, new SearchWindowAdapter("Create Node"));
+        }
+
+        public bool OnSearcherSelectEntry(SearcherItem entry, Vector2 screenMousePosition)
+        {
+            if (entry == null || (entry as SearchNodeItem).NodeGUID.node == null)
+                return true;
+
+            var nodeEntry = (entry as SearchNodeItem).NodeGUID;
+
+            if (nodeEntry.node is PropertyNode propNode)
+                if (propNode.property is Serialization.MultiJsonInternal.UnknownShaderPropertyType)
                     return true;
 
-                var nodeEntry = (entry as SearchNodeItem).NodeGUID;
+            var node = CopyNodeForGraph(nodeEntry.node);
 
-                if (nodeEntry.node is PropertyNode propNode)
-                    if (propNode.property is Serialization.MultiJsonInternal.UnknownShaderPropertyType)
-                        return true;
+            var windowRoot = m_EditorWindow.rootVisualElement;
+            var windowMousePosition = windowRoot.ChangeCoordinatesTo(windowRoot.parent, screenMousePosition); //- m_EditorWindow.position.position);
+            var graphMousePosition = m_GraphView.contentViewContainer.WorldToLocal(windowMousePosition);
 
-                var node = CopyNodeForGraph(nodeEntry.node);
+            m_Graph.owner.RegisterCompleteObjectUndo("Add " + node.name);
 
-                var windowRoot = m_EditorWindow.rootVisualElement;
-                var windowMousePosition = windowRoot.ChangeCoordinatesTo(windowRoot.parent, screenMousePosition); //- m_EditorWindow.position.position);
-                var graphMousePosition = m_GraphView.contentViewContainer.WorldToLocal(windowMousePosition);
+            if (node is BlockNode blockNode)
+            {
+                if (!(target is ContextView contextView))
+                    return true;
 
-                m_Graph.owner.RegisterCompleteObjectUndo("Add " + node.name);
-
-                if (node is BlockNode blockNode)
+                // ensure custom blocks have a unique name provided the existing context.
+                if (blockNode.isCustomBlock)
                 {
-                    if (!(target is ContextView contextView))
-                        return true;
-
-                    // ensure custom blocks have a unique name provided the existing context.
-                    if (blockNode.isCustomBlock)
-                    {
-                        HashSet<string> usedNames = new HashSet<string>();
-                        foreach (var other in contextView.contextData.blocks) usedNames.Add(other.value.descriptor.displayName);
-                        blockNode.customName = GraphUtil.SanitizeName(usedNames, "{0}_{1}", blockNode.descriptor.displayName);
-                    }
-                    // Test against all current BlockNodes in the Context
-                    // Never allow duplicate BlockNodes
-                    else if (contextView.contextData.blocks.Where(x => x.value.name == blockNode.name).FirstOrDefault().value != null)
-                    {
-                        return true;
-                    }
-
-                    // Insert block to Data
-                    blockNode.owner = m_Graph;
-                    int index = contextView.GetInsertionIndex(screenMousePosition);
-                    m_Graph.AddBlock(blockNode, contextView.contextData, index);
+                    HashSet<string> usedNames = new HashSet<string>();
+                    foreach (var other in contextView.contextData.blocks) usedNames.Add(other.value.descriptor.displayName);
+                    blockNode.customName = GraphUtil.SanitizeName(usedNames, "{0}_{1}", blockNode.descriptor.displayName);
+                }
+                // Test against all current BlockNodes in the Context
+                // Never allow duplicate BlockNodes
+                else if (contextView.contextData.blocks.Where(x => x.value.name == blockNode.name).FirstOrDefault().value != null)
+                {
                     return true;
                 }
 
-                var drawState = node.drawState;
-                drawState.position = new Rect(graphMousePosition, Vector2.zero);
-                node.drawState = drawState;
-                m_Graph.AddNode(node);
-
-                if (connectedPort != null)
-                {
-                    var connectedSlot = connectedPort.slot;
-                    var connectedSlotReference = connectedSlot.owner.GetSlotReference(connectedSlot.id);
-                    var compatibleSlotReference = node.GetSlotReference(nodeEntry.compatibleSlotId);
-
-                    var fromReference = connectedSlot.isOutputSlot ? connectedSlotReference : compatibleSlotReference;
-                    var toReference = connectedSlot.isOutputSlot ? compatibleSlotReference : connectedSlotReference;
-                    m_Graph.Connect(fromReference, toReference);
-
-                    nodeNeedsRepositioning = true;
-                    targetSlotReference = compatibleSlotReference;
-                    targetPosition = graphMousePosition;
-                }
-
+                // Insert block to Data
+                blockNode.owner = m_Graph;
+                int index = contextView.GetInsertionIndex(screenMousePosition);
+                m_Graph.AddBlock(blockNode, contextView.contextData, index);
                 return true;
             }
 
-            public AbstractGeometryNode CopyNodeForGraph(AbstractGeometryNode oldNode)
+            var drawState = node.drawState;
+            drawState.position = new Rect(graphMousePosition, Vector2.zero);
+            node.drawState = drawState;
+            m_Graph.AddNode(node);
+
+            if (connectedPort != null)
             {
-                var newNode = (AbstractGeometryNode)Activator.CreateInstance(oldNode.GetType());
-                if (GeometryGraphPreferences.allowDeprecatedBehaviors && oldNode.ggVersion != newNode.ggVersion)
-                {
-                    newNode.ChangeVersion(oldNode.ggVersion);
-                }
-                if (newNode is SubGraphNode subgraphNode)
-                {
-                    subgraphNode.asset = ((SubGraphNode)oldNode).asset;
-                }
-                else if (newNode is PropertyNode propertyNode)
-                {
-                    propertyNode.owner = m_Graph;
-                    propertyNode.property = ((PropertyNode)oldNode).property;
-                    propertyNode.owner = null;
-                }
-                //else if (newNode is KeywordNode keywordNode)
-                //{
-                //    keywordNode.owner = m_Graph;
-                //    keywordNode.keyword = ((KeywordNode)oldNode).keyword;
-                //    keywordNode.owner = null;
-                //}
-                //else if (newNode is DropdownNode dropdownNode)
-                //{
-                //    dropdownNode.owner = m_Graph;
-                //    dropdownNode.dropdown = ((DropdownNode)oldNode).dropdown;
-                //    dropdownNode.owner = null;
-                //}
-                else if (newNode is BlockNode blockNode)
-                {
-                    blockNode.owner = m_Graph;
-                    blockNode.Init(((BlockNode)oldNode).descriptor);
-                    blockNode.owner = null;
-                }
-                //else if (newNode is CustomInterpolatorNode cinode)
-                //{
-                //    cinode.owner = m_Graph;
-                //    cinode.ConnectToCustomBlockByName(((CustomInterpolatorNode)oldNode).customBlockNodeName);
-                //    cinode.owner = null;
-                //}
-                return newNode;
+                var connectedSlot = connectedPort.slot;
+                var connectedSlotReference = connectedSlot.owner.GetSlotReference(connectedSlot.id);
+                var compatibleSlotReference = node.GetSlotReference(nodeEntry.compatibleSlotId);
+
+                var fromReference = connectedSlot.isOutputSlot ? connectedSlotReference : compatibleSlotReference;
+                var toReference = connectedSlot.isOutputSlot ? compatibleSlotReference : connectedSlotReference;
+                m_Graph.Connect(fromReference, toReference);
+
+                nodeNeedsRepositioning = true;
+                targetSlotReference = compatibleSlotReference;
+                targetPosition = graphMousePosition;
             }
+
+            return true;
+        }
+
+        public AbstractGeometryNode CopyNodeForGraph(AbstractGeometryNode oldNode)
+        {
+            var newNode = (AbstractGeometryNode)Activator.CreateInstance(oldNode.GetType());
+            if (GeometryGraphPreferences.allowDeprecatedBehaviors && oldNode.ggVersion != newNode.ggVersion)
+            {
+                newNode.ChangeVersion(oldNode.ggVersion);
+            }
+            if (newNode is SubGraphNode subgraphNode)
+            {
+                subgraphNode.asset = ((SubGraphNode)oldNode).asset;
+            }
+            else if (newNode is PropertyNode propertyNode)
+            {
+                propertyNode.owner = m_Graph;
+                propertyNode.property = ((PropertyNode)oldNode).property;
+                propertyNode.owner = null;
+            }
+            //else if (newNode is KeywordNode keywordNode)
+            //{
+            //    keywordNode.owner = m_Graph;
+            //    keywordNode.keyword = ((KeywordNode)oldNode).keyword;
+            //    keywordNode.owner = null;
+            //}
+            //else if (newNode is DropdownNode dropdownNode)
+            //{
+            //    dropdownNode.owner = m_Graph;
+            //    dropdownNode.dropdown = ((DropdownNode)oldNode).dropdown;
+            //    dropdownNode.owner = null;
+            //}
+            else if (newNode is BlockNode blockNode)
+            {
+                blockNode.owner = m_Graph;
+                blockNode.Init(((BlockNode)oldNode).descriptor);
+                blockNode.owner = null;
+            }
+            //else if (newNode is CustomInterpolatorNode cinode)
+            //{
+            //    cinode.owner = m_Graph;
+            //    cinode.ConnectToCustomBlockByName(((CustomInterpolatorNode)oldNode).customBlockNodeName);
+            //    cinode.owner = null;
+            //}
+            return newNode;
         }
     }
 }

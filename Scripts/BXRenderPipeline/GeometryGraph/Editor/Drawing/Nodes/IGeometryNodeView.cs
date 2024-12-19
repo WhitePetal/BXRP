@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 namespace BXGeometryGraph
 {
-    public interface IGeometryNodeView : IDisposable
+    interface IGeometryNodeView : IDisposable
     {
         Node gvNode { get; }
         AbstractGeometryNode node { get; }

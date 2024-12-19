@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using BXGraphing;
 using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    public class SliderNode : AbstractGeometryNode, IGeneratesBodyCode, IPropertyFromNode
+    [Title("Input", "Basic", "Slider")]
+    class SliderNode : AbstractGeometryNode, IGeneratesShaderBodyCode, IPropertyFromNode
     {
         [SerializeField]
         private Vector3 m_Value = new Vector3(0f, 0f, 1f);
@@ -58,12 +60,12 @@ namespace BXGeometryGraph
             });
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
         {
             if (generationMode.IsPreview())
                 return;
 
-            visitor.AddGeometryChunk(precision + " " + GetVariableNameForNode() + " = " + m_Value.x + ";", true);
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "$precision {0} = {1};", GetVariableNameForNode(), m_Value.x));
         }
 
         public override string GetVariableNameForSlot(int slotId)
@@ -73,14 +75,14 @@ namespace BXGeometryGraph
 
         public override void CollectPreviewGeometryProperties(List<PreviewProperty> properties)
         {
-            properties.Add(new PreviewProperty(PropertyType.Vector1)
+            properties.Add(new PreviewProperty(PropertyType.Float)
             {
                 name = GetVariableNameForNode(),
                 floatValue = m_Value.x
             });
         }
 
-        public IGeometryProperty AsGeometryProperty()
+        public AbstractGeometryProperty AsGeometryProperty()
         {
             return new Vector1GeometryProperty
             {

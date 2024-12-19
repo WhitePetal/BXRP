@@ -225,25 +225,27 @@ namespace BXGeometryGraph
 
         public void SupplyDataToPropertyDrawer(IPropertyDrawer propertyDrawer, Action inspectorUpdateDelegate)
         {
-            if (propertyDrawer is GeometryInputPropertyDrawer shaderInputPropertyDrawer)
+            if (propertyDrawer is GeometryInputPropertyDrawer geometryInputPropertyDrawer)
             {
                 // We currently need to do a halfway measure between the old way of handling stuff for property drawers (how FieldView and NodeView handle it)
                 // and how we want to handle it with the new style of controllers and views. Ideally we'd just hand the property drawer a view model and thats it.
                 // We've maintained all the old callbacks as they are in the PropertyDrawer to reduce possible halo changes and support PropertyNodeView functionality
                 // Instead we supply different underlying methods for the callbacks in the new SGBlackboardField,
                 // that way both code paths should work until we can refactor PropertyNodeView
-                shaderInputPropertyDrawer.GetViewModel(
-                    ViewModel,
-                    controller.graphData,
-                    ((triggerInspectorUpdate, modificationScope) =>
-                    {
-                        controller.DirtyNodes(modificationScope);
-                        if (triggerInspectorUpdate)
-                            inspectorUpdateDelegate();
-                    }));
+                // TODO
+                //geometryInputPropertyDrawer.GetViewModel(
+                //    ViewModel,
+                //    controller.graphData,
+                //    ((triggerInspectorUpdate, modificationScope) =>
+                //    {
+                //        controller.DirtyNodes(modificationScope);
+                //        if (triggerInspectorUpdate)
+                //            inspectorUpdateDelegate();
+                //    }));
 
-                m_ResetReferenceNameTrigger = shaderInputPropertyDrawer.ResetReferenceName;
-                m_InspectorUpdateDelegate = inspectorUpdateDelegate;
+                //m_ResetReferenceNameTrigger = geometryInputPropertyDrawer.ResetReferenceName;
+                //m_InspectorUpdateDelegate = inspectorUpdateDelegate;
+                throw new NotImplementedException();
             }
         }
 
@@ -252,8 +254,11 @@ namespace BXGeometryGraph
             if ((e.clickCount == 2) && e.button == (int)MouseButton.LeftMouse && IsRenamable())
             {
                 OpenTextEditor();
+                e.PreventDefault();
+            }
+            else
+            {
                 e.StopPropagation();
-                focusController.IgnoreEvent(e);
             }
         }
 

@@ -188,7 +188,7 @@ namespace BXGeometryGraph
 			var startStage = startSlot.stageCapability;
 			// If this is a sub-graph node we always have to check the effective stage as we might have to trace back through the sub-graph
 			if (startStage == GeometryStageCapability.All || startSlot.owner is SubGraphNode)
-				startStage = NodeUtils.GetEffectiveShaderStageCapability(startSlot, true) & NodeUtils.GetEffectiveShaderStageCapability(startSlot, false);
+				startStage = NodeUtils.GetEffectiveGeometryStageCapability(startSlot, true) & NodeUtils.GetEffectiveGeometryStageCapability(startSlot, false);
 
 			foreach (var candidateAnchor in ports.ToList())
 			{
@@ -201,8 +201,8 @@ namespace BXGeometryGraph
 				{
 					var candidateStage = candidateSlot.stageCapability;
 					if (candidateStage == GeometryStageCapability.All || candidateSlot.owner is SubGraphNode)
-						candidateStage = NodeUtils.GetEffectiveShaderStageCapability(candidateSlot, true)
-							& NodeUtils.GetEffectiveShaderStageCapability(candidateSlot, false);
+						candidateStage = NodeUtils.GetEffectiveGeometryStageCapability(candidateSlot, true)
+							& NodeUtils.GetEffectiveGeometryStageCapability(candidateSlot, false);
 					if (candidateStage != GeometryStageCapability.All && candidateStage != startStage)
 						continue;
 
@@ -416,9 +416,9 @@ namespace BXGeometryGraph
 			}
 
 			// Contextual menu
-			if (evt.target is Edge)
+			if (evt.target is UnityEditor.Experimental.GraphView.Edge)
 			{
-				var target = evt.target as Edge;
+				var target = evt.target as UnityEditor.Experimental.GraphView.Edge;
 				var pos = evt.mousePosition;
 
 				var keyHint = GeometryGraphShortcuts.GetKeycodeForContextMenu(GeometryGraphShortcuts.createRedirectNodeShortcutID);
@@ -1405,34 +1405,34 @@ namespace BXGeometryGraph
 					associatedCategoryGuid = graphView.graph.FindCategoryForInput(input);
 				}
 
-				var copyShaderInputAction = new CopyGeometryInputAction { shaderInputToCopy = input, containingCategoryGuid = associatedCategoryGuid };
-				copyShaderInputAction.insertIndex = insertionIndex;
+				var copyGeometryInputAction = new CopyGeometryInputAction { geometryInputToCopy = input, containingCategoryGuid = associatedCategoryGuid };
+				copyGeometryInputAction.insertIndex = insertionIndex;
 
 				if (graphView.graph.IsInputAllowedInGraph(input))
 				{
 					switch (input)
 					{
 						case AbstractGeometryProperty property:
-							copyShaderInputAction.dependentNodeList = copyGraph.GetNodes<PropertyNode>().Where(x => x.property == input);
+							copyGeometryInputAction.dependentNodeList = copyGraph.GetNodes<PropertyNode>().Where(x => x.property == input);
 							break;
 
 						case ShaderKeyword shaderKeyword:
-							copyShaderInputAction.dependentNodeList = copyGraph.GetNodes<KeywordNode>().Where(x => x.keyword == input);
+							copyGeometryInputAction.dependentNodeList = copyGraph.GetNodes<KeywordNode>().Where(x => x.keyword == input);
 							// Pasting a new Keyword so need to test against variant limit
 							keywordsDirty = true;
 							break;
 
 						case GeometryDropdown shaderDropdown:
-							copyShaderInputAction.dependentNodeList = copyGraph.GetNodes<DropdownNode>().Where(x => x.dropdown == input);
+							copyGeometryInputAction.dependentNodeList = copyGraph.GetNodes<DropdownNode>().Where(x => x.dropdown == input);
 							dropdownsDirty = true;
 							break;
 
 						default:
 							throw new AssertionException("Tried to paste geometry input of unknown type into graph.", null);
-							break;
+							//break;
 					}
 
-					graphView.graph.owner.graphDataStore.Dispatch(copyShaderInputAction);
+					graphView.graph.owner.graphDataStore.Dispatch(copyGeometryInputAction);
 
 					// Increment insertion index for next input
 					insertionIndex++;

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    public class NoColors : IColorProvider
+    class NoColors : IColorProvider
     {
         public const string Title = "<None>";
         public string GetTitle() => Title;

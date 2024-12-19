@@ -5,7 +5,7 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [GenerationAPI]
-    public class TargetActiveBlockContext
+    class TargetActiveBlockContext
     {
         public List<BlockFieldDescriptor> activeBlocks { get; private set; }
         public List<BlockFieldDescriptor> currentBlocks { get; private set; }

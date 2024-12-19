@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    public interface IColorProvider
+    interface IColorProvider
     {
         string GetTitle();
 

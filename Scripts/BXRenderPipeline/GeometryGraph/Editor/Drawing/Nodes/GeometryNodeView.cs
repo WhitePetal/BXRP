@@ -9,12 +9,12 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using UnityEngine.UIElements.Experimental;
-using UnityEditor.UIElements;
+
 using System;
 
 namespace BXGeometryGraph
 {
-	public sealed class GeometryNodeView : Node, IGeometryNodeView, IInspectable
+	sealed class GeometryNodeView : Node, IGeometryNodeView, IInspectable
 	{
 		private PreviewRenderData m_PreviewRenderData;
 		private Image m_PreviewImage;
@@ -22,14 +22,14 @@ namespace BXGeometryGraph
 		private VisualElement m_TitleContainer;
 
 		private VisualElement m_PreviewContainer;
-		private VisualElement m_PreviewFilter;
+		private VisualElement m_PreviewFiller;
 		private VisualElement m_ControlItems;
 		private VisualElement m_ControlsDivider;
 		private VisualElement m_DropdownItems;
 		private VisualElement m_DropdownsDivider;
 		private Action m_UnregisterAll;
 
-		private IEdgeConnectorListener m_ConnectorListerner;
+		private IEdgeConnectorListener m_ConnectorListener;
 
 		private GeometryGraphView m_GraphView;
 
@@ -48,7 +48,7 @@ namespace BXGeometryGraph
 
 			m_GraphView = graphView;
 			mainContainer.style.overflow = StyleKeyword.None; // Override explicit style set in base class
-			m_ConnectorListerner = connectorListener;
+			m_ConnectorListener = connectorListener;
 			node = inNode;
 			UpdateTitle();
 
@@ -98,17 +98,17 @@ namespace BXGeometryGraph
 				m_PreviewContainer.Add(m_PreviewImage);
 
 				// Hook up preview image to preview manager
-				m_PreviewRenderData = previewManager.GetPreview(inNode);
+				m_PreviewRenderData = previewManager.GetPreviewRenderData(inNode);
 				m_PreviewRenderData.onPreviewChanged += UpdatePreviewTexture;
 				UpdatePreviewTexture();
 
 				// Add fake preview which pads out the node to provide space for the floating preview
-				m_PreviewFilter = new VisualElement { name = "previewFiller" };
-				m_PreviewFilter.AddToClassList("expanded");
+				m_PreviewFiller = new VisualElement { name = "previewFiller" };
+				m_PreviewFiller.AddToClassList("expanded");
 				{
 					var previewDivider = new VisualElement { name = "divider" };
 					previewDivider.AddToClassList("horizontal");
-					m_PreviewFilter.Add(previewDivider);
+					m_PreviewFiller.Add(previewDivider);
 
 					var expandPreviewButton = new VisualElement { name = "expand" };
 					expandPreviewButton.Add(new VisualElement { name = "icon" });
@@ -117,384 +117,644 @@ namespace BXGeometryGraph
 						node.owner.owner.RegisterCompleteObjectUndo("Expand Preview");
 						UpdatePreviewExpandedState(true);
 					}));
-					m_PreviewFilter.Add(expandPreviewButton);
+					m_PreviewFiller.Add(expandPreviewButton);
 				}
-				contents.Add(m_PreviewFilter);
+				contents.Add(m_PreviewFiller);
 
 				UpdatePreviewExpandedState(node.previewExpanded);
 			}
 
-			// Add port input container, which acts as a pixel cache for all port inputs
-			m_PortInputContainer = new VisualElement
-			{
-				name = "portInputContainer",
-				//clippingOptions = ClippingOptions.ClipAndCacheContents,
-				pickingMode = PickingMode.Ignore
-			};
-			Add(m_PortInputContainer);
-
-			AddSlots(node.GetSlots<GeometrySlot>());
-			UpdatePortInputs();
 			base.expanded = node.drawState.expanded;
-			RefreshExpandedState();//This should not be needed. GraphView needs to improve the extension api here
-			UpdatePortInputVisiblities();
+			AddSlots(node.GetSlots<GeometrySlot>());
 
-			SetPosition(new Rect(node.drawState.position.x, node.drawState.position.y, 0, 0));
-
-			if(node is SubGraphNode)
-			{
-				RegisterCallback<MouseDownEvent>(OnSubGraphDoubleClick);
+            switch (node)
+            {
+				case SubGraphNode:
+					RegisterCallback<MouseDownEvent>(OnSubGraphDoubleClick);
+					m_UnregisterAll += () => { UnregisterCallback<MouseDownEvent>(OnSubGraphDoubleClick); };
+					break;
 			}
 
-			var masterNode = node as IMasterNode;
-			if(masterNode != null)
+			m_TitleContainer = this.Q("title");
+
+			if (node is BlockNode blockData)
 			{
-				if (!masterNode.IsPipelineCompatible(RenderPipelineManager.currentPipeline))
+				AddToClassList("blockData");
+				m_TitleContainer.RemoveFromHierarchy();
+			}
+			else
+			{
+				SetPosition(new Rect(node.drawState.position.x, node.drawState.position.y, 0, 0));
+			}
+
+			// Update active state
+			SetActive(node.isActive);
+
+			// Register OnMouseHover callbacks for node highlighting
+			RegisterCallback<MouseEnterEvent>(OnMouseHover);
+			m_UnregisterAll += () => { UnregisterCallback<MouseEnterEvent>(OnMouseHover); };
+
+			RegisterCallback<MouseLeaveEvent>(OnMouseHover);
+			m_UnregisterAll += () => { UnregisterCallback<MouseLeaveEvent>(OnMouseHover); };
+
+			GeometryGraphPreferences.onAllowDeprecatedChanged += UpdateTitle;
+		}
+
+		public bool FindPort(SlotReference slotRef, out GeometryPort port)
+		{
+			port = inputContainer.Query<GeometryPort>().ToList()
+				.Concat(outputContainer.Query<GeometryPort>().ToList())
+				.First(p => p.slot.slotReference.Equals(slotRef));
+
+			return port != null;
+		}
+
+		public void AttachMessage(string errString, GeometryCompilerMessageSeverity severity)
+		{
+			ClearMessage();
+			IconBadge badge;
+			if (severity == GeometryCompilerMessageSeverity.Error)
+			{
+				badge = IconBadge.CreateError(errString);
+			}
+			else
+			{
+				badge = IconBadge.CreateComment(errString);
+			}
+
+			Add(badge);
+
+			if (node is BlockNode)
+			{
+				FindPort(node.GetSlotReference(0), out var port);
+				badge.AttachTo(port.parent, SpriteAlignment.RightCenter);
+			}
+			else
+			{
+				badge.AttachTo(m_TitleContainer, SpriteAlignment.RightCenter);
+			}
+		}
+
+		public void SetActive(bool state)
+		{
+			// Setup
+			var disabledString = "disabled";
+			var portDisabledString = "inactive";
+
+
+			if (!state)
+			{
+				// Add elements to disabled class list
+				AddToClassList(disabledString);
+
+				var inputPorts = inputContainer.Query<GeometryPort>().ToList();
+				foreach (var port in inputPorts)
 				{
-					IconBadge wrongPipeline = IconBadge.CreateError("The current render pipeline is not compatible with this node preview.");
-					Add(wrongPipeline);
-					VisualElement title = this.Q("title");
-					wrongPipeline.AttachTo(title, SpriteAlignment.LeftCenter);
+					port.AddToClassList(portDisabledString);
+				}
+				var outputPorts = outputContainer.Query<GeometryPort>().ToList();
+				foreach (var port in outputPorts)
+				{
+					port.AddToClassList(portDisabledString);
 				}
 			}
-
-			m_PortInputContainer.SendToBack();
-
-			// Remove this after updated to the correct API call has landed in trunk. ------------
-			VisualElement m_TitleContainer;
-			VisualElement m_ButtonContainer;
-			m_TitleContainer = this.Q("title");
-			// -----------------------------------------------------------------------------------
-
-			var settings = node as IHasSettings;
-			if(settings != null)
+			else
 			{
-				m_NodeSettingsView = new NodeSettingsView();
-				m_NodeSettingsView.visible = false;
+				// Remove elements from disabled class list
+				RemoveFromClassList(disabledString);
 
-				Add(m_NodeSettingsView);
-
-				m_SettingsButton = new VisualElement { name = "settings-button" };
-				m_SettingsButton.Add(new VisualElement { name = "icon" });
-
-				m_Settings = settings.CreateSettingsElement();
-
-				m_SettingsButton.AddManipulator(new Clickable(() =>
+				var inputPorts = inputContainer.Query<GeometryPort>().ToList();
+				foreach (var port in inputPorts)
 				{
-					UpdateSettingsExpandedState();
-				}));
-
-				// Remove this after updated to the correct API call has landed in trunk. ------------
-				m_ButtonContainer = new VisualElement { name = "button-container" };
-				m_ButtonContainer.style.flexDirection = FlexDirection.Row;
-				m_ButtonContainer.Add(m_SettingsButton);
-				m_ButtonContainer.Add(m_CollapseButton);
-				m_TitleContainer.Add(m_ButtonContainer);
-				// -----------------------------------------------------------------------------------
-				//titleButtonContainer.Add(m_SettingsButton);
-				//titleButtonContainer.Add(m_CollapseButton);
-
-				RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+					port.RemoveFromClassList(portDisabledString);
+				}
+				var outputPorts = outputContainer.Query<GeometryPort>().ToList();
+				foreach (var port in outputPorts)
+				{
+					port.RemoveFromClassList(portDisabledString);
+				}
 			}
 		}
 
-		private void OnGeometryChanged(GeometryChangedEvent evt)
+		public void ClearMessage()
 		{
-			// style.positionTop and style.positionLeft are in relation to the parent,
-			// so we translate the layout of the settings button to be in the coordinate
-			// space of the settings view's parent.
-
-			var settingsButtonLayout = m_SettingsButton.ChangeCoordinatesTo(m_NodeSettingsView.parent, m_SettingsButton.layout);
-			m_NodeSettingsView.style.top = settingsButtonLayout.yMax - 18f;
-			m_NodeSettingsView.style.left = settingsButtonLayout.xMin - 16f;
+			var badge = this.Q<IconBadge>();
+			badge?.Detach();
+			badge?.RemoveFromHierarchy();
 		}
 
-		private void OnSubGraphDoubleClick(MouseDownEvent evt)
+		public void UpdateDropdownEntries()
 		{
-			if(evt.clickCount == 2 && evt.button == 0)
+			if (node is SubGraphNode subGraphNode && subGraphNode.asset != null)
+			{
+				m_DropdownItems.Clear();
+				var dropdowns = subGraphNode.asset.dropdowns;
+				foreach (var dropdown in dropdowns)
+				{
+					if (dropdown.isExposed)
+					{
+						var name = subGraphNode.GetDropdownEntryName(dropdown.referenceName);
+						if (!dropdown.ContainsEntry(name))
+						{
+							name = dropdown.entryName;
+							subGraphNode.SetDropdownEntryName(dropdown.referenceName, name);
+						}
+
+						var field = new PopupField<string>(dropdown.entries.Select(x => x.displayName).ToList(), name);
+
+						// Create anonymous lambda
+						EventCallback<ChangeEvent<string>> eventCallback = (evt) =>
+						{
+							subGraphNode.owner.owner.RegisterCompleteObjectUndo("Change Dropdown Value");
+							subGraphNode.SetDropdownEntryName(dropdown.referenceName, field.value);
+							subGraphNode.Dirty(ModificationScope.Topological);
+						};
+
+						field.RegisterValueChangedCallback(eventCallback);
+
+						// Setup so we can unregister this callback later
+						m_UnregisterAll += () => field.UnregisterValueChangedCallback(eventCallback);
+
+						m_DropdownItems.Add(new PropertyRow(new Label(dropdown.displayName)), (row) =>
+						{
+							row.styleSheets.Add(Resources.Load<StyleSheet>("Styles/PropertyRow"));
+							row.Add(field);
+						});
+					}
+				}
+			}
+		}
+
+		public VisualElement colorElement
+		{
+			get { return this; }
+		}
+
+		static readonly StyleColor noColor = new StyleColor(StyleKeyword.Null);
+		public void SetColor(Color color)
+		{
+			m_TitleContainer.style.borderBottomColor = color;
+		}
+
+		public void ResetColor()
+		{
+			m_TitleContainer.style.borderBottomColor = noColor;
+		}
+
+		public Color GetColor()
+		{
+			return m_TitleContainer.resolvedStyle.borderBottomColor;
+		}
+
+		void OnSubGraphDoubleClick(MouseDownEvent evt)
+		{
+			if (evt.clickCount == 2 && evt.button == 0)
 			{
 				SubGraphNode subgraphNode = node as SubGraphNode;
 
-				//var path = AssetDatabase.GetAssetPath(subgraphNode.subGraphAsset);
-				//GeometryGraphImporterEditor.ShowGraphEditorWindow(path);
+				var path = AssetDatabase.GUIDToAssetPath(subgraphNode.subGraphGuid);
+				GeometryGraphImporterEditor.ShowGraphEditWindow(path);
 			}
 		}
 
+		public Node gvNode => this;
+
+		[Inspectable("Node", null)]
 		public AbstractGeometryNode node { get; private set; }
 
-		public override bool expanded 
-		{	get { return base.expanded; }
+		public override bool expanded
+		{
+			get => base.expanded;
 			set
 			{
-				if (base.expanded != value)
-					base.expanded = value;
+				if (base.expanded == value)
+					return;
 
-				if(node.drawState.expanded != value)
+				base.expanded = value;
+
+				if (node.drawState.expanded != value)
 				{
 					var ds = node.drawState;
 					ds.expanded = value;
 					node.drawState = ds;
 				}
 
-				RefreshExpandedState();//This should not be needed. GraphView needs to improve the extension api here
-				UpdatePortInputVisiblities();
+				foreach (var inputPort in inputContainer.Query<GeometryPort>().ToList())
+				{
+					inputPort.parent.style.visibility = inputPort.style.visibility;
+				}
+
+				RefreshExpandedState(); // Necessary b/c we can't override enough Node.cs functions to update only what's needed
 			}
 		}
 
 		public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
 		{
 			if (evt.target is Node)
-				evt.menu.AppendAction("Copy Geometry", ConvertToGeometry, node.hasPreview ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Hidden);
+			{
+				var canViewShader = node.hasPreview || node is SubGraphOutputNode;
+				evt.menu.AppendAction("Copy Shader", CopyToClipboard,
+					_ => canViewShader ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Hidden,
+					GenerationMode.ForReals);
+				evt.menu.AppendAction("Show Generated Code", ShowGeneratedCode,
+					_ => canViewShader ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Hidden,
+					GenerationMode.ForReals);
+
+				if (Unsupported.IsDeveloperMode())
+				{
+					evt.menu.AppendAction("Show Preview Code", ShowGeneratedCode,
+						_ => canViewShader ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Hidden,
+						GenerationMode.Preview);
+				}
+			}
+
 			base.BuildContextualMenu(evt);
 		}
 
-		private void ConvertToGeometry(DropdownMenuAction act)
+		void CopyToClipboard(DropdownMenuAction action)
 		{
-			List<PropertyCollector.TextureInfo> textureInfo;
-			var masterNode = node as IMasterNode;
-			if(masterNode != null)
+			GUIUtility.systemCopyBuffer = ConvertToGeometry((GenerationMode)action.userData);
+		}
+
+		public string SanitizeName(string name)
+		{
+			return new string(name.Where(c => !Char.IsWhiteSpace(c)).ToArray());
+		}
+
+		public void ShowGeneratedCode(DropdownMenuAction action)
+		{
+			string name = GetFirstAncestorOfType<GraphEditorView>().assetName;
+			var mode = (GenerationMode)action.userData;
+
+			string path = String.Format("Temp/GeneratedFromGraph-{0}-{1}-{2}{3}.shader", SanitizeName(name),
+				SanitizeName(node.name), node.objectId, mode == GenerationMode.Preview ? "-Preview" : "");
+			if (GraphUtil.WriteToFile(path, ConvertToGeometry(mode)))
+				GraphUtil.OpenFile(path);
+		}
+
+		string ConvertToGeometry(GenerationMode mode)
+		{
+			//var generator = new Generator(node.owner, node, mode, node.name);
+			//return generator.generatedShader;
+			return "";
+		}
+
+		void SetNodesAsDirty()
+		{
+			var editorView = GetFirstAncestorOfType<GraphEditorView>();
+			var nodeList = m_GraphView.Query<GeometryNodeView>().ToList();
+			editorView.colorManager.SetNodesDirty(nodeList);
+		}
+
+		void UpdateNodeViews()
+		{
+			var editorView = GetFirstAncestorOfType<GraphEditorView>();
+			var nodeList = m_GraphView.Query<GeometryNodeView>().ToList();
+			editorView.colorManager.UpdateNodeViews(nodeList);
+		}
+
+		public object GetObjectToInspect()
+		{
+			return node;
+		}
+
+		public void SupplyDataToPropertyDrawer(IPropertyDrawer propertyDrawer, Action inspectorUpdateDelegate)
+		{
+			if (propertyDrawer is IGetNodePropertyDrawerPropertyData nodePropertyDrawer)
 			{
-				var geometry = masterNode.GetGeometry(GenerationMode.ForReals, node.name, out textureInfo);
-				GUIUtility.systemCopyBuffer = geometry;
-			}
-			else
-			{
-				var graph = (AbstructGeometryGraph)node.owner;
-				GUIUtility.systemCopyBuffer = graph.GetGeometry(node, GenerationMode.ForReals, node.name).geometry;
+				nodePropertyDrawer.GetPropertyData(SetNodesAsDirty, UpdateNodeViews);
 			}
 		}
 
-		private void UpdateSettingsExpandedState()
+		private void SetSelfSelected()
 		{
-			m_ShowSettings = !m_ShowSettings;
-			if (m_ShowSettings)
-			{
-				m_NodeSettingsView.Add(m_Settings);
-				m_NodeSettingsView.visible = true;
+			m_GraphView.ClearSelection();
+			m_GraphView.AddToSelection(this);
+		}
 
-				m_SettingsButton.AddToClassList("clicked");
-			}
-			else
-			{
-				m_Settings.RemoveFromHierarchy();
+		protected override void ToggleCollapse()
+		{
+			node.owner.owner.RegisterCompleteObjectUndo(!expanded ? "Expand Nodes" : "Collapse Nodes");
+			expanded = !expanded;
 
-				m_NodeSettingsView.visible = false;
-				m_SettingsButton.RemoveFromClassList("clicked");
+			// If selected, expand/collapse the other applicable nodes that are also selected
+			if (selected)
+			{
+				m_GraphView.SetNodeExpandedForSelectedNodes(expanded, false);
 			}
 		}
 
-		private void UpdatePreviewExpandedState(bool expanded)
+		void SetPreviewExpandedStateOnSelection(bool state)
+		{
+			// If selected, expand/collapse the other applicable nodes that are also selected
+			if (selected)
+			{
+				m_GraphView.SetPreviewExpandedForSelectedNodes(state);
+			}
+			else
+			{
+				node.owner.owner.RegisterCompleteObjectUndo(state ? "Expand Previews" : "Collapse Previews");
+				node.previewExpanded = state;
+			}
+		}
+
+		public bool CanToggleNodeExpanded()
+		{
+			return !(node is BlockNode) && m_CollapseButton.enabledInHierarchy;
+		}
+
+		void UpdatePreviewExpandedState(bool expanded)
 		{
 			node.previewExpanded = expanded;
-			if (m_PreviewFilter == null)
+			if (m_PreviewFiller == null)
 				return;
-
 			if (expanded)
 			{
-				if(m_PreviewContainer.parent != this)
+				if (m_PreviewContainer.parent != this)
 				{
 					Add(m_PreviewContainer);
+					m_PreviewContainer.PlaceBehind(this.Q("selection-border"));
 				}
-				m_PreviewFilter.AddToClassList("expanded");
-				m_PreviewFilter.RemoveFromClassList("collapsed");
+				m_PreviewFiller.AddToClassList("expanded");
+				m_PreviewFiller.RemoveFromClassList("collapsed");
 			}
 			else
 			{
-				if(m_PreviewContainer.parent == m_PreviewFilter)
+				if (m_PreviewContainer.parent == m_PreviewFiller)
 				{
 					m_PreviewContainer.RemoveFromHierarchy();
 				}
-				m_PreviewFilter.RemoveFromClassList("expanded");
-				m_PreviewFilter.AddToClassList("collapsed");
+				m_PreviewFiller.RemoveFromClassList("expanded");
+				m_PreviewFiller.AddToClassList("collapsed");
+			}
+			UpdatePreviewTexture();
+		}
+
+		void UpdateTitle()
+		{
+			if (node is SubGraphNode subGraphNode && subGraphNode.asset != null)
+				title = subGraphNode.asset.name;
+			else
+			{
+				if (node.ggVersion < node.latestVersion)
+				{
+					if (node is IHasCustomDeprecationMessage customDeprecationMessage)
+					{
+						title = customDeprecationMessage.GetCustomDeprecationLabel();
+					}
+					else
+					{
+						title = node.name + $" (Legacy v{node.ggVersion})";
+					}
+				}
+				else
+				{
+					title = node.name;
+				}
 			}
 		}
 
-		private void UpdateTitle()
+		void UpdateGeometryPortsForSlots(bool inputSlots, List<GeometrySlot> allSlots, GeometryPort[] slotGeometryPorts)
 		{
-			var subGraphNode = node as SubGraphNode;
-			//if (subGraphNode != null && subGraphNode.subGraphAsset != null)
-				//title = subGraphNode.subGraphAsset.name;
-			//else
-				title = node.name;
+			VisualElement portContainer = inputSlots ? inputContainer : outputContainer;
+			var existingPorts = portContainer.Query<GeometryPort>().ToList();
+			foreach (GeometryPort geometryPort in existingPorts)
+			{
+				var currentSlotId = geometryPort.slot.id;
+				int newSlotIndex = allSlots.FindIndex(s => s.id == currentSlotId);
+				if (newSlotIndex < 0)
+				{
+					// slot doesn't exist anymore, remove it
+					if (inputSlots)
+						portContainer.Remove(geometryPort.parent);    // remove parent (includes the InputView)
+					else
+						portContainer.Remove(geometryPort);
+				}
+				else
+				{
+					var newSlot = allSlots[newSlotIndex];
+					slotGeometryPorts[newSlotIndex] = geometryPort;
+
+					// these should probably be in an UpdateShaderPort(geometryPort, newSlot) function
+					geometryPort.slot = newSlot;
+					geometryPort.portName = newSlot.displayName;
+
+					if (inputSlots) // input slots also have to update the InputView
+						UpdatePortInputView(geometryPort);
+				}
+			}
 		}
 
 		public void OnModified(ModificationScope scope)
 		{
 			UpdateTitle();
+			SetActive(node.isActive);
 			if (node.hasPreview)
 				UpdatePreviewExpandedState(node.previewExpanded);
 
 			base.expanded = node.drawState.expanded;
 
-			// Update slots to match node modification
-			if(scope == ModificationScope.Topological)
+			switch (scope)
 			{
-				var slots = node.GetSlots<GeometrySlot>().ToList();
-
-				var inputPorts = inputContainer.Children().OfType<GeometryPort>().ToList();
-				foreach(var port in inputPorts)
-				{
-					var currentSlot = port.slot;
-					var newSlot = slots.FirstOrDefault(s => s.id == currentSlot.id);
-					if(newSlot == null)
+				// Update slots to match node modification
+				case ModificationScope.Topological:
 					{
-						// Slot doesn't exist anymore, remove it
-						inputContainer.Remove(port);
+						var slots = node.GetSlots<GeometrySlot>().ToList();
+						// going to record the corresponding ShaderPort to each slot, so we can order them later
+						GeometryPort[] slotGeometryPorts = new GeometryPort[slots.Count];
 
-						// We also need to remove the inline input
-						var portInputView = m_PortInputContainer.Query<PortInputView>().Where(v => Equals(v.slot, port.slot)).First();
-						if (portInputView != null)
-							portInputView.RemoveFromHierarchy();
+						// update existing input and output ports
+						UpdateGeometryPortsForSlots(true, slots, slotGeometryPorts);
+						UpdateGeometryPortsForSlots(false, slots, slotGeometryPorts);
+
+						// check if there are any new slots that must create new ports
+						for (int i = 0; i < slots.Count; i++)
+						{
+							if (slotGeometryPorts[i] == null)
+								slotGeometryPorts[i] = AddGeometryPortForSlot(slots[i]);
+						}
+
+						// make sure they are in the right order
+						// by bringing each port to front in declaration order
+						// note that this sorts input and output containers at the same time
+						foreach (var geometryPort in slotGeometryPorts)
+						{
+							if (geometryPort != null)
+							{
+								if (geometryPort.slot.isInputSlot)
+									geometryPort.parent.BringToFront();
+								else
+									geometryPort.BringToFront();
+							}
+						}
+
+						break;
 					}
-					else
-					{
-						port.slot = newSlot;
-						var portInputView = m_PortInputContainer.Query<PortInputView>().Where(x => x.slot.id == currentSlot.id).First();
-						portInputView.UpdateSlot(newSlot);
-
-						slots.Remove(newSlot);
-					}
-				}
-
-				var outputPorts = outputContainer.Children().OfType<GeometryPort>().ToList();
-				foreach(var port in outputPorts)
-				{
-					var currentSlot = port.slot;
-					var newSlot = slots.FirstOrDefault(s => s.id == currentSlot.id);
-					if(newSlot == null)
-					{
-						outputContainer.Remove(port);
-					}
-					else
-					{
-						port.slot = newSlot;
-						slots.Remove(newSlot);
-					}
-				}
-
-				AddSlots(slots);
-
-				slots.Clear();
-				slots.AddRange(node.GetSlots<GeometrySlot>());
-
-				if (inputContainer.childCount > 0)
-					inputContainer.Sort((x, y) => slots.IndexOf(((GeometryPort)x).slot) - slots.IndexOf(((GeometryPort)y).slot));
-				if (outputContainer.childCount > 0)
-					outputContainer.Sort((x, y) => slots.IndexOf(((GeometryPort)x).slot) - slots.IndexOf(((GeometryPort)y).slot));
 			}
 
-			RefreshExpandedState(); //This should not be needed. GraphView needs to improve the extension api here
-			UpdatePortInputs();
-			UpdatePortInputVisiblities();
+			RefreshExpandedState(); // Necessary b/c we can't override enough Node.cs functions to update only what's needed
 
-			foreach(var control in m_ControlItems.Children())
+			foreach (var listener in m_ControlItems.Children().OfType<AbstractGeometryNodeModificationListener>())
 			{
-				var listener = control as INodeModificationListener;
 				if (listener != null)
 					listener.OnNodeModified(scope);
 			}
 		}
 
-		private void AddSlots(IEnumerable<GeometrySlot> slots)
+		GeometryPort AddGeometryPortForSlot(GeometrySlot slot)
 		{
-			foreach(var slot in slots)
-			{
-				if (slot.hidden)
-					continue;
+			if (slot.hidden)
+				return null;
 
-				var port = GeometryPort.Create(slot, m_ConnectorListerner);
-				if (slot.isOutputSlot)
-					outputContainer.Add(port);
-				else
-					inputContainer.Add(port);
+			GeometryPort port = GeometryPort.Create(slot, m_ConnectorListener);
+			if (slot.isOutputSlot)
+			{
+				outputContainer.Add(port);
 			}
-		}
-
-		private void UpdatePortInputs()
-		{
-			inputContainer.Query<GeometryPort>().ForEach(port =>
+			else
 			{
-				if (!(m_PortInputContainer.Query<PortInputView>().Where(a => Equals(a.slot, port.slot)).First() != null))
+				var portContainer = new VisualElement();
+				portContainer.style.flexDirection = FlexDirection.Row;
+				var portInputView = new PortInputView(slot) { style = { position = Position.Absolute } };
+				portContainer.Add(portInputView);
+				portContainer.Add(port);
+				inputContainer.Add(portContainer);
+
+				// Update active state
+				if (node.isActive)
 				{
-					var portInputView = new PortInputView(port.slot) { style = { position = Position.Absolute } };
-					m_PortInputContainer.Add(portInputView);
-					port.RegisterCallback<GeometryChangedEvent>(evt => UpdatePortInput((GeometryPort)evt.target));
+					portInputView.RemoveFromClassList("disabled");
 				}
-			});
+				else
+				{
+					portInputView.AddToClassList("disabled");
+				}
+			}
+			port.OnDisconnect = OnEdgeDisconnected;
+
+			return port;
 		}
 
-		private void UpdatePortInput(GeometryPort port)
+		void AddSlots(IEnumerable<GeometrySlot> slots)
 		{
-			var inputView = m_PortInputContainer.Query<PortInputView>().Where(x => Equals(x.slot, port.slot)).First();
-
-			var currentRect = new Rect(inputView.style.left.value.value, inputView.style.top.value.value, inputView.style.width.value.value, inputView.style.height.value.value);
-			var targetRect = new Rect(0f, 0f, port.layout.width, port.layout.height);
-			targetRect = port.ChangeCoordinatesTo(inputView.parent, targetRect);
-			var centerY = targetRect.center.y;
-			var centerX = targetRect.xMax - currentRect.width;
-			currentRect.center = new Vector2(centerX, centerY);
-
-			inputView.style.top = currentRect.yMin;
-			var newHeight = inputView.parent.layout.height;
-			foreach (var element in inputView.parent.Children())
-				newHeight = Mathf.Max(newHeight, element.style.top.value.value + element.layout.height);
-			if (Math.Abs(inputView.parent.style.height.value.value - newHeight) > 1e-3)
-				inputView.parent.style.height = newHeight;
+			foreach (var slot in slots)
+				AddGeometryPortForSlot(slot);
+			// Make sure the visuals are properly updated to reflect port list
+			RefreshPorts();
 		}
 
-		public void UpdatePortInputVisiblities()
+		void OnEdgeDisconnected(Port obj)
 		{
-			m_PortInputContainer.Query<PortInputView>().ForEach(portInputView =>
-			{
-				var slot = portInputView.slot;
-				var oldVisiblity = portInputView.visible;
-				portInputView.visible = expanded && !node.owner.GetEdges(node.GetSlotReference(slot.id)).Any();
-				if (portInputView.visible != oldVisiblity)
-					m_PortInputContainer.MarkDirtyRepaint();
-			});
+			RefreshExpandedState();
+		}
+
+		static bool GetPortInputView(GeometryPort port, out PortInputView view)
+		{
+			view = port.parent.Q<PortInputView>();
+			return view != null;
 		}
 
 		public void UpdatePortInputTypes()
 		{
-			void UpdateAnchor(GeometryPort anchor)
+			var portList = inputContainer.Query<GeometryPort>().ToList();
+			portList.AddRange(outputContainer.Query<GeometryPort>().ToList());
+			foreach (var anchor in portList)
 			{
 				var slot = anchor.slot;
 				anchor.portName = slot.displayName;
 				anchor.visualClass = slot.concreteValueType.ToClassName();
+
+				if (GetPortInputView(anchor, out var portInputView))
+				{
+					portInputView.UpdateSlotType();
+					UpdatePortInputVisibility(portInputView, anchor);
+				}
 			}
-			inputContainer.Query<GeometryPort>().ForEach(UpdateAnchor);
-			outputContainer.Query<GeometryPort>().ForEach(UpdateAnchor);
 
-			m_PortInputContainer.Query<PortInputView>().ForEach(portInputView =>
+			foreach (var control in m_ControlItems.Children())
 			{
-				portInputView.UpdateSlotType();
-			});
-
-			foreach(var control in m_ControlItems.Children())
-			{
-				var listerner = control as INodeModificationListener;
-				if (listerner != null)
-					listerner.OnNodeModified(ModificationScope.Graph);
+				if (control is AbstractGeometryNodeModificationListener listener)
+					listener.OnNodeModified(ModificationScope.Graph);
 			}
 		}
 
-		private void OnResize(Vector2 deltaSize)
+		void UpdatePortInputView(GeometryPort port)
 		{
-			var updatedWidth = topContainer.layout.width + deltaSize.x;
-			var updatedHeight = m_PreviewImage.layout.height + deltaSize.y;
-
-			// TODO
-			//var previewNode = node as PreviewNode;
-			//if(previewNode != null)
-			//{
-			//	previewNode.SetDimensions(updatedWidth, updatedHeight);
-			//	UpdateSize();
-			//}
+			if (GetPortInputView(port, out var portInputView))
+			{
+				portInputView.UpdateSlot(port.slot);
+				UpdatePortInputVisibility(portInputView, port);
+			}
 		}
 
-		private void UpdatePreviewTexture()
+		void UpdatePortInputVisibility(PortInputView portInputView, GeometryPort port)
 		{
-			if(m_PreviewRenderData.texture == null || !node.previewExpanded)
+			SetElementVisible(portInputView, !port.slot.isConnected);
+			port.parent.style.visibility = port.style.visibility;
+			portInputView.MarkDirtyRepaint();
+		}
+
+		void SetElementVisible(VisualElement element, bool isVisible)
+		{
+			const string k_HiddenClassList = "hidden";
+
+			if (isVisible)
+			{
+				// Restore default value for visibility by setting it to StyleKeyword.Null.
+				// Setting it to Visibility.Visible would make it visible even if parent is hidden.
+				element.style.visibility = StyleKeyword.Null;
+				element.RemoveFromClassList(k_HiddenClassList);
+			}
+			else
+			{
+				element.style.visibility = Visibility.Hidden;
+				element.AddToClassList(k_HiddenClassList);
+			}
+		}
+
+		GGBlackboardRow GetAssociatedBlackboardRow()
+		{
+			var graphEditorView = GetFirstAncestorOfType<GraphEditorView>();
+			if (graphEditorView == null)
+				return null;
+
+			var blackboardController = graphEditorView.blackboardController;
+			if (blackboardController == null)
+				return null;
+
+			if (node is KeywordNode keywordNode)
+			{
+				return blackboardController.GetBlackboardRow(keywordNode.keyword);
+			}
+
+			if (node is DropdownNode dropdownNode)
+			{
+				return blackboardController.GetBlackboardRow(dropdownNode.dropdown);
+			}
+			return null;
+		}
+
+		void OnMouseHover(EventBase evt)
+		{
+			// Keyword/Dropdown nodes should be highlighted when Blackboard entry is hovered
+			// TODO: Move to new NodeView type when keyword node has unique style
+			var blackboardRow = GetAssociatedBlackboardRow();
+			if (blackboardRow != null)
+			{
+				if (evt.eventTypeId == MouseEnterEvent.TypeId())
+				{
+					blackboardRow.AddToClassList("hovered");
+				}
+				else
+				{
+					blackboardRow.RemoveFromClassList("hovered");
+				}
+			}
+		}
+
+		void UpdatePreviewTexture()
+		{
+			if (m_PreviewRenderData.texture == null || !node.previewExpanded)
 			{
 				m_PreviewImage.visible = false;
 				m_PreviewImage.image = Texture2D.blackTexture;
@@ -508,82 +768,64 @@ namespace BXGeometryGraph
 					m_PreviewImage.image = m_PreviewRenderData.texture;
 				else
 					m_PreviewImage.MarkDirtyRepaint();
+
+				if (m_PreviewRenderData.shaderData.isOutOfDate)
+					m_PreviewImage.tintColor = new Color(1.0f, 1.0f, 1.0f, 0.3f);
+				else
+					m_PreviewImage.tintColor = Color.white;
 			}
-		}
-
-		private void UpdateSize()
-		{
-			//var previewNode = node as PreviewNode;
-
-			//if (previewNode == null)
-			//	return;
-
-			//var width = previewNode.width;
-			//var height = previewNode.height;
-
-			//m_PreviewImage.style.height = height;
-			//m_PreviewImage.style.width = width;
 		}
 
 		public void Dispose()
 		{
-			m_PortInputContainer.Query<PortInputView>().ForEach(portInputView =>
-			{
-				portInputView.Dispose();
-			});
+			ClearMessage();
 
+			foreach (var portInputView in inputContainer.Query<PortInputView>().ToList())
+				portInputView.Dispose();
+
+			foreach (var shaderPort in outputContainer.Query<ShaderPort>().ToList())
+				shaderPort.Dispose();
+
+			var propRow = GetAssociatedBlackboardRow();
+			// If this node view is deleted, remove highlighting from associated blackboard row
+			if (propRow != null)
+			{
+				propRow.RemoveFromClassList("hovered");
+			}
+
+			styleSheets.Clear();
+			inputContainer?.Clear();
+			outputContainer?.Clear();
+			m_DropdownsDivider?.Clear();
+			m_ControlsDivider?.Clear();
+			m_PreviewContainer?.Clear();
+			m_ControlItems?.Clear();
+
+			m_ConnectorListener = null;
+			m_GraphView = null;
+			m_DropdownItems = null;
+			m_ControlItems = null;
+			m_ControlsDivider = null;
+			m_PreviewContainer = null;
+			m_PreviewFiller = null;
+			m_PreviewImage = null;
+			m_DropdownsDivider = null;
+			m_TitleContainer = null;
 			node = null;
+			userData = null;
+
+			// Unregister callback
+			m_UnregisterAll?.Invoke();
+			m_UnregisterAll = null;
+
 			if (m_PreviewRenderData != null)
 			{
 				m_PreviewRenderData.onPreviewChanged -= UpdatePreviewTexture;
 				m_PreviewRenderData = null;
 			}
+			GeometryGraphPreferences.onAllowDeprecatedChanged -= UpdateTitle;
+
+			Clear();
 		}
-
-        public void SetColor(Color newColor)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ResetColor()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void UpdateDropdownEntries()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void AttachMessage(string errString, GeometryCompilerMessageSeverity severity)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ClearMessage()
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool FindPort(SlotReference slot, out GeometryPort port)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object GetObjectToInspect()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SupplyDataToPropertyDrawer(IPropertyDrawer propertyDrawer, Action inspectorUpdateDelegate)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Node gvNode => throw new NotImplementedException();
-
-        public VisualElement colorElement => throw new NotImplementedException();
-
-        public string inspectorTitle => throw new NotImplementedException();
     }
 }

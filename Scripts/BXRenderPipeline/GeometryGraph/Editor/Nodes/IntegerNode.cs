@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Title("Input", "Basic", "Integer")]
-    public class IntegerNode : AbstractGeometryNode, IGeneratesBodyCode, IPropertyFromNode
+    class IntegerNode : AbstractGeometryNode, IGeneratesShaderBodyCode, IPropertyFromNode
     {
         [SerializeField]
         private int m_Value;
@@ -17,6 +17,7 @@ namespace BXGeometryGraph
         public IntegerNode()
         {
             name = "Integer";
+            synonyms = new string[] { "whole number" };
             UpdateNodeAfterDeserialization();
         }
 
@@ -58,12 +59,12 @@ namespace BXGeometryGraph
             });
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
         {
             if (generationMode.IsPreview())
                 return;
 
-            visitor.AddGeometryChunk(precision + " " + GetVariableNameForNode() + " = " + m_Value + ";", true);
+            sb.AppendLine(string.Format("$precision {0} = {1};", GetVariableNameForNode(), m_Value));
         }
 
         public override string GetVariableNameForSlot(int slotId)
@@ -73,14 +74,14 @@ namespace BXGeometryGraph
 
         public override void CollectPreviewGeometryProperties(List<PreviewProperty> properties)
         {
-            properties.Add(new PreviewProperty(PropertyType.Vector1)
+            properties.Add(new PreviewProperty(PropertyType.Float)
             {
                 name = GetVariableNameForNode(),
                 floatValue = m_Value
             });
         }
 
-        public IGeometryProperty AsGeometryProperty()
+        public AbstractGeometryProperty AsGeometryProperty()
         {
             return new Vector1GeometryProperty { value = value, floatType = FloatType.Integer };
         }

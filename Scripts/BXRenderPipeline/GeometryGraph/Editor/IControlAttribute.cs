@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 
 namespace BXGeometryGraph
 {
-    public interface IControlAttribute
+    interface IControlAttribute
     {
         VisualElement InstantiateControl(AbstractGeometryNode node, PropertyInfo propertyInfo);
     }

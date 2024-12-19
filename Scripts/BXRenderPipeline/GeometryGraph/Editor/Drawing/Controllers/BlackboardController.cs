@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.UIElements;
 
 namespace BXGeometryGraph
 {
@@ -70,9 +72,9 @@ namespace BXGeometryGraph
             Assert.IsNotNull(graphData, "GraphData is null while carrying out AddShaderInputAction");
 
             // If type property is valid, create instance of that type
-            if (blackboardItemType != null && blackboardItemType.IsSubclassOf(typeof(BlackboardItem)))
+            if (blackboardItemType != null && blackboardItemType.IsSubclassOf(typeof(GeometryInput)))
             {
-                geometryInputReference = (BlackboardItem)Activator.CreateInstance(blackboardItemType, true);
+                geometryInputReference = (GeometryInput)Activator.CreateInstance(blackboardItemType, true);
             }
             else if (m_GeometryInputReferenceGetter != null)
             {
@@ -123,12 +125,12 @@ namespace BXGeometryGraph
 
         public static AddGeometryInputAction AddDropdownAction(BlackboardGeometryInputOrder order)
         {
-            return new() { shaderInputReference = BlackboardGeometryInputFactory.GetShaderInput(order), addInputActionType = AddGeometryInputAction.AddActionSource.AddMenu };
+            return new() { geometryInputReference = BlackboardGeometryInputFactory.GetShaderInput(order), addInputActionType = AddGeometryInputAction.AddActionSource.AddMenu };
         }
 
         public static AddGeometryInputAction AddKeywordAction(BlackboardGeometryInputOrder order)
         {
-            return new() { shaderInputReference = BlackboardGeometryInputFactory.GetShaderInput(order), addInputActionType = AddGeometryInputAction.AddActionSource.AddMenu };
+            return new() { geometryInputReference = BlackboardGeometryInputFactory.GetShaderInput(order), addInputActionType = AddGeometryInputAction.AddActionSource.AddMenu };
         }
 
         public static AddGeometryInputAction AddPropertyAction(Type shaderInputType)
@@ -139,13 +141,13 @@ namespace BXGeometryGraph
         public Action<GraphData> modifyGraphDataAction => AddGeometryInput;
         // If this is a subclass of ShaderInput and is not null, then an object of this type is created to add to blackboard
         // If the type field above is null and this is provided, then it is directly used as the item to add to blackboard
-        public BlackboardItem geometryInputReference { get; set; }
+        public GeometryInput geometryInputReference { get; set; }
         public AddActionSource addInputActionType { get; set; }
         public string categoryToAddItemToGuid { get; set; } = String.Empty;
 
         Type blackboardItemType { get; set; }
 
-        Func<BlackboardItem> m_GeometryInputReferenceGetter = null;
+        Func<GeometryInput> m_GeometryInputReferenceGetter = null;
     }
 
     class ChangeGraphPathAction : IGraphDataAction
@@ -270,9 +272,9 @@ namespace BXGeometryGraph
 
         public IEnumerable<AbstractGeometryNode> dependentNodeList { get; set; } = new List<AbstractGeometryNode>();
 
-        public BlackboardItem geometryInputToCopy { get; set; }
+        public GeometryInput geometryInputToCopy { get; set; }
 
-        public BlackboardItem copiedGeometryInput { get; set; }
+        public GeometryInput copiedGeometryInput { get; set; }
 
         public string containingCategoryGuid { get; set; }
 
@@ -392,11 +394,14 @@ namespace BXGeometryGraph
 
     class BlackboardController : GGViewController<GraphData, BlackboardViewModel>
     {
+        // Type changes (adds/removes of Types) only happen after a full assembly reload so its safe to make this static
+        static IList<Type> s_GeometryInputTypes;
+
         static BlackboardController()
         {
-            var shaderInputTypes = TypeCache.GetTypesWithAttribute<BlackboardInputInfo>().ToList();
+            var geometryInputTypes = TypeCache.GetTypesWithAttribute<BlackboardInputInfo>().ToList();
             // Sort the ShaderInput by priority using the BlackboardInputInfo attribute
-            shaderInputTypes.Sort((s1, s2) =>
+            geometryInputTypes.Sort((s1, s2) =>
             {
                 var info1 = Attribute.GetCustomAttribute(s1, typeof(BlackboardInputInfo)) as BlackboardInputInfo;
                 var info2 = Attribute.GetCustomAttribute(s2, typeof(BlackboardInputInfo)) as BlackboardInputInfo;
@@ -407,10 +412,113 @@ namespace BXGeometryGraph
                     return info1.priority.CompareTo(info2.priority);
             });
 
-            s_GeometryInputTypes = shaderInputTypes.ToList();
+            s_GeometryInputTypes = geometryInputTypes.ToList();
         }
 
-        internal BlackboardController(GraphData model, BlackboardViewModel inViewModel, GraphDataStore graphDataStore)
+        BlackboardCategoryController m_DefaultCategoryController = null;
+        Dictionary<string, BlackboardCategoryController> m_BlackboardCategoryControllers = new Dictionary<string, BlackboardCategoryController>();
+
+        protected GGBlackboard m_Blackboard;
+
+        internal GGBlackboard blackboard
+        {
+            get => m_Blackboard;
+            private set => m_Blackboard = value;
+        }
+
+        public string GetFirstSelectedCategoryGuid()
+        {
+            if (m_Blackboard == null)
+            {
+                return string.Empty;
+            }
+            var copiedSelectionList = new List<ISelectable>(m_Blackboard.selection);
+            var selectedCategories = new List<GGBlackboardCategory>();
+            var selectedCategoryGuid = String.Empty;
+            for (int i = 0; i < copiedSelectionList.Count; i++)
+            {
+                var selectable = copiedSelectionList[i];
+                if (selectable is GGBlackboardCategory category)
+                {
+                    selectedCategories.Add(selectable as GGBlackboardCategory);
+                }
+            }
+            if (selectedCategories.Any())
+            {
+                selectedCategoryGuid = selectedCategories[0].viewModel.associatedCategoryGuid;
+            }
+            return selectedCategoryGuid;
+        }
+
+        void InitializeViewModel(bool useDropdowns)
+        {
+            // Clear the view model
+            ViewModel.ResetViewModelData();
+            ViewModel.subtitle = BlackboardUtils.FormatPath(Model.path);
+            BlackboardGeometryInputOrder propertyTypesOrder = new BlackboardGeometryInputOrder();
+
+            // Property data first
+            foreach (var geometryInputType in s_GeometryInputTypes)
+            {
+                if (geometryInputType.IsAbstract)
+                    continue;
+
+                var info = Attribute.GetCustomAttribute(geometryInputType, typeof(BlackboardInputInfo)) as BlackboardInputInfo;
+                string name = info?.name ?? ObjectNames.NicifyVariableName(geometryInputType.Name.Replace("GeometryProperty", ""));
+
+                // QUICK FIX TO DEAL WITH DEPRECATED COLOR PROPERTY
+                //if (name.Equals("Color", StringComparison.InvariantCultureIgnoreCase) && GeometryGraphPreferences.allowDeprecatedBehaviors)
+                //{
+                //    propertyTypesOrder.isKeyword = false;
+                //    propertyTypesOrder.deprecatedPropertyName = name;
+                //    propertyTypesOrder.version = ColorGeometryProperty.deprecatedVersion;
+                //    ViewModel.propertyNameToAddActionMap.Add($"Color (Legacy v0)", AddGeometryInputAction.AddDeprecatedPropertyAction(propertyTypesOrder));
+                //    ViewModel.propertyNameToAddActionMap.Add(name, AddGeometryInputAction.AddPropertyAction(geometryInputType));
+                //}
+                //else
+                    ViewModel.propertyNameToAddActionMap.Add(name, AddGeometryInputAction.AddPropertyAction(geometryInputType));
+            }
+
+            // Default Keywords next
+            //BlackboardGeometryInputOrder keywordTypesOrder = new BlackboardGeometryInputOrder();
+            //keywordTypesOrder.isKeyword = true;
+            //keywordTypesOrder.keywordType = KeywordType.Boolean;
+            //ViewModel.defaultKeywordNameToAddActionMap.Add("Boolean", AddGeometryInputAction.AddKeywordAction(keywordTypesOrder));
+            //keywordTypesOrder.keywordType = KeywordType.Enum;
+            //ViewModel.defaultKeywordNameToAddActionMap.Add("Enum", AddGeometryInputAction.AddKeywordAction(keywordTypesOrder));
+
+            //// Built-In Keywords after that
+            //foreach (var builtinKeywordDescriptor in KeywordUtil.GetBuiltinKeywordDescriptors())
+            //{
+            //    var keyword = ShaderKeyword.CreateBuiltInKeyword(builtinKeywordDescriptor);
+            //    // Do not allow user to add built-in keywords that conflict with user-made keywords that have the same reference name or display name
+            //    if (Model.keywords.Any(x => x.referenceName == keyword.referenceName || x.displayName == keyword.displayName))
+            //    {
+            //        ViewModel.disabledKeywordNameList.Add(keyword.displayName);
+            //    }
+            //    else
+            //    {
+            //        keywordTypesOrder.builtInKeyword = (ShaderKeyword)keyword.Copy();
+            //        ViewModel.builtInKeywordNameToAddActionMap.Add(keyword.displayName, AddShaderInputAction.AddKeywordAction(keywordTypesOrder));
+            //    }
+            //}
+
+            if (useDropdowns)
+            {
+                BlackboardGeometryInputOrder dropdownsOrder = new BlackboardGeometryInputOrder();
+                dropdownsOrder.isDropdown = true;
+                ViewModel.defaultDropdownNameToAdd = new Tuple<string, IGraphDataAction>("Dropdown", AddGeometryInputAction.AddDropdownAction(dropdownsOrder));
+            }
+
+            // Category data last
+            var defaultNewCategoryReference = new CategoryData("Category");
+            ViewModel.addCategoryAction = new AddCategoryAction() { categoryDataReference = defaultNewCategoryReference };
+
+            ViewModel.requestModelChangeAction = this.RequestModelChange;
+            ViewModel.categoryInfoList.AddRange(DataStore.State.categories.ToList());
+        }
+
+        internal BlackboardController(GraphData model, BlackboardViewModel inViewModel, DataStore<GraphData> graphDataStore)
             : base(model, inViewModel, graphDataStore)
         {
             // TODO: hide this more generically for category types.
@@ -428,10 +536,10 @@ namespace BXGeometryGraph
             else
             {
                 // Any properties that don't already have a category (for example, if this graph is being loaded from an older version that doesn't have category data)
-                var uncategorizedBlackboardItems = new List<ShaderInput>();
-                foreach (var shaderProperty in DataStore.State.properties)
-                    if (IsInputUncategorized(shaderProperty))
-                        uncategorizedBlackboardItems.Add(shaderProperty);
+                var uncategorizedBlackboardItems = new List<GeometryInput>();
+                foreach (var geometryProperty in DataStore.State.properties)
+                    if (IsInputUncategorized(geometryProperty))
+                        uncategorizedBlackboardItems.Add(geometryProperty);
 
                 foreach (var shaderKeyword in DataStore.State.keywords)
                     if (IsInputUncategorized(shaderKeyword))
@@ -439,9 +547,9 @@ namespace BXGeometryGraph
 
                 if (useDropdowns)
                 {
-                    foreach (var shaderDropdown in DataStore.State.dropdowns)
-                        if (IsInputUncategorized(shaderDropdown))
-                            uncategorizedBlackboardItems.Add(shaderDropdown);
+                    foreach (var geometryDropdown in DataStore.State.dropdowns)
+                        if (IsInputUncategorized(geometryDropdown))
+                            uncategorizedBlackboardItems.Add(geometryDropdown);
                 }
 
                 var addCategoryAction = new AddCategoryAction();
@@ -451,7 +559,7 @@ namespace BXGeometryGraph
 
             // Get the reference to default category controller after its been added
             m_DefaultCategoryController = m_BlackboardCategoryControllers.Values.FirstOrDefault();
-            AssertHelpers.IsNotNull(m_DefaultCategoryController, "Failed to instantiate default category.");
+            Assert.IsNotNull(m_DefaultCategoryController, "Failed to instantiate default category.");
 
             // Handle loaded-in categories from graph first, skipping the first/default category
             foreach (var categoryData in ViewModel.categoryInfoList.Skip(1))
@@ -460,14 +568,267 @@ namespace BXGeometryGraph
             }
         }
 
-        protected override void ModelChanged(GraphData graphData, IGraphDataAction changeAction)
+        internal string editorPrefsBaseKey => "bx.geometrygraph." + DataStore.State.objectId;
+
+        BlackboardCategoryController AddBlackboardCategory(DataStore<GraphData> graphDataStore, CategoryData categoryInfo)
         {
-            throw new NotImplementedException();
+            var blackboardCategoryViewModel = new BlackboardCategoryViewModel();
+            blackboardCategoryViewModel.parentView = blackboard;
+            blackboardCategoryViewModel.requestModelChangeAction = ViewModel.requestModelChangeAction;
+            blackboardCategoryViewModel.name = categoryInfo.name;
+            blackboardCategoryViewModel.associatedCategoryGuid = categoryInfo.categoryGuid;
+            blackboardCategoryViewModel.isExpanded = EditorPrefs.GetBool($"{editorPrefsBaseKey}.{categoryInfo.categoryGuid}.{ChangeCategoryIsExpandedAction.kEditorPrefKey}", true);
+
+            var blackboardCategoryController = new BlackboardCategoryController(categoryInfo, blackboardCategoryViewModel, graphDataStore);
+            if (m_BlackboardCategoryControllers.ContainsKey(categoryInfo.categoryGuid) == false)
+            {
+                m_BlackboardCategoryControllers.Add(categoryInfo.categoryGuid, blackboardCategoryController);
+                m_DefaultCategoryController = m_BlackboardCategoryControllers.Values.FirstOrDefault();
+            }
+            else
+            {
+                throw new AssertionException("Failed to add category controller due to category with same GUID already having been added.", null);
+            }
+            return blackboardCategoryController;
+        }
+
+        // Creates controller, view and view model for a blackboard item and adds the view to the specified index in the category
+        GGBlackboardRow InsertBlackboardRow(GeometryInput geometryInput, int insertionIndex = -1)
+        {
+            return m_DefaultCategoryController.InsertBlackboardRow(geometryInput, insertionIndex);
+        }
+
+        public void UpdateBlackboardTitle(string newTitle)
+        {
+            ViewModel.title = newTitle;
+            blackboard.title = ViewModel.title;
         }
 
         protected override void RequestModelChange(IGraphDataAction changeAction)
         {
-            throw new NotImplementedException();
+            DataStore.Dispatch(changeAction);
+        }
+
+        // Called by GraphDataStore.Subscribe after the model has been changed
+        protected override void ModelChanged(GraphData graphData, IGraphDataAction changeAction)
+        {
+            // Reconstruct view-model first
+            // TODO: hide this more generically for category types.
+            bool useDropdowns = graphData.isSubGraph;
+            InitializeViewModel(useDropdowns);
+
+            var graphView = ViewModel.parentView as GeometryGraphView;
+
+            switch (changeAction)
+            {
+                // If newly added input doesn't belong to any of the user-made categories, add it to the default category at top of blackboard
+                case AddGeometryInputAction addBlackboardItemAction:
+                    if (IsInputUncategorized(addBlackboardItemAction.geometryInputReference))
+                    {
+                        var blackboardRow = InsertBlackboardRow(addBlackboardItemAction.geometryInputReference);
+                        if (blackboardRow != null)
+                        {
+                            var propertyView = blackboardRow.Q<GGBlackboardField>();
+                            if (addBlackboardItemAction.addInputActionType == AddGeometryInputAction.AddActionSource.AddMenu)
+                                propertyView.OpenTextEditor();
+                        }
+                    }
+                    break;
+                // Need to handle deletion of shader inputs here as opposed to BlackboardCategoryController, as currently,
+                // once removed from the categories there is no way to associate an input with the category that owns it
+                case DeleteGeometryInputAction deleteShaderInputAction:
+                    foreach (var shaderInput in deleteShaderInputAction.geometryInputsToDelete)
+                        RemoveInputFromBlackboard(shaderInput);
+                    break;
+
+                case HandleUndoRedoAction handleUndoRedoAction:
+                    ClearBlackboardCategories();
+
+                    foreach (var categoryData in graphData.addedCategoires)
+                        AddBlackboardCategory(DataStore, categoryData);
+
+                    m_DefaultCategoryController = m_BlackboardCategoryControllers.Values.FirstOrDefault();
+
+                    break;
+                case CopyGeometryInputAction copyShaderInputAction:
+                    // In the specific case of only-one keywords like Material Quality and Raytracing, they can get copied, but because only one can exist, the output copied value is null
+                    if (copyShaderInputAction.copiedGeometryInput != null && IsInputUncategorized(copyShaderInputAction.copiedGeometryInput))
+                    {
+                        var blackboardRow = InsertBlackboardRow(copyShaderInputAction.copiedGeometryInput, copyShaderInputAction.insertIndex);
+                        var propertyView = blackboardRow.Q<GGBlackboardField>();
+                        graphView?.AddToSelectionNoUndoRecord(propertyView);
+                    }
+
+                    break;
+
+                case AddCategoryAction addCategoryAction:
+                    AddBlackboardCategory(DataStore, addCategoryAction.categoryDataReference);
+                    // Iterate through anything that is selected currently
+                    foreach (var selectedElement in blackboard.selection.ToList())
+                    {
+                        if (selectedElement is GGBlackboardField { userData: GeometryInput geometryInput })
+                        {
+                            // If a blackboard item is selected, first remove it from the blackboard
+                            RemoveInputFromBlackboard(geometryInput);
+
+                            // Then add input to the new category
+                            var addItemToCategoryAction = new AddItemToCategoryAction();
+                            addItemToCategoryAction.categoryGuid = addCategoryAction.categoryDataReference.categoryGuid;
+                            addItemToCategoryAction.itemToAdd = geometryInput;
+                            DataStore.Dispatch(addItemToCategoryAction);
+                        }
+                    }
+                    break;
+
+                case DeleteCategoryAction deleteCategoryAction:
+                    // Clean up deleted categories
+                    foreach (var categoryGUID in deleteCategoryAction.categoriesToRemoveGuids)
+                    {
+                        RemoveBlackboardCategory(categoryGUID);
+                    }
+                    break;
+
+                case MoveCategoryAction moveCategoryAction:
+                    ClearBlackboardCategories();
+                    foreach (var categoryData in ViewModel.categoryInfoList)
+                        AddBlackboardCategory(graphData.owner.graphDataStore, categoryData);
+                    break;
+
+                case CopyCategoryAction copyCategoryAction:
+                    var blackboardCategory = AddBlackboardCategory(graphData.owner.graphDataStore, copyCategoryAction.newCategoryDataReference);
+                    if (blackboardCategory != null)
+                        graphView?.AddToSelectionNoUndoRecord(blackboardCategory.blackboardCategoryView);
+                    break;
+                case ShaderVariantLimitAction shaderVariantLimitAction:
+                    blackboard.SetCurrentVariantUsage(shaderVariantLimitAction.currentVariantCount, shaderVariantLimitAction.maxVariantCount);
+                    break;
+            }
+
+            // Lets all event handlers this controller owns/manages know that the model has changed
+            // Usually this is to update views and make them reconstruct themself from updated view-model
+            //NotifyChange(changeAction);
+
+            // Let child controllers know about changes to this controller so they may update themselves in turn
+            //ApplyChanges();
+        }
+
+        void RemoveInputFromBlackboard(GeometryInput geometryInput)
+        {
+            // Check if input is in one of the categories
+            foreach (var controller in m_BlackboardCategoryControllers.Values)
+            {
+                var blackboardRow = controller.FindBlackboardRow(geometryInput);
+                if (blackboardRow != null)
+                {
+                    controller.RemoveBlackboardRow(geometryInput);
+                    return;
+                }
+            }
+        }
+
+        bool IsInputUncategorized(GeometryInput geometryInput)
+        {
+            // Skip the first category controller as that is guaranteed to be the default category
+            foreach (var categoryController in m_BlackboardCategoryControllers.Values.Skip(1))
+            {
+                if (categoryController.IsInputInCategory(geometryInput))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public GGBlackboardCategory GetBlackboardCategory(string inputGuid)
+        {
+            foreach (var categoryController in m_BlackboardCategoryControllers.Values)
+            {
+                if (categoryController.Model.categoryGuid == inputGuid)
+                    return categoryController.blackboardCategoryView;
+            }
+
+            return null;
+        }
+
+        public GGBlackboardRow GetBlackboardRow(GeometryInput blackboardItem)
+        {
+            foreach (var categoryController in m_BlackboardCategoryControllers.Values)
+            {
+                var blackboardRow = categoryController.FindBlackboardRow(blackboardItem);
+                if (blackboardRow != null)
+                    return blackboardRow;
+            }
+
+            return null;
+        }
+
+        int numberOfCategories => m_BlackboardCategoryControllers.Count;
+
+        // Gets the index after the currently selected shader input for pasting properties into this graph
+        internal int GetInsertionIndexForPaste()
+        {
+            if (blackboard?.selection == null || blackboard.selection.Count == 0)
+            {
+                return 0;
+            }
+
+            foreach (ISelectable selection in blackboard.selection)
+            {
+                if (selection is GGBlackboardField blackboardPropertyView)
+                {
+                    GGBlackboardRow row = blackboardPropertyView.GetFirstAncestorOfType<GGBlackboardRow>();
+                    GGBlackboardCategory category = blackboardPropertyView.GetFirstAncestorOfType<GGBlackboardCategory>();
+                    if (row == null || category == null)
+                        continue;
+                    int blackboardFieldIndex = category.IndexOf(row);
+
+                    return blackboardFieldIndex;
+                }
+            }
+
+            return 0;
+        }
+
+        void RemoveBlackboardCategory(string categoryGUID)
+        {
+            m_BlackboardCategoryControllers.TryGetValue(categoryGUID, out var blackboardCategoryController);
+            if (blackboardCategoryController != null)
+            {
+                blackboardCategoryController.Dispose();
+                m_BlackboardCategoryControllers.Remove(categoryGUID);
+            }
+            else
+                throw new AssertionException("Tried to remove a category that doesn't exist. ", null);
+        }
+
+        public override void Dispose()
+        {
+            if (m_Blackboard == null)
+                return;
+
+            base.Dispose();
+            m_DefaultCategoryController = null;
+            ClearBlackboardCategories();
+
+            m_Blackboard?.Dispose();
+            m_Blackboard = null;
+        }
+
+        void ClearBlackboardCategories()
+        {
+            foreach (var categoryController in m_BlackboardCategoryControllers.Values)
+            {
+                categoryController.Dispose();
+            }
+            m_BlackboardCategoryControllers.Clear();
+        }
+
+        // Meant to be used by UI testing in order to clear blackboard state
+        internal void ResetBlackboardState()
+        {
+            ClearBlackboardCategories();
+            var addCategoryAction = new AddCategoryAction();
+            addCategoryAction.categoryDataReference = CategoryData.DefaultCategory();
+            DataStore.Dispatch(addCategoryAction);
         }
     }
 }

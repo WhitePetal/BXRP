@@ -10,8 +10,8 @@ namespace BXGeometryGraph
     {
         public interface IErrorLog
         {
-            void LogError(string message, Object context);
-            void LogWarning(string message, Object context);
+            void LogError(string message, UnityEngine.Object context);
+            void LogWarning(string message, UnityEngine.Object context);
         }
 
         protected Dictionary<object, Dictionary<string, List<GeometryMessage>>> m_Messages = new Dictionary<object, Dictionary<string, List<GeometryMessage>>>();
@@ -146,7 +146,7 @@ namespace BXGeometryGraph
             Debug.Log(output.ToString());
         }
 
-        public static void Log(string path, GeometryMessage message, Object context, IErrorLog log)
+        public static void Log(string path, GeometryMessage message, UnityEngine.Object context, IErrorLog log)
         {
             var errString = $"{message.severity} in Graph at {path} on line {message.line}: {message.message}";
             if (message.severity == GeometryCompilerMessageSeverity.Error)

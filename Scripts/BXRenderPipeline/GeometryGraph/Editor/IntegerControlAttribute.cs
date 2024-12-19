@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace BXGeometryGraph
 {
     [AttributeUsage(AttributeTargets.Property)]
-    public class IntegerControlAttribute : Attribute, IControlAttribute
+    class IntegerControlAttribute : Attribute, IControlAttribute
     {
         private string m_Label;
 
@@ -24,7 +24,7 @@ namespace BXGeometryGraph
         }
     }
 
-    public class IntegerControlView : VisualElement
+    class IntegerControlView : VisualElement
     {
         private AbstractGeometryNode m_Node;
         private PropertyInfo m_PropertyInfo;

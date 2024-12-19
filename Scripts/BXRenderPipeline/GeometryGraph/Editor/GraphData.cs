@@ -1009,7 +1009,7 @@ namespace BXGeometryGraph
             var newEdge = new Edge(outputSlot, inputSlot);
             m_Edges.Add(newEdge);
             m_AddedEdges.Add(newEdge);
-            AddEdgeToNodeEdge(newEdge);
+            AddEdgeToNodeEdges(newEdge);
             if (!assumeBatchSafety)
             {
                 NodeUtils.ReevaluateActivityOfConnectedNodes(toNode);
@@ -2044,7 +2044,7 @@ namespace BXGeometryGraph
             ValidateGraph();
         }
 
-        internal void Pastedraph(CopyPasteGraph graphToPaste, List<AbstractGeometryNode> remappedNodes, List<Edge> remappedEdges)
+        internal void PasteGraph(CopyPasteGraph graphToPaste, List<AbstractGeometryNode> remappedNodes, List<Edge> remappedEdges)
         {
             var groupMap = new Dictionary<GroupData, GroupData>();
             foreach (var group in graphToPaste.groups)

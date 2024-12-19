@@ -10,92 +10,103 @@ using UnityEngine.UIElements;
 
 namespace BXGeometryGraph
 {
-	public class SubGraphOutputControlAttribute : Attribute, IControlAttribute
+	class SubGraphOutputNode : AbstractGeometryNode
 	{
-		public VisualElement InstantiateControl(AbstractGeometryNode node, PropertyInfo propertyInfo)
+		static string s_MissingOutputSlot = "A Sub Graph must have at least one output slot";
+		static List<ConcreteSlotValueType> s_ValidSlotTypes = new List<ConcreteSlotValueType>()
 		{
-			if(!(node is SubGraphOutputNode))
-				throw new ArgumentException("Node must inherit from AbstractSubGraphIONode.", "node");
-			return new SubGraphOutputControlView((SubGraphOutputNode)node);
-		}
-	}
-
-	public class SubGraphOutputControlView : VisualElement
-	{
-		private SubGraphOutputNode m_Node;
-
-		public SubGraphOutputControlView(SubGraphOutputNode node)
-		{
-			m_Node = node;
-			Add(new Button(OnAdd) { text = "Add Slot" });
-			Add(new Button(OnRemove) { text = "Remove Slot" });
-		}
-
-		private void OnAdd()
-		{
-			m_Node.AddSlot();
-		}
-
-		private void OnRemove()
-		{
-			// tell the user that they might cchange things up.
-			if(EditorUtility.DisplayDialog("Sub Graph Will Change", "If you remove a slot and save the sub graph, you might change other graphs that are using this sub graph.\n\nDo you want to continue?", "Yes", "No"))
-			{
-				m_Node.owner.owner.RegisterCompleteObjectUndo("Removing SLot");
-				m_Node.RemoveSlot();
-			}
-		}
-	}
-
-	public class SubGraphOutputNode : AbstractGeometryNode
-	{
-		[SubGraphOutputControl]
-		private int controlDummy { get; set; }
+			ConcreteSlotValueType.Vector1,
+			ConcreteSlotValueType.Vector2,
+			ConcreteSlotValueType.Vector3,
+			ConcreteSlotValueType.Vector4,
+			ConcreteSlotValueType.Matrix2,
+			ConcreteSlotValueType.Matrix3,
+			ConcreteSlotValueType.Matrix4,
+			ConcreteSlotValueType.Boolean
+		};
+		public bool IsFirstSlotValid = true;
 
 		public SubGraphOutputNode()
 		{
-			name = "SubGraphOutputs";
+			name = "Output";
 		}
 
-		public override bool hasPreview
+		// Link to the Sub Graph overview page instead of the specific Node page, seems more useful
+		public override string documentationURL => "https://github.com/WhitePetal/FloowDream/tree/main/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Documents/Sub-Graph";
+
+		void ValidateGeometryStage()
 		{
-			get { return true; }
+			List<GeometrySlot> slots = new List<GeometrySlot>();
+			GetInputSlots(slots);
+
+			// Reset all input slots back to All, otherwise they'll be incorrectly configured when traversing below
+			foreach (GeometrySlot slot in slots)
+				slot.stageCapability = GeometryStageCapability.All;
+
+			foreach (var slot in slots)
+			{
+				slot.stageCapability = NodeUtils.GetEffectiveShaderStageCapability(slot, true);
+			}
 		}
 
-		public override PreviewMode previewMode
+		void ValidateSlotName()
 		{
-			get { return PreviewMode.Preview3D; }
+			List<GeometrySlot> slots = new List<GeometrySlot>();
+			GetInputSlots(slots);
+
+			foreach (var slot in slots)
+			{
+				var error = NodeUtils.ValidateSlotName(slot.RawDisplayName(), out string errorMessage);
+				if (error)
+				{
+					owner.AddValidationError(objectId, errorMessage);
+					break;
+				}
+			}
 		}
 
-		public virtual int AddSlot()
+		void ValidateSlotType()
 		{
-			var index = this.GetInputSlots<ISlot>().Count() + 1;
-			AddSlot(new Vector4GoemetrySlot(index, "Output" + index, "Output" + index, SlotType.Input, Vector4.zero));
+			List<GeometrySlot> slots = new List<GeometrySlot>();
+			GetInputSlots(slots);
+
+			if (!slots.Any())
+			{
+				owner.AddValidationError(objectId, s_MissingOutputSlot, GeometryCompilerMessageSeverity.Error);
+			}
+			else if (!s_ValidSlotTypes.Contains(slots.FirstOrDefault().concreteValueType))
+			{
+				IsFirstSlotValid = false;
+				owner.AddValidationError(objectId, "Preview can only compile if the first output slot is a Vector, Matrix, or Boolean type. Please adjust slot types.", GeometryCompilerMessageSeverity.Error);
+			}
+		}
+
+		public override void ValidateNode()
+		{
+			base.ValidateNode();
+			IsFirstSlotValid = true;
+			ValidateSlotType();
+			if (IsFirstSlotValid)
+				ValidateGeometryStage();
+		}
+
+		protected override void OnSlotsChanged()
+		{
+			base.OnSlotsChanged();
+			ValidateNode();
+		}
+
+		public int AddSlot(ConcreteSlotValueType concreteValueType)
+		{
+			var index = this.GetInputSlots<GeometrySlot>().Count() + 1;
+			var name = NodeUtils.GetDuplicateSafeNameForSlot(this, index, "Out_" + concreteValueType.ToString());
+			AddSlot(GeometrySlot.CreateGeometrySlot(concreteValueType.ToSlotValueType(), index, name,
+				NodeUtils.GetHLSLSafeName(name), SlotType.Input, Vector4.zero));
 			return index;
 		}
 
-		public virtual void RemoveSlot()
-		{
-			var index = this.GetInputSlots<ISlot>().Count();
-			if (index == 0)
-				return;
+		public override bool canDeleteNode => false;
 
-			RemoveSlot(index);
-		}
-
-		public void RemapOutputs(GeometryGenerator visitor, GenerationMode generationMode)
-		{
-			foreach (var slot in graphOutputs)
-				visitor.AddGeometryChunk(string.Format("{0} = {1};", slot.geometryOutputName, GetSlotValue(slot.id, generationMode)), true);
-		}
-
-		public IEnumerable<GeometrySlot> graphOutputs
-		{
-			get
-			{
-				return NodeExtensions.GetInputSlots<GeometrySlot>(this).OrderBy(x => x.id);
-			}
-		}
+		public override bool canCopyNode => false;
 	}
-
 }

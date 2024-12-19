@@ -9,13 +9,13 @@ using System;
 namespace BXGeometryGraph
 {
     [System.Serializable]
-    public class DynamicVectorGeometrySlot : GeometrySlot
+    class DynamicVectorGeometrySlot : GeometrySlot, IGeometrySlotHasValue<Vector4>
     {
         [SerializeField]
         private Vector4 m_Value;
 
         [SerializeField]
-        private Vector4 m_DefaultValue;
+        private Vector4 m_DefaultValue = Vector4.zero;
 
         private static readonly string[] k_Labels = { "X", "Y", "Z", "W" };
 
@@ -27,12 +27,14 @@ namespace BXGeometryGraph
         }
 
         public DynamicVectorGeometrySlot(
-            int slotId,
-            string displayName,
-            string geometryOutputName,
-            SlotType slotType,
-            Vector4 value,
-            bool hidden = false) : base(slotId, displayName, geometryOutputName, slotType, hidden)
+                    int slotId,
+                    string displayName,
+                    string shaderOutputName,
+                    SlotType slotType,
+                    Vector4 value,
+                    GeometryStageCapability stageCapability = GeometryStageCapability.All,
+                    bool hidden = false)
+                    : base(slotId, displayName, shaderOutputName, slotType, stageCapability, hidden)
         {
             m_Value = value;
         }
@@ -44,6 +46,8 @@ namespace BXGeometryGraph
             get { return m_Value; }
             set { m_Value = value; }
         }
+
+        public override bool isDefaultValue => value.Equals(defaultValue);
 
         public override VisualElement InstantiateControl()
         {
@@ -65,24 +69,24 @@ namespace BXGeometryGraph
 
         public override void GetPreviewProperties(List<PreviewProperty> properties, string name)
         {
-            var propType = ConvertConcreteSlotValueTypeToPropertyType(concreteValueType);
+            var propType = concreteValueType.ToPropertyType();
             var pp = new PreviewProperty(propType) { name = name };
-            if (propType == PropertyType.Vector1)
+            if (propType == PropertyType.Float)
                 pp.floatValue = value.x;
             else
                 pp.vector4Value = new Vector4(value.x, value.y, value.z, value.w);
             properties.Add(pp);
         }
 
-        protected override string ConcreteSlotValueAsVariable(AbstractGeometryNode.OutputPrecision precision)
+        protected override string ConcreteSlotValueAsVariable()
         {
             var channelCount = SlotValueHelper.GetChannelCount(concreteValueType);
             string values = NodeUtils.FloatToGeometryValue(value.x);
             if (channelCount == 1)
-                return values;
-            for (var i = 1; i < channelCount; ++i)
+                return string.Format("$precision({0})", values);
+            for (var i = 1; i < channelCount; i++)
                 values += ", " + NodeUtils.FloatToGeometryValue(value[i]);
-            return string.Format("{0}{1}{2}", precision, channelCount, values);
+            return string.Format("$precision{0}({1})", channelCount, values);
         }
 
         public override void AddDefaultProperty(PropertyCollector properties, GenerationMode generationMode)
@@ -91,10 +95,10 @@ namespace BXGeometryGraph
                 return;
 
             var matOwner = owner as AbstractGeometryNode;
-            if(matOwner == null)
+            if (matOwner == null)
                 throw new Exception(string.Format("Slot {0} either has no owner, or the owner is not a {1}", this, typeof(AbstractGeometryNode)));
 
-            IGeometryProperty property;
+            AbstractGeometryProperty property;
             switch (concreteValueType)
             {
                 case ConcreteSlotValueType.Vector4:
@@ -110,7 +114,10 @@ namespace BXGeometryGraph
                     property = new Vector1GeometryProperty();
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    // This shouldn't happen due to edge validation. The generated shader will
+                    // have errors.
+                    Debug.LogError($"Invalid value type {concreteValueType} passed to Vector Slot {displayName}. Value will be ignored, please plug in an edge with a vector type.");
+                    return;
             }
 
             property.overrideReferenceName = matOwner.GetVariableNameForSlot(id);
@@ -118,11 +125,20 @@ namespace BXGeometryGraph
             properties.AddGeometryProperty(property);
         }
 
-        public override void CopyValueFrom(GeometrySlot foundSlot)
+        public override void CopyValuesFrom(GeometrySlot foundSlot)
         {
             var slot = foundSlot as DynamicVectorGeometrySlot;
             if (slot != null)
                 value = slot.value;
+        }
+
+        public override void CopyDefaultValue(GeometrySlot other)
+        {
+            base.CopyDefaultValue(other);
+            if (other is IGeometrySlotHasValue<Vector4> ms)
+            {
+                m_DefaultValue = ms.defaultValue;
+            }
         }
     }
 }

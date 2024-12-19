@@ -8,22 +8,27 @@ namespace BXGeometryGraph
     [System.Serializable]
     public abstract class VectorGeometryProperty : AbstractGeometryProperty<Vector4>
     {
-        public override string GetPropertyBlockString()
+        internal override bool isExposable => true;
+        internal override bool isRenamable => true;
+        internal virtual int vectorDimension => 4;
+
+        internal override string GetHLSLVariableName(bool isSubgraphProperty, GenerationMode mode)
         {
-            var result = new StringBuilder();
-            result.Append(referenceName);
-            result.Append("(\"");
-            result.Append(displayName);
-            result.Append("\", Vector) = (");
-            result.Append(value.x);
-            result.Append(",");
-            result.Append(value.y);
-            result.Append(",");
-            result.Append(value.z);
-            result.Append(",");
-            result.Append(value.w);
-            result.Append(")");
-            return result.ToString();
+            HLSLDeclaration decl = GetDefaultHLSLDeclaration();
+            if (decl == HLSLDeclaration.HybridPerInstance)
+                return $"UNITY_ACCESS_HYBRID_INSTANCED_PROP({referenceName}, {concretePrecision.ToGeometryString()}{vectorDimension})";
+            else
+                return base.GetHLSLVariableName(isSubgraphProperty, mode);
+        }
+
+        internal override string GetPropertyBlockString()
+        {
+            return $"{hideTagString}{referenceName}(\"{displayName}\", Vector) = ({NodeUtils.FloatToShaderValueShaderLabSafe(value.x)}, {NodeUtils.FloatToShaderValueShaderLabSafe(value.y)}, {NodeUtils.FloatToShaderValueShaderLabSafe(value.z)}, {NodeUtils.FloatToShaderValueShaderLabSafe(value.w)})";
+        }
+
+        internal override string GetPropertyAsArgumentString(string precisionString)
+        {
+            return $"{concreteGeometryValueType.ToGeometryString(precisionString)} {referenceName}";
         }
     }
 }

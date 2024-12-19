@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using BXGraphing;
@@ -6,48 +7,61 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [System.Serializable]
+    [FormerName("BXGeometryGraph.Vector4GeometryProperty")]
+    [BlackboardInputInfo(4)]
     public class Vector4GeometryProperty : VectorGeometryProperty
     {
-        public Vector4GeometryProperty()
+        internal Vector4GeometryProperty()
         {
             displayName = "Vector4";
         }
 
-        public override PropertyType propertyType
+        internal override int vectorDimension => 4;
+
+        public override PropertyType propertyType => PropertyType.Vector4;
+
+        internal override AbstractGeometryNode ToConcreteNode()
         {
-            get { return PropertyType.Vector4; }
+            var node = new Vector4Node();
+            node.FindInputSlot<Vector1GeometrySlot>(Vector4Node.InputSlotXId).value = value.x;
+            node.FindInputSlot<Vector1GeometrySlot>(Vector4Node.InputSlotYId).value = value.y;
+            node.FindInputSlot<Vector1GeometrySlot>(Vector4Node.InputSlotZId).value = value.z;
+            node.FindInputSlot<Vector1GeometrySlot>(Vector4Node.InputSlotWId).value = value.w;
+            return node;
         }
 
-        public override Vector4 defaultValue
+        internal override PreviewProperty GetPreviewGeometryProperty()
         {
-            get { return value; }
-        }
-
-        public override string GetPropertyDeclarationString(string delimiter = ";")
-        {
-            return string.Format("float4 {0}{1}", referenceName, delimiter);
-        }
-
-        public override PreviewProperty GetPreviewGeometryProperty()
-        {
-            return new PreviewProperty(PropertyType.Vector4)
+            return new PreviewProperty(propertyType)
             {
                 name = referenceName,
                 vector4Value = value
             };
         }
 
-        public override INode ToConcreteNode()
+        internal override GeometryInput Copy()
         {
-            var node = new Vector4Node();
-            //node.findin
-            // TODO
-            return default;
+            return new Vector4GeometryProperty()
+            {
+                displayName = displayName,
+                value = value,
+            };
         }
 
-        public override IGeometryProperty Copy()
+        internal override void ForeachHLSLProperty(Action<HLSLProperty> action)
         {
-            throw new System.NotImplementedException();
+            HLSLDeclaration decl = GetDefaultHLSLDeclaration();
+            action(new HLSLProperty(HLSLType._float4, referenceName, decl, concretePrecision));
+        }
+
+        public override int latestVersion => 1;
+        public override void OnAfterDeserialize(string json)
+        {
+            //if (ggVersion == 0)
+            //{
+            //    LegacyShaderPropertyData.UpgradeToHLSLDeclarationOverride(json, this);
+            //    ChangeVersion(1);
+            //}
         }
     }
 }

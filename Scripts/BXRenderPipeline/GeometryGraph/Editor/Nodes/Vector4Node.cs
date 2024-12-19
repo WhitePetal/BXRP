@@ -6,10 +6,10 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Title("Input", "Basic", "Vector 4")]
-    public class Vector4Node : AbstractGeometryNode, IGeneratesBodyCode, IPropertyFromNode
+    class Vector4Node : AbstractGeometryNode, IGeneratesShaderBodyCode, IPropertyFromNode
     {
         [SerializeField]
-        private Vector4 m_Value;
+        private Vector4 m_Value = Vector4.one;
 
         private const string kInputSlotXName = "X";
         private const string kInputSlotYName = "Y";
@@ -26,6 +26,7 @@ namespace BXGeometryGraph
         public Vector4Node()
         {
             name = "Vector 4";
+            synonyms = new string[] { "4", "v4", "vec4", "float4" };
             UpdateNodeAfterDeserialization();
         }
 
@@ -40,22 +41,37 @@ namespace BXGeometryGraph
             AddSlot(new Vector1GeometrySlot(InputSlotYId, kInputSlotYName, kInputSlotYName, SlotType.Input, m_Value.y, label1: "Y"));
             AddSlot(new Vector1GeometrySlot(InputSlotZId, kInputSlotZName, kInputSlotZName, SlotType.Input, m_Value.z, label1: "Z"));
             AddSlot(new Vector1GeometrySlot(InputSlotWId, kInputSlotWName, kInputSlotWName, SlotType.Input, m_Value.w, label1: "W"));
-            //AddSlot(new Vector4GeometryProperty(OutputSlotId, kOutputSlotName, kOutputSlotName, SlotType.Output, Vector4.zero));
-            // TODO
+            AddSlot(new Vector4GoemetrySlot(OutputSlotId, kOutputSlotName, kOutputSlotName, SlotType.Output, Vector4.zero));
             RemoveSlotsNameNotMatching(new[] { OutputSlotId, InputSlotXId, InputSlotYId, InputSlotZId, InputSlotWId });
         }
 
-        public int outputSlotID => throw new System.NotImplementedException();
-
-        public IGeometryProperty AsGeometryProperty()
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
         {
-            throw new System.NotImplementedException();
+            var inputXValue = GetSlotValue(InputSlotXId, generationMode);
+            var inputYValue = GetSlotValue(InputSlotYId, generationMode);
+            var inputZValue = GetSlotValue(InputSlotZId, generationMode);
+            var inputWValue = GetSlotValue(InputSlotWId, generationMode);
+            var outputName = GetVariableNameForSlot(outputSlotID);
+
+            var s = string.Format("$precision4 {0} = $precision4({1}, {2}, {3}, {4});",
+                outputName,
+                inputXValue,
+                inputYValue,
+                inputZValue,
+                inputWValue);
+            sb.AppendLine(s);
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+        public AbstractGeometryProperty AsGeometryProperty()
         {
-            throw new System.NotImplementedException();
+            var slotX = FindInputSlot<Vector1GeometrySlot>(InputSlotXId);
+            var slotY = FindInputSlot<Vector1GeometrySlot>(InputSlotYId);
+            var slotZ = FindInputSlot<Vector1GeometrySlot>(InputSlotZId);
+            var slotW = FindInputSlot<Vector1GeometrySlot>(InputSlotWId);
+            return new Vector4GeometryProperty { value = new Vector4(slotX.value, slotY.value, slotZ.value, slotW.value) };
         }
+
+        public int outputSlotID { get { return OutputSlotId; } }
     }
 
 }

@@ -34,4 +34,21 @@ namespace BXGeometryGraph
             return GeometryGraphRequirements.none;
         }
     }
+
+    public class ColorControl : IControl
+    {
+        public Color value { get; private set; }
+        public bool hdr { get; private set; }
+
+        public ColorControl(Color value, bool hdr)
+        {
+            this.value = value;
+            this.hdr = hdr;
+        }
+
+        public GeometryGraphRequirements GetRequirements()
+        {
+            return GeometryGraphRequirements.none;
+        }
+    }
 }

@@ -60,14 +60,14 @@ namespace BXGeometryGraph
         {
             get
             {
-                if (propType != PropertyType.Texture)
-                    throw new ArgumentException(string.Format(k_GetErrorMessage, PropertyType.Texture, propType));
+                if (propType != PropertyType.Texture2D && propType != PropertyType.Texture2DArray && propType != PropertyType.Texture3D)
+                    throw new ArgumentException(string.Format(k_GetErrorMessage, PropertyType.Texture2D, propType));
                 return m_Data.textureValue;
             }
             set
             {
-                if (propType != PropertyType.Texture)
-                    throw new ArgumentException(string.Format(k_SetErrorMessage, PropertyType.Texture, propType));
+                if (propType != PropertyType.Texture2D && propType != PropertyType.Texture2DArray && propType != PropertyType.Texture3D)
+                    throw new ArgumentException(string.Format(k_SetErrorMessage, PropertyType.Texture2D, propType));
                 m_Data.textureValue = value;
             }
         }
@@ -125,14 +125,14 @@ namespace BXGeometryGraph
         {
             get
             {
-                if (propType != PropertyType.Vector1)
-                    throw new ArgumentException(string.Format(k_GetErrorMessage, PropertyType.Vector1, propType));
+                if (propType != PropertyType.Float)
+                    throw new ArgumentException(string.Format(k_GetErrorMessage, PropertyType.Float, propType));
                 return m_Data.floatValue;
             }
             set
             {
-                if (propType != PropertyType.Vector1)
-                    throw new ArgumentException(string.Format(k_SetErrorMessage, PropertyType.Vector1, propType));
+                if (propType != PropertyType.Float)
+                    throw new ArgumentException(string.Format(k_SetErrorMessage, PropertyType.Float, propType));
                 m_Data.floatValue = value;
             }
         }
@@ -153,45 +153,9 @@ namespace BXGeometryGraph
             }
         }
 
-        public void SetGeometryPropertyBlockValue(GeometryPropertyBlock block)
+        public void SetValueOnMaterialPropertyBlock(MaterialPropertyBlock mat)
         {
-            switch (propType)
-            {
-                case PropertyType.Texture:
-                    if(textureValue != null)
-                        block.SetTexture(name, m_Data.textureValue);
-                    break;
-                case PropertyType.Cubemap:
-                    if(cubemapValue != null)
-                        block.SetTexture(name, m_Data.cubemapValue);
-                    break;
-                case PropertyType.Color:
-                    block.SetColor(name, m_Data.colorValue);
-                    break;
-                case PropertyType.Vector2:
-                    block.SetVector(name, m_Data.vector4Value);
-                    break;
-                case PropertyType.Vector3:
-                    block.SetVector(name, m_Data.vector4Value);
-                    break;
-                case PropertyType.Vector4:
-                    block.SetVector(name, m_Data.vector4Value);
-                    break;
-                case PropertyType.Vector1:
-                    block.SetFloat(name, m_Data.floatValue);
-                    break;
-                case PropertyType.Boolean:
-                    block.SetFloat(name, m_Data.booleanValue ? 1 : 0);
-                    break;
-            }     
-        }
-    }
-
-    public static class PreviewPropertyExtensions
-    {
-        public static void SetPreviewProperty(this GeometryPropertyBlock block, PreviewProperty previewProperty)
-        {
-            previewProperty.SetGeometryPropertyBlockValue(block);
+            // TODO
         }
     }
 }

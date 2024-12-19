@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
+using UnityEditor.Searcher;
 using UnityEngine;
 
 namespace BXGeometryGraph
@@ -23,7 +24,7 @@ namespace BXGeometryGraph
 		{
 			var draggedPort = (edge.output != null ? edge.output.edgeConnector.edgeDragHelper.draggedPort : null) ?? (edge.input != null ? edge.input.edgeConnector.edgeDragHelper.draggedPort : null);
 			m_SearchWindowProvider.target = null;
-			m_SearchWindowProvider.connectedPort = (ShaderPort)draggedPort;
+			m_SearchWindowProvider.connectedPort = (GeometryPort)draggedPort;
 			m_SearchWindowProvider.regenerateEntries = true;//need to be sure the entires are relevant to the edge we are dragging
 			SearcherWindow.Show(m_editorWindow, (m_SearchWindowProvider as SearcherProvider).LoadSearchWindow(),
 				item => (m_SearchWindowProvider as SearcherProvider).OnSearcherSelectEntry(item, position),

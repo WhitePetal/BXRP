@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Title("Input", "Basic", "Vector 2")]
-    public class Vector2Node : AbstractGeometryNode, IGeneratesBodyCode, IPropertyFromNode
+    class Vector2Node : AbstractGeometryNode, IGeneratesShaderBodyCode, IPropertyFromNode
     {
         [SerializeField]
         private Vector2 m_Value;
@@ -22,6 +22,7 @@ namespace BXGeometryGraph
         public Vector2Node()
         {
             name = "Vector 2";
+            synonyms = new string[] { "2", "v2", "vec2", "float2" };
             UpdateNodeAfterDeserialization();
         }
 
@@ -38,27 +39,26 @@ namespace BXGeometryGraph
             RemoveSlotsNameNotMatching(new[] { OutputSlotId, InputSlotXId, InputSlotYId });
         }
 
-        public void GenerateNodeCode(GeometryGenerator visitor, GenerationMode generationMode)
+        public void GenerateNodeShaderCode(ShaderStringBuilder sb, GenerationMode generationMode)
         {
             var inputXValue = GetSlotValue(InputSlotXId, generationMode);
             var inputYValue = GetSlotValue(InputSlotYId, generationMode);
             var outputName = GetVariableNameForSlot(OutputSlotId);
 
-            var s = string.Format("{0}2 {1} = {0}2({2},{3});",
-                precision,
+            var s = string.Format("$precision2 {0} = $precision2({1}, {2});",
                 outputName,
                 inputXValue,
                 inputYValue);
-            visitor.AddGeometryChunk(s, false);
+            sb.AppendLine(s);
         }
 
-        public IGeometryProperty AsGeometryProperty()
+        public AbstractGeometryProperty AsGeometryProperty()
         {
             var slotX = FindInputSlot<Vector1GeometrySlot>(InputSlotXId);
             var slotY = FindInputSlot<Vector1GeometrySlot>(InputSlotYId);
             return new Vector2GeometryProperty { value = new Vector2(slotX.value, slotY.value) };
         }
 
-        public int outputSlotID { get { return OutputSlotId; } }
+        int IPropertyFromNode.outputSlotID { get { return OutputSlotId; } }
     }
 }

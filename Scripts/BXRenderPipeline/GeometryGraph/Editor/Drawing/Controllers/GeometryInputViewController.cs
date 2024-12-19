@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.UIElements;
 
 namespace BXGeometryGraph
 {
@@ -202,15 +204,15 @@ namespace BXGeometryGraph
         // Exposed for PropertyView
         internal GraphData graphData => DataStore.State;
 
-        internal GeometryInputViewController(GeometryInput shaderInput, GeometryInputViewModel inViewModel, GraphDataStore graphDataStore)
+        internal GeometryInputViewController(GeometryInput shaderInput, GeometryInputViewModel inViewModel, DataStore<GraphData> graphDataStore)
             : base(shaderInput, inViewModel, graphDataStore)
         {
             InitializeViewModel();
 
-            m_SgBlackboardField = new SGBlackboardField(ViewModel);
-            m_SgBlackboardField.controller = this;
+            m_ggBlackboardField = new GGBlackboardField(ViewModel);
+            m_ggBlackboardField.controller = this;
 
-            m_BlackboardRowView = new SGBlackboardRow(m_SgBlackboardField, null);
+            m_BlackboardRowView = new GGBlackboardRow(m_ggBlackboardField, null);
             m_BlackboardRowView.expanded = SessionState.GetBool($"Unity.ShaderGraph.Input.{shaderInput.objectId}.isExpanded", false);
         }
 

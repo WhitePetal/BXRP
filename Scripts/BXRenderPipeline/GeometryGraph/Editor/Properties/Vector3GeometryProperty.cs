@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using BXGraphing;
@@ -5,38 +6,21 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    public class Vector3GeometryProperty : VectorGeometryProperty
+    [Serializable]
+    [FormerName("BXGeometryGraph.Vector3GeometryProperty")]
+    [BlackboardInputInfo(3)]
+    public sealed class Vector3GeometryProperty : VectorGeometryProperty
     {
-        public Vector3GeometryProperty()
+        internal Vector3GeometryProperty()
         {
             displayName = "Vector3";
         }
 
-        public override PropertyType propertyType
-        {
-            get { return PropertyType.Vector3; }
-        }
+        internal override int vectorDimension => 3;
 
-        public override Vector4 defaultValue
-        {
-            get { return new Vector4(value.x, value.y, value.z, 0); }
-        }
+        public override PropertyType propertyType => PropertyType.Vector3;
 
-        public override string GetPropertyDeclarationString(string delimiter = ";")
-        {
-            return string.Format("float3 {0}{1}", referenceName, delimiter);
-        }
-
-        public override PreviewProperty GetPreviewGeometryProperty()
-        {
-            return new PreviewProperty(PropertyType.Vector3)
-            {
-                name = referenceName,
-                vector4Value = value
-            };
-        }
-
-        public override INode ToConcreteNode()
+        internal override AbstractGeometryNode ToConcreteNode()
         {
             var node = new Vector3Node();
             node.FindInputSlot<Vector1GeometrySlot>(Vector3Node.InputSlotXId).value = value.x;
@@ -45,12 +29,38 @@ namespace BXGeometryGraph
             return node;
         }
 
-        public override IGeometryProperty Copy()
+        internal override PreviewProperty GetPreviewGeometryProperty()
         {
-            var copied = new Vector3GeometryProperty();
-            copied.displayName = displayName;
-            copied.value = value;
-            return copied;
+            return new PreviewProperty(propertyType)
+            {
+                name = referenceName,
+                vector4Value = value
+            };
+        }
+
+        internal override GeometryInput Copy()
+        {
+            return new Vector3GeometryProperty()
+            {
+                displayName = displayName,
+                value = value,
+            };
+        }
+
+        internal override void ForeachHLSLProperty(Action<HLSLProperty> action)
+        {
+            HLSLDeclaration decl = GetDefaultHLSLDeclaration();
+            action(new HLSLProperty(HLSLType._float3, referenceName, decl, concretePrecision));
+        }
+
+        public override int latestVersion => 1;
+        public override void OnAfterDeserialize(string json)
+        {
+            //if (ggVersion == 0)
+            //{
+            //    LegacyShaderPropertyData.UpgradeToHLSLDeclarationOverride(json, this);
+            //    ChangeVersion(1);
+            //}
         }
     }
 }
