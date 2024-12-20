@@ -1,18 +1,39 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
-public class CubeMeshNode : MonoBehaviour
+namespace BXGeometryGraph
 {
-    // Start is called before the first frame update
-    void Start()
+    [Title("Mesh", "Primitives", "Cube")]
+    class CubeMeshNode : CodeFunctionNode
     {
-        
-    }
+        public CubeMeshNode()
+        {
+            name = "Cube";
+            synonyms = new string[] { "cube", "cubemesh" };
+        }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+        protected override MethodInfo GetFunctionToConvert()
+        {
+            return GetType().GetMethod("BX_Cube_Mesh", BindingFlags.Static | BindingFlags.NonPublic);
+        }
+
+        static string BX_Cube_Mesh(
+            [Slot(0, Binding.None, 1, 1, 1, 0)] CodeFunctionNode.DynamicDimensionVector Size,
+            [Slot(1, Binding.None, 2, 0, 0, 0)] CodeFunctionNode.Vector1 VerticesX,
+            [Slot(2, Binding.None, 2, 0, 0, 0)] CodeFunctionNode.Vector1 VerticesY,
+            [Slot(3, Binding.None, 2, 0, 0, 0)] CodeFunctionNode.Vector1 VerticesZ,
+            [Slot(4, Binding.None)] out CodeFunctionNode.Mesh Mesh,
+            [Slot(5, Binding.None)] out CodeFunctionNode.DynamicDimensionVector UVMap
+            )
+        {
+            return
+            @"
+            {
+                CubeMesh
+            }
+            ";
+        }
     }
 }

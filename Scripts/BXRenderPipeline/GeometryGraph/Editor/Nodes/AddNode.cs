@@ -10,17 +10,16 @@ namespace BXGeometryGraph
     {
         public AddNode()
         {
-            Debug.Log("AddNode isActive: " + isActive);
             name = "Add";
             synonyms = new string[] { "addition", "sum", "plus" };
         }
 
         protected override MethodInfo GetFunctionToConvert()
         {
-            return GetType().GetMethod("Unity_Add", BindingFlags.Static | BindingFlags.NonPublic);
+            return GetType().GetMethod("BX_Add", BindingFlags.Static | BindingFlags.NonPublic);
         }
 
-        static string Unity_Add(
+        static string BX_Add(
             [Slot(0, Binding.None)] DynamicDimensionVector A,
             [Slot(1, Binding.None)] DynamicDimensionVector B,
             [Slot(2, Binding.None)] out DynamicDimensionVector Out)
