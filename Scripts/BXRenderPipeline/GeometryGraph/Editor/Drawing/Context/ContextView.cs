@@ -32,6 +32,10 @@ namespace BXGeometryGraph
             var headerLabel = new Label() { name = "headerLabel" };
             headerLabel.text = name;
             headerContainer.Add(headerLabel);
+            inputContainer.style.position = Position.Absolute;
+            inputContainer.style.left = 0;
+            inputContainer.style.right = 205;
+            inputContainer.style.top = 30;
         }
 
         public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
@@ -57,7 +61,7 @@ namespace BXGeometryGraph
         {
             var capacity = direction == Direction.Input ? Port.Capacity.Single : Port.Capacity.Multi;
             var container = direction == Direction.Input ? inputContainer : outputContainer;
-            m_Port = Port.Create<UnityEditor.Experimental.GraphView.Edge>(Orientation.Vertical, direction, capacity, null);
+            m_Port = Port.Create<UnityEditor.Experimental.GraphView.Edge>(Orientation.Horizontal, direction, capacity, null);
             m_Port.portName = "";
 
             // Vertical ports have no representation in Model

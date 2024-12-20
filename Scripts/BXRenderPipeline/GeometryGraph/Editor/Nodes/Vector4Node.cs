@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using BXGraphing;
+
 using UnityEngine;
 
 namespace BXGeometryGraph
@@ -41,7 +41,7 @@ namespace BXGeometryGraph
             AddSlot(new Vector1GeometrySlot(InputSlotYId, kInputSlotYName, kInputSlotYName, SlotType.Input, m_Value.y, label1: "Y"));
             AddSlot(new Vector1GeometrySlot(InputSlotZId, kInputSlotZName, kInputSlotZName, SlotType.Input, m_Value.z, label1: "Z"));
             AddSlot(new Vector1GeometrySlot(InputSlotWId, kInputSlotWName, kInputSlotWName, SlotType.Input, m_Value.w, label1: "W"));
-            AddSlot(new Vector4GoemetrySlot(OutputSlotId, kOutputSlotName, kOutputSlotName, SlotType.Output, Vector4.zero));
+            AddSlot(new Vector4GeometrySlot(OutputSlotId, kOutputSlotName, kOutputSlotName, SlotType.Output, Vector4.zero));
             RemoveSlotsNameNotMatching(new[] { OutputSlotId, InputSlotXId, InputSlotYId, InputSlotZId, InputSlotWId });
         }
 

@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using static BXGraphing.SerializationHelper;
+using static BXGeometryGraph.SerializationHelper;
 
 namespace BXGeometryGraph
 {

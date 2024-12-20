@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -506,9 +506,9 @@ namespace BXGeometryGraph
             {
                 string theme = EditorGUIUtility.isProSkin ? "_dark" : "_light";
                 if (isSubGraph)
-                    icon = Resources.Load<Texture2D>("Icons/sg_subgraph_icon_gray" + theme);
+                    icon = Resources.Load<Texture2D>("Icons/gg_subgraph_icon_gray" + theme);
                 else
-                    icon = Resources.Load<Texture2D>("Icons/sg_graph_icon_gray" + theme);
+                    icon = Resources.Load<Texture2D>("Icons/gg_graph_icon_gray" + theme);
             }
 
             titleContent = new GUIContent(title, icon);
@@ -1086,7 +1086,7 @@ namespace BXGeometryGraph
                 }
             }
 
-            if (FileUtilities.WriteShaderGraphToDisk(path, subGraph) != null)
+            if (FileUtilities.WriteGeometryGraphToDisk(path, subGraph) != null)
                 AssetDatabase.ImportAsset(path);
 
             // Store path for next time

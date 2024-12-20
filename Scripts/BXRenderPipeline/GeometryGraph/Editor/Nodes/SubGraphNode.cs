@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -466,7 +466,7 @@ namespace BXGeometryGraph
 					//	break;
 					case ConcreteSlotValueType.Vector4:
 						{
-							var tSlot = slot as Vector4GoemetrySlot;
+							var tSlot = slot as Vector4GeometrySlot;
 							var vector4Prop = prop as Vector4GeometryProperty;
 							//var colorProp = prop as ColorGeometryProperty;
 							if (tSlot != null && vector4Prop != null)

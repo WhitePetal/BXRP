@@ -85,8 +85,8 @@ namespace BXGeometryGraph
                 m_ConnectedSlotCapability = slot.stageCapability;
                 if (m_ConnectedSlotCapability == GeometryStageCapability.All || slot.owner is SubGraphNode)
                 {
-                    m_ConnectedSlotCapability = NodeUtils.GetEffectiveShaderStageCapability(slot, true)
-                        & NodeUtils.GetEffectiveShaderStageCapability(slot, false);
+                    m_ConnectedSlotCapability = NodeUtils.GetEffectiveGeometryStageCapability(slot, true)
+                        & NodeUtils.GetEffectiveGeometryStageCapability(slot, false);
                 }
             }
             else
@@ -103,7 +103,7 @@ namespace BXGeometryGraph
                         continue;
 
                     // Test stage
-                    if (field.geometryStage != contextView.contextData.shaderStage)
+                    if (field.geometryStage != contextView.contextData.geometryStage)
                         continue;
 
                     // Create title
@@ -391,7 +391,7 @@ namespace BXGeometryGraph
             var nodeEntry = (entry as SearchNodeItem).NodeGUID;
 
             if (nodeEntry.node is PropertyNode propNode)
-                if (propNode.property is Serialization.MultiJsonInternal.UnknownShaderPropertyType)
+                if (propNode.property is MultiJsonInternal.UnknownGeometryPropertyType)
                     return true;
 
             var node = CopyNodeForGraph(nodeEntry.node);

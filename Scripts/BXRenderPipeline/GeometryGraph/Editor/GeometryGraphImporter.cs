@@ -47,7 +47,7 @@ Geometry ""Hidden/GraphErrorGeometry""
             graph.OnEnable();
             graph.ValidateGraph();
 
-            UnityEngine.Object mainObject = null;
+            UnityEngine.Object mainObject = new Geometry();
 
             Texture2D texture = Resources.Load<Texture2D>("Icons/gg_graph_icon");
             ctx.AddObjectToAsset("MainAsset", mainObject, texture);

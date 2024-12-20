@@ -174,7 +174,7 @@ namespace BXGeometryGraph
         // ColorGeometryProperty is the only case where PropertyType doesn't match ConcreteSlotValueType
         public virtual string GetOldDefaultReferenceName()
         {
-            return $"{concreteShaderValueType.ToString()}_{objectId}";
+            return $"{concreteGeometryValueType.ToString()}_{objectId}";
         }
 
         // returns true if this geometry input is CURRENTLY using the old default reference name

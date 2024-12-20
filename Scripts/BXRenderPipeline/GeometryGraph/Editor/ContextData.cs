@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph
 {
-    [SerializeField]
+    [Serializable]
     sealed class ContextData
     {
         [SerializeField]

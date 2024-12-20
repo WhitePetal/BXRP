@@ -220,6 +220,7 @@ namespace BXGeometryGraph
             var styleSheet = Resources.Load<StyleSheet>($"Styles/{styleName}");
             // Setup VisualElement from Stylesheet and UXML file
             styleSheets.Add(styleSheet);
+            Debug.Log("GraphSubWindow uxml path: " + $"UXML/{UxmlName}");
             var uxml = Resources.Load<VisualTreeAsset>($"UXML/{UxmlName}");
             m_MainContainer = uxml.Instantiate();
             m_MainContainer.AddToClassList("mainContainer");

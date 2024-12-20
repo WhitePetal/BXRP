@@ -1,3 +1,6 @@
 GeometryGraphView {
     background-color: #202020;
 }
+
+.subgraph{
+}

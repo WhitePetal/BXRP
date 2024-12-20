@@ -139,5 +139,31 @@ namespace BXGeometryGraph
             string precisionString = concretePrecision.ToGeometryString();
             return type.ToGeometryString(precisionString);
         }
+
+        public static string ToClassName(this ConcreteSlotValueType type)
+        {
+            return k_ConcreteSlotValueTypeClassNames[(int)type];
+        }
+
+        static readonly string[] k_ConcreteSlotValueTypeClassNames =
+        {
+            null,
+            "typeMatrix",
+            "typeMatrix",
+            "typeMatrix",
+            "typeTexture2D",
+            "typeTexture2DArray",
+            "typeTexture3D",
+            "typeCubemap",
+            "typeGradient",
+            "typeFloat4",
+            "typeFloat3",
+            "typeFloat2",
+            "typeFloat1",
+            "typeBoolean",
+            "typeVirtualTexture",
+            "typePropertyConnectionState",
+            "geometry"
+        };
     }
 }

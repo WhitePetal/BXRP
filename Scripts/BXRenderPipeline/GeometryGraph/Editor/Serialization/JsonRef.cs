@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BXGeometryGraph
 {
     [Serializable]
-    public class JsonRef<T> : ISerializationCallbackReceiver where T : JsonObject
+    struct JsonRef<T> : ISerializationCallbackReceiver where T : JsonObject
     {
         [NonSerialized]
         private T m_Value;

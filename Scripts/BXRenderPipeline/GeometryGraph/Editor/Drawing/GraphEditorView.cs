@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -67,6 +67,7 @@ namespace BXGeometryGraph
 		private const string k_UserViewSettings = "BXGeometryGraph.ToggleSettings";
 		private UserViewSettings m_UserViewSettings;
 
+		internal UserViewSettings viewSettings { get => m_UserViewSettings; }
 
 		private const string k_FloatingWindowsLayoutKey = "BXGeometryGraph.FloatingWindowsLayout";
 		private FloatingWindowsLayout m_FloatingWindowsLayout;

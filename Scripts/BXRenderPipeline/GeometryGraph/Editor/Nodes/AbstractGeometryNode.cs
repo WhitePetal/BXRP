@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using BXGraphing;
+
 using System;
 using System.Linq;
 using Unity.Collections;
@@ -13,7 +13,7 @@ namespace BXGeometryGraph
     abstract class AbstractGeometryNode : JsonObject, IGroupItem, IRectInterface
     {
         [SerializeField]
-        private JsonRef<GroupData> m_Group = null;
+        JsonRef<GroupData> m_Group = null;
 
         [SerializeField]
         private string m_Name;
@@ -22,19 +22,19 @@ namespace BXGeometryGraph
         private DrawState m_DrawState;
 
         [NonSerialized]
-        protected bool m_HasError;
+        bool m_HasError;
 
         [NonSerialized]
-        private bool m_IsValid = true;
+        bool m_IsValid = true;
 
         [NonSerialized]
-        private bool m_IsActive = true;
+        bool m_IsActive = true;
 
         [NonSerialized]
-        private bool m_WasUsedByGenerator = false;
+        bool m_WasUsedByGenerator = false;
 
         [SerializeField]
-        private List<JsonData<GeometrySlot>> m_Slots = new List<JsonData<GeometrySlot>>();
+        List<JsonData<GeometrySlot>> m_Slots = new List<JsonData<GeometrySlot>>();
 
         public GraphData owner { get; set; }
 
@@ -283,6 +283,7 @@ namespace BXGeometryGraph
 
         public void SetActive(bool value, bool updateConnections = true)
         {
+            Debug.Log("SetActive: " + this + " === " + value);
             if (m_IsActive == value)
                 return;
 
@@ -735,7 +736,7 @@ namespace BXGeometryGraph
         public virtual void ValidateNode()
         {
             if ((ggVersion < latestVersion) && (dismissedUpdateVersion < latestVersion))
-                owner.messageManager?.AddOrAppendError(owner, objectId, new ShaderMessage("There is a newer version of this node available. Inspect node for details.", UnityEditor.Rendering.ShaderCompilerMessageSeverity.Warning));
+                owner.messageManager?.AddOrAppendError(owner, objectId, new GeometryMessage("There is a newer version of this node available. Inspect node for details.", GeometryCompilerMessageSeverity.Warning));
         }
 
         public virtual bool canCutNode => true;

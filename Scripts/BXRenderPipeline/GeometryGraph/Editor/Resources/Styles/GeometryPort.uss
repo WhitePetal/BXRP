@@ -1,12 +1,12 @@
 /* THIS FILE IS FROM GRAPHVIEW BUT CONTAINS MODIFICATIONS */
 
 GeometryPort {
-    height: 24;
+    height: 24px;
     align-items: center;
-    padding-left: 4;
-    padding-right: 4;
-    port-color: rgb(200, 200, 200);
-    disabled-port-color: rgb(70, 70, 70);
+    padding-left: 4px;
+    padding-right: 4px;
+    --port-color: rgb(200, 200, 200);
+    --disabled-port-color: rgb(70, 70, 70);
 }
 
 GeometryPort.input {
@@ -20,30 +20,30 @@ GeometryPort.output {
 GeometryPort > #connector {
     border-color: rgb(70, 70, 70);
     background-color: #212121;
-    width: 8;
-    height: 8;
-    border-radius: 8;
+    width: 8px;
+    height: 8px;
+    border-radius: 8px;
     align-items: center;
     justify-content: center;
 
-    margin-left: 4;
-    margin-right: 4;
-    border-left-width:1;
-    border-top-width:1;
-    border-right-width:1;
-    border-bottom-width:1;
+    margin-left: 4px;
+    margin-right: 4px;
+    border-left-width: 1px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
 }
 
 GeometryPort > #connector:hover {
-    border-color:  #f0f0f0
+    border-color: #f0f0f0
 }
 
 GeometryPort > #connector > #cap
 {
     background-color: #212121;
-    width: 4;
-    height: 4;
-    border-radius: 4;
+    width: 4px;
+    height: 4px;
+    border-radius: 4px;
 }
 
 GeometryPort > #connector > #cap:hover
@@ -56,140 +56,277 @@ GeometryPort > #connector.portHighlight {
 }
 
 GeometryPort > #type {
-    text-color: #c1c1c1;
-    font-size:11;
-    height:16;
+    color: #c1c1c1;
+    font-size: 11px;
+    height: 16px;
     padding-left: 0;
     padding-right: 0;
-    margin-left: 4;
-    margin-right: 4;
+    margin-left: 4px;
+    margin-right: 4px;
+    margin-top: 4px;
 }
 
 GeometryPort.input > #type {
-    text-alignment: middle-left;
+    -unity-text-align: middle-left;
 }
 
 GeometryPort.output > #type {
-    text-alignment:middle-right;
+    -unity-text-align:middle-right;
 }
 
 /*******************************/
-/* ShaderPorts colors by types */
+/* GeometryPorts colors by types */
 /*******************************/
 
 GeometryPort.typeTexture {
-    port-color:#FF8B8B;
+    --port-color:#FF8B8B;
+}
+
+GeometryPort.typeTexture.inactive {
+    --port-color:#7F5C5C;
 }
 
 GeometryPort.typeTexture2D {
     /* Same as typeTexture */
-    port-color:#FF8B8B;
+    --port-color:#FF8B8B;
+}
+
+GeometryPort.typeTexture2D.inactive {
+    /* Same as typeTexture */
+    --port-color:#7F5C5C;
+}
+
+GeometryPort.typeTexture2DArray {
+    /* Same as typeTexture */
+    --port-color:#FF8B8B;
+}
+
+GeometryPort.typeTexture2DArray.inactive {
+    /* Same as typeTexture */
+    --port-color:#7F5C5C;
+}
+
+GeometryPort.typeTexture3D {
+    /* Same as typeTexture */
+    --port-color:#FF8B8B;
+}
+
+GeometryPort.typeTexture3D.inactive {
+    /* Same as typeTexture */
+    --port-color:#7F5C5C;
 }
 
 GeometryPort.typeCubemap {
-	/* Same as typeTexture */
-    port-color:#FF8B8B;
+    /* Same as typeTexture */
+    --port-color:#FF8B8B;
+}
+
+GeometryPort.typeCubemap.inactive {
+    /* Same as typeTexture */
+    --port-color:#7F5C5C;
 }
 
 GeometryPort.typeGraphScript {
     /* Todo: there is no such type in Unity atm */
-    port-color:#E681BA;
+    --port-color:#E681BA;
+}
+
+GeometryPort.typeGraphScript.inactive {
+    /* Todo: there is no such type in Unity atm */
+    --port-color:#73405D;
 }
 
 GeometryPort.typeFloat4 {
-    port-color:#FBCBF4;
+    --port-color:#FBCBF4;
+}
+
+GeometryPort.typeFloat4.inactive {
+    --port-color:#7D657A;
 }
 
 GeometryPort.typeVector4 {
     /* Same as typeFloat4 */
-    port-color:#FBCBF4;
+    --port-color:#FBCBF4;
+}
+
+GeometryPort.typeVector4.inactive {
+    /* Same as typeFloat4 */
+    --port-color:#7D657A;
 }
 
 GeometryPort.typeQuaternion {
     /* Same as typeFloat4 */
-    port-color:#FBCBF4;
+    --port-color:#FBCBF4;
+}
+
+GeometryPort.typeQuaternion.inactive {
+    /* Same as typeFloat4 */
+    --port-color:#7D657A;
 }
 
 GeometryPort.typeColor {
     /* Same as typeFloat4 */
-    port-color:#FBCBF4;
+    --port-color:#FBCBF4;
+}
+
+GeometryPort.typeColor.inactive {
+    /* Same as typeFloat4 */
+    --port-color:#7D657A;
 }
 
 GeometryPort.typeInt {
-    port-color:#9481E6;
+    --port-color:#9481E6;
+}
+
+GeometryPort.typeInt.inactive {
+    --port-color:#4A4073;
 }
 
 GeometryPort.typeInt32 {
     /* Same as typeInt */
-    port-color:#9481E6;
+    --port-color:#9481E6;
+}
+
+GeometryPort.typeInt32.inactive {
+    /* Same as typeInt */
+    --port-color:#4A4073;
 }
 
 /* TEMP STUFF THAT SHOULD ACTUALLY STAY IN GRAPHVIEW */
 GeometryPort.typeInt64 {
     /* Same as typeInt */
     /* todo we might want to differentiate that from int32 */
-    port-color:#9481E6;
+    --port-color:#9481E6;
+}
+
+GeometryPort.typeInt64.inactive {
+    /* Same as typeInt */
+    /* todo we might want to differentiate that from int32 */
+    --port-color:#4A4073;
 }
 
 GeometryPort.typeBoolean {
-    port-color:#9481E6;
+    --port-color:#9481E6;
+}
+
+GeometryPort.typeBoolean.inactive {
+    --port-color:#4A4073;
 }
 
 GeometryPort.typeMatrix {
-    port-color:#8FC1DF;
+    --port-color:#8FC1DF;
+}
+
+GeometryPort.typeMatrix.inactive {
+    --port-color:#47606F;
 }
 
 GeometryPort.typeMatrix4x4 {
     /* Same as typeMatrix */
-    port-color:#8FC1DF;
+    --port-color:#8FC1DF;
+}
+
+GeometryPort.typeMatrix4x4.inactive {
+    /* Same as typeMatrix */
+    --port-color:#47606F;
 }
 
 GeometryPort.typeGameObject {
-    port-color:#8FC1DF;
+    --port-color:#8FC1DF;
+}
+
+GeometryPort.typeGameObject.inactive {
+    --port-color:#47606F;
 }
 
 GeometryPort.typeFloat {
-    port-color:#84E4E7;
+    --port-color:#84E4E7;
+}
+
+GeometryPort.typeFloat.inactive {
+    --port-color:#427273;
 }
 
 GeometryPort.typeFloat1 {
     /* Same as typeFloat */
-    port-color:#84E4E7;
+    --port-color:#84E4E7;
+}
+
+GeometryPort.typeFloat1.inactive {
+    /* Same as typeFloat */
+    --port-color:#427273;
 }
 
 GeometryPort.typeSingle {
     /* Same as typeFloat */
-    port-color:#84E4E7;
+    --port-color:#84E4E7;
+}
+
+ShaderPort.typeSingle.inactive {
+    /* Same as typeFloat */
+    --port-color:#427273;
 }
 
 GeometryPort.typeDouble {
     /* Same as typeFloat */
     /* todo we might want to differentiate that from float */
-    port-color:#84E4E7;
+    --port-color:#84E4E7;
+}
+
+GeometryPort.typeDouble.inactive {
+    /* Same as typeFloat */
+    /* todo we might want to differentiate that from float */
+    --port-color:#427273;
 }
 
 GeometryPort.typeFloat2 {
-    port-color:#9AEF92;
+    --port-color:#9AEF92;
+}
+
+GeometryPort.typeFloat2.inactive {
+    --port-color:#4D7749;
 }
 
 GeometryPort.typeVector2 {
     /* Same as typeFloat2 */
-    port-color:#9AEF92;
+    --port-color:#9AEF92;
+}
+
+GeometryPort.typeVector2.inactive {
+    /* Same as typeFloat2 */
+    --port-color:#4D7749;
 }
 
 GeometryPort.typeComponent {
-    port-color:#C9F774;
+    --port-color:#C9F774;
+}
+
+GeometryPort.typeComponent.inactive {
+    --port-color:#647B3A;
 }
 
 GeometryPort.typeFloat3 {
-    port-color:#F6FF9A;
+    --port-color:#F6FF9A;
+}
+
+GeometryPort.typeFloat3.inactive {
+    --port-color:#7B7F4D;
 }
 
 GeometryPort.typeVector3 {
     /* Same as typeFloat3 */
-    port-color:#F6FF9A;
+    --port-color:#F6FF9A;
+}
+
+GeometryPort.typeVector3.inactive {
+    /* Same as typeFloat3 */
+    --port-color:#7B7F4D;
 }
 
 GeometryPort.typeString {
-    port-color:#FCD76E;
+    --port-color:#FCD76E;
+}
+
+GeometryPort.typeString.inactive {
+    --port-color:#7E6B37;
 }

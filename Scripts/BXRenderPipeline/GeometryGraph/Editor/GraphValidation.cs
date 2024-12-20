@@ -56,7 +56,7 @@ namespace BXGeometryGraph
                         {
                             disallowedByAnyTargets = true;
                             node.isValid = false;
-                            node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by {target.displayName} implementation", Rendering.ShaderCompilerMessageSeverity.Warning);
+                            node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by {target.displayName} implementation", GeometryCompilerMessageSeverity.Warning);
                             node.owner.m_UnsupportedTargets.Add(target);
                         }
                         //at least one target does allow node, not going to be explicitly set inactive
@@ -70,7 +70,7 @@ namespace BXGeometryGraph
                         {
                             disallowedByAnySubTarget = true;
                             node.isValid = false;
-                            node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by {subtarget.displayName} implementation", Rendering.ShaderCompilerMessageSeverity.Error);
+                            node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by {subtarget.displayName} implementation", GeometryCompilerMessageSeverity.Error);
                         }
                     }
                     if (!disallowedByAnyTargets && !disallowedByAnySubTarget)
@@ -82,7 +82,7 @@ namespace BXGeometryGraph
                     if (disallowedByAllTargets)
                     {
                         node.SetOverrideActiveState(AbstractGeometryNode.ActiveState.ExplicitInactive);
-                        node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by any active targets, and will not be used in generation", Rendering.ShaderCompilerMessageSeverity.Warning);
+                        node.owner.AddValidationError(node.objectId, $"{node.name} Node is not allowed by any active targets, and will not be used in generation", GeometryCompilerMessageSeverity.Warning);
                     }
                     else
                     {

@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -594,7 +594,7 @@ namespace BXGeometryGraph
 
 			RefreshExpandedState(); // Necessary b/c we can't override enough Node.cs functions to update only what's needed
 
-			foreach (var listener in m_ControlItems.Children().OfType<AbstractGeometryNodeModificationListener>())
+			foreach (var listener in m_ControlItems.Children().OfType<INodeModificationListener>())
 			{
 				if (listener != null)
 					listener.OnNodeModified(scope);
@@ -621,6 +621,7 @@ namespace BXGeometryGraph
 				inputContainer.Add(portContainer);
 
 				// Update active state
+				Debug.Log("AddGeometryPortForSlot node.isActive: " + node.isActive);
 				if (node.isActive)
 				{
 					portInputView.RemoveFromClassList("disabled");
@@ -673,7 +674,7 @@ namespace BXGeometryGraph
 
 			foreach (var control in m_ControlItems.Children())
 			{
-				if (control is AbstractGeometryNodeModificationListener listener)
+				if (control is INodeModificationListener listener)
 					listener.OnNodeModified(ModificationScope.Graph);
 			}
 		}
@@ -783,8 +784,8 @@ namespace BXGeometryGraph
 			foreach (var portInputView in inputContainer.Query<PortInputView>().ToList())
 				portInputView.Dispose();
 
-			foreach (var shaderPort in outputContainer.Query<ShaderPort>().ToList())
-				shaderPort.Dispose();
+			foreach (var geometryPort in outputContainer.Query<GeometryPort>().ToList())
+				geometryPort.Dispose();
 
 			var propRow = GetAssociatedBlackboardRow();
 			// If this node view is deleted, remove highlighting from associated blackboard row

@@ -674,7 +674,7 @@ namespace BXGeometryGraph
         }
         enum FloatTypeForUI { Default = FloatType.Default, Integer = FloatType.Integer, Slider = FloatType.Slider }
 
-        void HandleVector2ShaderProperty(PropertySheet propertySheet, Vector2GeometryProperty vector2ShaderProperty)
+        void HandleVector2GeometryProperty(PropertySheet propertySheet, Vector2GeometryProperty vector2ShaderProperty)
         {
             var vector2PropertyDrawer = new Vector2PropertyDrawer();
             vector2PropertyDrawer.preValueChangeCallback = () => this._preChangeValueCallback("Change property value");
@@ -687,7 +687,7 @@ namespace BXGeometryGraph
                 out var propertyVec2Field));
         }
 
-        void HandleVector3ShaderProperty(PropertySheet propertySheet, Vector3GeometryProperty vector3ShaderProperty)
+        void HandleVector3GeometryProperty(PropertySheet propertySheet, Vector3GeometryProperty vector3ShaderProperty)
         {
             var vector3PropertyDrawer = new Vector3PropertyDrawer();
             vector3PropertyDrawer.preValueChangeCallback = () => this._preChangeValueCallback("Change property value");
@@ -700,7 +700,7 @@ namespace BXGeometryGraph
                 out var propertyVec3Field));
         }
 
-        void HandleVector4ShaderProperty(PropertySheet propertySheet, Vector4GeometryProperty vector4Property)
+        void HandleVector4GeometryProperty(PropertySheet propertySheet, Vector4GeometryProperty vector4Property)
         {
             var vector4PropertyDrawer = new Vector4PropertyDrawer();
             vector4PropertyDrawer.preValueChangeCallback = () => this._preChangeValueCallback("Change property value");

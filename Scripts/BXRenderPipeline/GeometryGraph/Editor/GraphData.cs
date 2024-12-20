@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BXCommon;
-using BXGraphing;
+
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -237,6 +237,7 @@ namespace BXGeometryGraph
             get { return m_RemovedEdges; }
         }
 
+        [SerializeField]
         private ContextData m_GepmetryContext;
 
         // We build this once and cache it as it uses reflection
@@ -341,7 +342,7 @@ namespace BXGeometryGraph
             set => m_OutputNode = value;
         }
 
-        internal delegate void SaveGraphDelegate(Geometry shader, object context);
+        internal delegate void SaveGraphDelegate(Geometry geometry, object context);
         internal static SaveGraphDelegate onSaveGraph;
 
         [SerializeField]
@@ -542,13 +543,17 @@ namespace BXGeometryGraph
             {
                 foreach(var descriptor in blockDescriptors)
                 {
-                    //var contextData = descriptor.shaderStage == ShaderStage.Fragment ? m_FragmentContext : m_VertexContext;
+                    //var contextData = descriptor.geometryStage == GeometryStage.Fragment ? m_FragmentContext : m_VertexContext;
                     var contextData = m_GepmetryContext;
                     var block = (BlockNode)Activator.CreateInstance(typeof(BlockNode));
                     block.Init(descriptor);
                     AddBlockNoValidate(block, contextData, contextData.blocks.Count);
                 }
             }
+
+            ValidateGraph();
+            var activeBlocks = GetActiveBlocksForAllActiveTargets();
+            UpdateActiveBlocks(activeBlocks);
         }
 
         private void GetBlockFieldDescriptors()
@@ -1174,20 +1179,20 @@ namespace BXGeometryGraph
         //    return null;
         //}
 
-        //internal ColorGeometryProperty GetMainColor()
-        //{
-        //    foreach (var prop in properties)
-        //    {
-        //        if (prop is ColorShaderProperty col)
-        //        {
-        //            if (col.isMainColor)
-        //            {
-        //                return col;
-        //            }
-        //        }
-        //    }
-        //    return null;
-        //}
+        internal ColorGeometryProperty GetMainColor()
+        {
+            foreach (var prop in properties)
+            {
+                if (prop is ColorGeometryProperty col)
+                {
+                    if (col.isMainColor)
+                    {
+                        return col;
+                    }
+                }
+            }
+            return null;
+        }
 
         public bool ContainsCategory(CategoryData categoryData)
         {
@@ -2655,12 +2660,13 @@ namespace BXGeometryGraph
             // --------------------------------------------------
             // Deserialize Contexts & Blocks
 
-            void DeserializeContextData(ContextData contextData /**, ShaderStage stage **/)
+            void DeserializeContextData(ContextData contextData, GeometryStage stage)
             {
                 // Because Vertex/Fragment Contexts are serialized explicitly
                 // we do not need to serialize the Stage value on the ContextData
                 //contextData.shaderStage = stage;
-
+                Debug.Log("GraphData ggVersion - latestVersion: " + ggVersion + " === " + latestVersion);
+                Debug.Log("DeserializeContextData: " + contextData);
                 var blocks = contextData.blocks.SelectValue().ToList();
                 var blockCount = blocks.Count;
                 for(int i = 0; i < blockCount; ++i)
@@ -2697,7 +2703,7 @@ namespace BXGeometryGraph
             // First deserialize the ContextDatas
             //DeserializeContextData(m_VertexContext, ShaderStage.Vertex);
             //DeserializeContextData(m_FragmentContext, ShaderStage.Fragment);
-            DeserializeContextData(m_GepmetryContext);
+            DeserializeContextData(m_GepmetryContext, GeometryStage.Geometry);
 
             // there should be no unknown potential targets at this point
             Assert.IsFalse(m_AllPotentialTargets.Any(pt => pt.IsUnknown()));
@@ -2730,7 +2736,7 @@ namespace BXGeometryGraph
 
             for(int i = 0; i < oldSlots.Count; ++i)
             {
-                newSlots[i].CopyValueFrom(oldSlots[i]);
+                newSlots[i].CopyValuesFrom(oldSlots[i]);
                 var oldSlotRef = nodeToReplace.GetSlotReference(oldSlots[i].id);
                 var newSlotRef = nodeReplacement.GetSlotReference(newSlots[i].id);
 

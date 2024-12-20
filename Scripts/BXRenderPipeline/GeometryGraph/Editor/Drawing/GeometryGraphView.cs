@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -1056,7 +1056,7 @@ namespace BXGeometryGraph
 
 
 			var copiedSelectionList = new List<ISelectable>(selection);
-			var deleteShaderInputAction = new DeleteShaderInputAction();
+			var deleteGeometryInputAction = new DeleteGeometryInputAction();
 			var deleteCategoriesAction = new DeleteCategoryAction();
 
 			for (int index = 0; index < copiedSelectionList.Count; ++index)
@@ -1065,7 +1065,7 @@ namespace BXGeometryGraph
 				if (selectable is GGBlackboardField field && field.userData != null)
 				{
 					var input = (GeometryInput)field.userData;
-					deleteShaderInputAction.shaderInputsToDelete.Add(input);
+					deleteGeometryInputAction.geometryInputsToDelete.Add(input);
 
 					// If deleting a Keyword test variant limit
 					if (input is ShaderKeyword keyword)
@@ -1084,8 +1084,8 @@ namespace BXGeometryGraph
 				}
 			}
 
-			if (deleteShaderInputAction.shaderInputsToDelete.Count != 0)
-				graph.owner.graphDataStore.Dispatch(deleteShaderInputAction);
+			if (deleteGeometryInputAction.geometryInputsToDelete.Count != 0)
+				graph.owner.graphDataStore.Dispatch(deleteGeometryInputAction);
 			if (deleteCategoriesAction.categoriesToRemoveGuids.Count != 0)
 				graph.owner.graphDataStore.Dispatch(deleteCategoriesAction);
 

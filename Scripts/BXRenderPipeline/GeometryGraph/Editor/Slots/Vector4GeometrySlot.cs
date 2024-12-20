@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using BXGraphing;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -11,13 +11,13 @@ namespace BXGeometryGraph
     class Vector4GeometrySlot : GeometrySlot, IGeometrySlotHasValue<Vector4>
     {
         [SerializeField]
-        private Vector4 m_Value;
+        protected Vector4 m_Value;
 
         [SerializeField]
-        private Vector4 m_DefaultValue = Vector4.zero;
+        protected Vector4 m_DefaultValue = Vector4.zero;
 
         [SerializeField]
-        private string[] m_Labels;
+        protected string[] m_Labels;
 
         static readonly string[] k_LabelDefaults = { "X", "Y", "Z", "W" };
         string[] labels

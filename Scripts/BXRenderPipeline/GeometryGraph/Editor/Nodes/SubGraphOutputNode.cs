@@ -1,4 +1,4 @@
-using BXGraphing;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -45,7 +45,7 @@ namespace BXGeometryGraph
 
 			foreach (var slot in slots)
 			{
-				slot.stageCapability = NodeUtils.GetEffectiveShaderStageCapability(slot, true);
+				slot.stageCapability = NodeUtils.GetEffectiveGeometryStageCapability(slot, true);
 			}
 		}
 

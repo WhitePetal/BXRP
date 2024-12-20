@@ -11,39 +11,6 @@ namespace BXGeometryGraph
     [InitializeOnLoad]
     internal static class NodeClassCache
     {
-        private static Dictionary<Type, List<ContextFilterableAttribute>> m_KnownTypeLookupTable;
-        private static Dictionary<Type, List<ContextFilterableAttribute>> KnownTypeLookupTable
-        {
-            get
-            {
-                EnsureKnownTypeLookupTable();
-                return m_KnownTypeLookupTable;
-            }
-        }
-
-        public static IEnumerable<Type> knownNodeTypes
-        {
-            get => KnownTypeLookupTable.Keys;
-        }
-
-
-        private static Dictionary<string, SubGraphAsset> m_KnownSubGraphLookupTable;
-        private static Dictionary<string, SubGraphAsset> KnownSubGraphLookupTable
-        {
-            get
-            {
-                EnsureKnownSubGraphLookupTable();
-                return m_KnownSubGraphLookupTable;
-            }
-        }
-
-        public static IEnumerable<SubGraphAsset> knownSubGraphAssets
-        {
-            get => KnownSubGraphLookupTable.Values;
-        }
-
-
-
         private class PostProcessor : AssetPostprocessor
         {
             static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
@@ -85,32 +52,63 @@ namespace BXGeometryGraph
             }
         }
 
+
+        private static Dictionary<Type, List<ContextFilterableAttribute>> m_KnownTypeLookupTable;
+        private static Dictionary<Type, List<ContextFilterableAttribute>> KnownTypeLookupTable
+        {
+            get
+            {
+                EnsureKnownTypeLookupTable();
+                return m_KnownTypeLookupTable;
+            }
+        }
+
+        public static IEnumerable<Type> knownNodeTypes
+        {
+            get => KnownTypeLookupTable.Keys;
+        }
+
+
+        private static Dictionary<string, SubGraphAsset> m_KnownSubGraphLookupTable;
+        private static Dictionary<string, SubGraphAsset> KnownSubGraphLookupTable
+        {
+            get
+            {
+                EnsureKnownSubGraphLookupTable();
+                return m_KnownSubGraphLookupTable;
+            }
+        }
+
+        public static IEnumerable<SubGraphAsset> knownSubGraphAssets
+        {
+            get => KnownSubGraphLookupTable.Values;
+        }
+
         public static void UpdateSubGraphEntry(string path)
         {
-            // TODO
-            //string guid = AssetDatabase.AssetPathToGUID(path);
-            //if (guid.Length == 0)
-            //{
-            //    return;
-            //}
-            //var asset = AssetDatabase.LoadAssetAtPath<SubGraphAsset>(path);
+            string guid = AssetDatabase.AssetPathToGUID(path);
+            if (guid.Length == 0)
+            {
+                return;
+            }
+            var asset = AssetDatabase.LoadAssetAtPath<SubGraphAsset>(path);
 
-            //bool valid = asset != null && asset.isValid;
-            //if (KnownSubGraphLookupTable.TryGetValue(guid, out SubGraphAsset known))
-            //{
-            //    if (!valid)
-            //    {
-            //        KnownSubGraphLookupTable.Remove(guid);
-            //    }
-            //    else if (asset != known)
-            //    {
-            //        KnownSubGraphLookupTable[guid] = asset;
-            //    }
-            //}
-            //else if (valid)
-            //{
-            //    KnownSubGraphLookupTable.Add(guid, asset);
-            //}
+            bool valid = asset != null && asset.isValid;
+            if (KnownSubGraphLookupTable.TryGetValue(guid, out SubGraphAsset known))
+            {
+                if (!valid)
+                {
+                    KnownSubGraphLookupTable.Remove(guid);
+                }
+                else if (asset != known)
+                {
+                    KnownSubGraphLookupTable[guid] = asset;
+                }
+            }
+            else if (valid)
+            {
+                KnownSubGraphLookupTable.Add(guid, asset);
+            }
         }
 
         public static IEnumerable<ContextFilterableAttribute> GetFilterableAttributesOnNodeType(Type nodeType)
@@ -171,21 +169,20 @@ namespace BXGeometryGraph
 
         private static void EnsureKnownSubGraphLookupTable()
         {
-            // TODO
-            //if (m_KnownSubGraphLookupTable == null)
-            //{
-            //    Profiler.BeginSample("EnsureKnownSubGraphLookupTable");
-            //    m_KnownSubGraphLookupTable = new Dictionary<string, SubGraphAsset>();
-            //    foreach (var guid in AssetDatabase.FindAssets(string.Format("t:{0}", typeof(SubGraphAsset))))
-            //    {
-            //        var asset = AssetDatabase.LoadAssetAtPath<SubGraphAsset>(AssetDatabase.GUIDToAssetPath(guid));
-            //        if (asset != null && asset.isValid)
-            //        {
-            //            m_KnownSubGraphLookupTable.Add(guid, asset);
-            //        }
-            //    }
-            //    Profiler.EndSample();
-            //}
+            if (m_KnownSubGraphLookupTable == null)
+            {
+                Profiler.BeginSample("EnsureKnownSubGraphLookupTable");
+                m_KnownSubGraphLookupTable = new Dictionary<string, SubGraphAsset>();
+                foreach (var guid in AssetDatabase.FindAssets(string.Format("t:{0}", typeof(SubGraphAsset))))
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath<SubGraphAsset>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (asset != null && asset.isValid)
+                    {
+                        m_KnownSubGraphLookupTable.Add(guid, asset);
+                    }
+                }
+                Profiler.EndSample();
+            }
         }
 
         private static void DebugPrintKnownNodes()

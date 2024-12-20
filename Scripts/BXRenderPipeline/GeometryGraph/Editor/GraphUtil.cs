@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using BXGraphing;
+
 using UnityEditor;
 using UnityEditor.ProjectWindowCallback;
 using UnityEditorInternal;
@@ -114,12 +114,14 @@ namespace BXGeometryGraph
         public override void Action(int instanceId, string pathName, string resourceFile)
         {
             var graph = new GraphData();
+            Debug.Log("NewGraphAction Action");
             graph.AddContexts();
+            Debug.Log("graph.AddContexts");
             graph.InitializeOutputs(m_Targets, m_Blocks);
             graph.AddCategory(CategoryData.DefaultCategory());
 
-            graph.path = "Shader Graphs";
-            //FileUtilities.WriteShaderGraphToDisk(pathName, graph);
+            graph.path = "Geometry Graphs";
+            FileUtilities.WriteGeometryGraphToDisk(pathName, graph);
             AssetDatabase.Refresh();
 
             UnityEngine.Object obj = AssetDatabase.LoadAssetAtPath<Shader>(pathName);

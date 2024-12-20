@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using BXGraphing;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -185,8 +185,8 @@ namespace BXGeometryGraph
                     //return slotType == SlotType.Input
                         //? new GradientInputMaterialSlot(slotId, displayName, shaderOutputName, shaderStageCapability, hidden)
                         //: new GradientMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
-                //case SlotValueType.DynamicVector:
-                    //return new DynamicVectorMaterialSlot(slotId, displayName, shaderOutputName, slotType, defaultValue, shaderStageCapability, hidden);
+                case SlotValueType.DynamicVector:
+                return new DynamicVectorGeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden);
                 case SlotValueType.Vector4:
                     return new Vector4GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
                 case SlotValueType.Vector3:

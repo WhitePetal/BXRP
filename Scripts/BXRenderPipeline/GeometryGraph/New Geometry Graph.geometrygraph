@@ -1,0 +1,114 @@
+{
+    "m_GGVersion": 3,
+    "m_Type": "BXGeometryGraph.GraphData",
+    "m_ObjectId": "a03811269963453191b4ea290e422361",
+    "m_Properties": [],
+    "m_Keywords": [],
+    "m_Dropdowns": [],
+    "m_CategoryData": [
+        {
+            "m_Id": "abe19c1de4354a209efc9ec59b5c4bec"
+        }
+    ],
+    "m_Nodes": [
+        {
+            "m_Id": "6a1b81be0596468bb5d810283f265e0a"
+        }
+    ],
+    "m_GroupDatas": [],
+    "m_StickyNoteDatas": [],
+    "m_Edges": [],
+    "m_GepmetryContext": {
+        "m_Position": {
+            "x": 0.0,
+            "y": 0.0
+        },
+        "m_Blocks": [
+            {
+                "m_Id": "6a1b81be0596468bb5d810283f265e0a"
+            }
+        ]
+    },
+    "m_PreviewData": {
+        "preventRotation": false
+    },
+    "m_Path": "Geometry Graphs",
+    "m_GraphPrecision": 1,
+    "m_PreviewMode": 2,
+    "m_OutputNode": {
+        "m_Id": ""
+    },
+    "m_SubDatas": [],
+    "m_ActiveTargets": [
+        {
+            "m_Id": "303272cf79a44dc8af915887de1881b6"
+        }
+    ]
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.BXGGTarget",
+    "m_ObjectId": "303272cf79a44dc8af915887de1881b6",
+    "m_ActiveSubTarget": {
+        "m_Id": ""
+    }
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.BlockNode",
+    "m_ObjectId": "6a1b81be0596468bb5d810283f265e0a",
+    "m_Group": {
+        "m_Id": ""
+    },
+    "m_Name": "GeometryDescription.Geometry",
+    "m_DrawState": {
+        "m_Expanded": true,
+        "m_Position": {
+            "serializedVersion": "2",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.0,
+            "height": 0.0
+        }
+    },
+    "m_Slots": [
+        {
+            "m_Id": "ec1fd2e260664fd784d5395cde74ecb9"
+        }
+    ],
+    "synonyms": [],
+    "m_Precision": 0,
+    "m_PreviewExpanded": true,
+    "m_DismissedVersion": 0,
+    "m_PreviewMode": 0,
+    "m_CustomColors": {
+        "m_SerializableColors": []
+    },
+    "m_SerializedDescriptor": "GeometryDescription.Geometry"
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.CategoryData",
+    "m_ObjectId": "abe19c1de4354a209efc9ec59b5c4bec",
+    "m_Name": "",
+    "m_ChildObjectList": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.GeometryGeometrySlot",
+    "m_ObjectId": "ec1fd2e260664fd784d5395cde74ecb9",
+    "m_Id": 0,
+    "m_DisplayName": "Geometry",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "Geometry",
+    "m_StageCapability": 4,
+    "m_Value": 0.0,
+    "m_DefaultValue": 0.0,
+    "m_Labels": []
+}
+
