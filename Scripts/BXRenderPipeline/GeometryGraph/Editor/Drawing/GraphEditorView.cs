@@ -251,7 +251,7 @@ namespace BXGeometryGraph
 			var content = new VisualElement { name = "content" };
             {
 				m_GraphView = new GeometryGraphView(graph, () => m_PreviewManager.UpdateMasterPreview(ModificationScope.Topological))
-				{ name = "GraphView", viewDataKey = "MaterialGraphView" };
+				{ name = "GraphView", viewDataKey = "GeometryGraphView" };
 				ResetZoom();
 				m_GraphView.AddManipulator(new ContentDragger());
 				m_GraphView.AddManipulator(new SelectionDragger());
@@ -370,7 +370,7 @@ namespace BXGeometryGraph
 			//var vertexContext = AddContext("Vertex", m_Graph.vertexContext, Direction.Output);
 			//var fragmentContext = AddContext("Fragment", m_Graph.fragmentContext, Direction.Input);
 			var geometryContext = AddContext("Geometry Input", m_Graph.geometryContext, Direction.Input);
-
+			Debug.Log("Add Context By GraphEditorView: " + geometryContext.contextData.geometryStage);
 			// Connect Contexts
 			// Vertical Edges have no representation in Model
 			// Therefore just draw it and dont allow interaction
@@ -1010,12 +1010,13 @@ namespace BXGeometryGraph
 			else if (node is BlockNode blockNode)
 			{
 				var blockNodeView = new GeometryNodeView { userData = blockNode };
-				blockNodeView.Initialize(blockNode, m_PreviewManager, m_EdgeConnectorListener, graphView);
+				blockNodeView.Initialize(blockNode, m_PreviewManager, m_EdgeConnectorListener, m_GraphView);
 				blockNodeView.MarkDirtyRepaint();
 				nodeView = blockNodeView;
 
 				var context = m_GraphView.GetContext(blockNode.contextData);
 				context.InsertBlock(blockNodeView);
+
 			}
 			else if (node is RedirectNodeData redirectNodeData)
 			{

@@ -32,10 +32,10 @@ namespace BXGeometryGraph
             var headerLabel = new Label() { name = "headerLabel" };
             headerLabel.text = name;
             headerContainer.Add(headerLabel);
-            inputContainer.style.position = Position.Absolute;
-            inputContainer.style.left = 0;
-            inputContainer.style.right = 205;
-            inputContainer.style.top = 30;
+            //inputContainer.style.position = Position.Absolute;
+            //inputContainer.style.left = 0;
+            //inputContainer.style.right = 205;
+            //inputContainer.style.top = 30;
         }
 
         public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
@@ -76,8 +76,8 @@ namespace BXGeometryGraph
             if (!(nodeView.userData is BlockNode blockNode))
                 return;
 
-            // If index is -1 the node is being added to the end of the Stack
-            if (blockNode.index == -1)
+			// If index is -1 the node is being added to the end of the Stack
+			if (blockNode.index == -1)
             {
                 AddElement(nodeView);
                 return;
@@ -86,15 +86,16 @@ namespace BXGeometryGraph
             // Add or Insert based on index
             if (blockNode.index >= contentContainer.childCount)
             {
-                AddElement(nodeView);
-            }
+				AddElement(nodeView);
+			}
             else
             {
                 InsertElement(blockNode.index, nodeView);
             }
         }
 
-        public void InsertElements(int insertIndex, IEnumerable<GraphElement> elements)
+
+		public void InsertElements(int insertIndex, IEnumerable<GraphElement> elements)
         {
             var blockDatas = elements.Select(x => x.userData as BlockNode).ToArray();
             for (int i = 0; i < blockDatas.Length; i++)
@@ -117,8 +118,8 @@ namespace BXGeometryGraph
 
         protected override bool AcceptsElement(GraphElement element, ref int proposedIndex, int maxIndex)
         {
-            return element.userData is BlockNode blockNode && blockNode.descriptor != null &&
-                blockNode.descriptor.geometryStage == contextData.geometryStage;
+            return element.userData is BlockNode blockNode0 && blockNode0.descriptor != null &&
+                blockNode0.descriptor.geometryStage == contextData.geometryStage;
         }
 
         protected override void OnSeparatorContextualMenuEvent(ContextualMenuPopulateEvent evt, int separatorIndex)

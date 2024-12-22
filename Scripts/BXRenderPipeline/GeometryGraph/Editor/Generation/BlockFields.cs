@@ -6,7 +6,7 @@ namespace BXGeometryGraph
 {
     internal static class BlockFields
     {
-        [GenerateBlocks]
+        [GenerateBlocks("BXGG")]
         public struct GeometryDescription
         {
             public static string name = "GeometryDescription";

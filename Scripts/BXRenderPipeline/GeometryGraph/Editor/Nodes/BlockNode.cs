@@ -99,7 +99,7 @@ namespace BXGeometryGraph
             AddSlotFromControlType();
         }
 
-        internal void InitCustomDefault()
+		internal void InitCustomDefault()
         {
             Init(MakeCustomBlockField(k_CustomBlockDefaultName, CustomBlockType.Vector4));
         }
@@ -108,9 +108,11 @@ namespace BXGeometryGraph
         {
             // TODO: this should really just use callbacks like the CustomSlotBlockFieldDescriptor. then we wouldn't need this switch to make a copy
             var stageCapability = m_Descriptor.geometryStage.GetGeometryStageCapability();
-            switch (descriptor.control)
+			Debug.Log("m_descriptor: " + descriptor);
+			switch (descriptor.control)
             {
                 case GeometryControl geometryControl:
+					Debug.Log("Add GeometryGeometrySlot");
                     AddSlot(new GeometryGeometrySlot(0, descriptor.displayName, descriptor.name, SlotType.Input, stageCapability), attemptToModifyExisting);
                     break;
                 //case PositionControl positionControl:

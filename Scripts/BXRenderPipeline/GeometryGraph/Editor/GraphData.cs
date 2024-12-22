@@ -543,6 +543,7 @@ namespace BXGeometryGraph
             {
                 foreach(var descriptor in blockDescriptors)
                 {
+					Debug.Log("Init Descriptor: " + descriptor);
                     //var contextData = descriptor.geometryStage == GeometryStage.Fragment ? m_FragmentContext : m_VertexContext;
                     var contextData = m_GepmetryContext;
                     var block = (BlockNode)Activator.CreateInstance(typeof(BlockNode));
@@ -771,6 +772,7 @@ namespace BXGeometryGraph
             m_GepmetryContext = new ContextData();
             m_GepmetryContext.position = new Vector2(0, 0);
             m_GepmetryContext.geometryStage = GeometryStage.Geometry;
+			Debug.Log("AddContexts: " + m_GepmetryContext.geometryStage);
         }
 
         public void AddBlock(BlockNode blockNode, ContextData contextData, int index)
@@ -784,6 +786,7 @@ namespace BXGeometryGraph
 
         private void AddBlockNoValidate(BlockNode blockNode, ContextData contextData, int index)
         {
+			Debug.Log("AddBlockNoValidate: " + blockNode);
             // Regular AddNode path
             AddNodeNoValidate(blockNode);
 
@@ -2662,11 +2665,9 @@ namespace BXGeometryGraph
 
             void DeserializeContextData(ContextData contextData, GeometryStage stage)
             {
-                // Because Vertex/Fragment Contexts are serialized explicitly
-                // we do not need to serialize the Stage value on the ContextData
-                //contextData.shaderStage = stage;
-                Debug.Log("GraphData ggVersion - latestVersion: " + ggVersion + " === " + latestVersion);
-                Debug.Log("DeserializeContextData: " + contextData);
+				// Because Vertex/Fragment Contexts are serialized explicitly
+				// we do not need to serialize the Stage value on the ContextData
+				contextData.geometryStage = stage;
                 var blocks = contextData.blocks.SelectValue().ToList();
                 var blockCount = blocks.Count;
                 for(int i = 0; i < blockCount; ++i)

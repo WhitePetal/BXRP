@@ -1,0 +1,291 @@
+{
+    "m_GGVersion": 3,
+    "m_Type": "BXGeometryGraph.GraphData",
+    "m_ObjectId": "8953f63839834f21bde383136419f5d7",
+    "m_Properties": [],
+    "m_Keywords": [],
+    "m_Dropdowns": [],
+    "m_CategoryData": [
+        {
+            "m_Id": "974cc3d9fee548d4943856194d5afc42"
+        }
+    ],
+    "m_Nodes": [
+        {
+            "m_Id": "e208f03fbce8418783dc89b9cf130ada"
+        },
+        {
+            "m_Id": "6c594fcc1a9f4ee099b0b0ca36f3d2a6"
+        }
+    ],
+    "m_GroupDatas": [],
+    "m_StickyNoteDatas": [],
+    "m_Edges": [
+        {
+            "m_OutputSlot": {
+                "m_Node": {
+                    "m_Id": "6c594fcc1a9f4ee099b0b0ca36f3d2a6"
+                },
+                "m_SlotId": 4
+            },
+            "m_InputSlot": {
+                "m_Node": {
+                    "m_Id": "e208f03fbce8418783dc89b9cf130ada"
+                },
+                "m_SlotId": 0
+            }
+        }
+    ],
+    "m_GepmetryContext": {
+        "m_Position": {
+            "x": 163.0,
+            "y": 37.0
+        },
+        "m_Blocks": [
+            {
+                "m_Id": "e208f03fbce8418783dc89b9cf130ada"
+            }
+        ]
+    },
+    "m_PreviewData": {
+        "preventRotation": false
+    },
+    "m_Path": "Geometry Graphs",
+    "m_GraphPrecision": 1,
+    "m_PreviewMode": 2,
+    "m_OutputNode": {
+        "m_Id": ""
+    },
+    "m_SubDatas": [],
+    "m_ActiveTargets": [
+        {
+            "m_Id": "a5af1d78a144475791ec0edb9083844c"
+        }
+    ]
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.DynamicVectorGeometrySlot",
+    "m_ObjectId": "3ba24c3bad574e6cb6e8c6a6f9718e46",
+    "m_Id": 0,
+    "m_DisplayName": "Size",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "Size",
+    "m_StageCapability": 7,
+    "m_Value": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "w": 0.0
+    },
+    "m_DefaultValue": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+    }
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.GeometryGeometrySlot",
+    "m_ObjectId": "5699a98c802f4ad5b9e75ea46bc34862",
+    "m_Id": 4,
+    "m_DisplayName": "Mesh",
+    "m_SlotType": 1,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "Mesh",
+    "m_StageCapability": 7,
+    "m_Value": 0.0,
+    "m_DefaultValue": 0.0,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.CubeMeshNode",
+    "m_ObjectId": "6c594fcc1a9f4ee099b0b0ca36f3d2a6",
+    "m_Group": {
+        "m_Id": ""
+    },
+    "m_Name": "Cube",
+    "m_DrawState": {
+        "m_Expanded": true,
+        "m_Position": {
+            "serializedVersion": "2",
+            "x": -174.0,
+            "y": 25.0,
+            "width": 198.0,
+            "height": 149.0
+        }
+    },
+    "m_Slots": [
+        {
+            "m_Id": "3ba24c3bad574e6cb6e8c6a6f9718e46"
+        },
+        {
+            "m_Id": "e35ec075f4de4b8b8fbaf54a2df347b3"
+        },
+        {
+            "m_Id": "eef8cebde0a64ffead3f07a28af71d2d"
+        },
+        {
+            "m_Id": "b4e83b8b70ea4a2b86efa5303f5e1ecd"
+        },
+        {
+            "m_Id": "5699a98c802f4ad5b9e75ea46bc34862"
+        },
+        {
+            "m_Id": "dfb3da90ec7643d4893431ec2a9acd93"
+        }
+    ],
+    "synonyms": [
+        "cube",
+        "cubemesh"
+    ],
+    "m_Precision": 0,
+    "m_PreviewExpanded": true,
+    "m_DismissedVersion": 0,
+    "m_PreviewMode": 0,
+    "m_CustomColors": {
+        "m_SerializableColors": []
+    }
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.CategoryData",
+    "m_ObjectId": "974cc3d9fee548d4943856194d5afc42",
+    "m_Name": "",
+    "m_ChildObjectList": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.BXGGTarget",
+    "m_ObjectId": "a5af1d78a144475791ec0edb9083844c",
+    "m_ActiveSubTarget": {
+        "m_Id": ""
+    }
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.GeometryGeometrySlot",
+    "m_ObjectId": "a7e8b5a190b04db4a4619342ad870481",
+    "m_Id": 0,
+    "m_DisplayName": "Geometry",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "Geometry",
+    "m_StageCapability": 4,
+    "m_Value": 0.0,
+    "m_DefaultValue": 0.0,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
+    "m_ObjectId": "b4e83b8b70ea4a2b86efa5303f5e1ecd",
+    "m_Id": 3,
+    "m_DisplayName": "Vertices Z",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "VerticesZ",
+    "m_StageCapability": 7,
+    "m_Value": 2.0,
+    "m_DefaultValue": 2.0,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.DynamicVectorGeometrySlot",
+    "m_ObjectId": "dfb3da90ec7643d4893431ec2a9acd93",
+    "m_Id": 5,
+    "m_DisplayName": "UV Map",
+    "m_SlotType": 1,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "UVMap",
+    "m_StageCapability": 7,
+    "m_Value": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+    },
+    "m_DefaultValue": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+    }
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.BlockNode",
+    "m_ObjectId": "e208f03fbce8418783dc89b9cf130ada",
+    "m_Group": {
+        "m_Id": ""
+    },
+    "m_Name": "GeometryDescription.Geometry",
+    "m_DrawState": {
+        "m_Expanded": true,
+        "m_Position": {
+            "serializedVersion": "2",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.0,
+            "height": 0.0
+        }
+    },
+    "m_Slots": [
+        {
+            "m_Id": "a7e8b5a190b04db4a4619342ad870481"
+        }
+    ],
+    "synonyms": [],
+    "m_Precision": 0,
+    "m_PreviewExpanded": true,
+    "m_DismissedVersion": 0,
+    "m_PreviewMode": 0,
+    "m_CustomColors": {
+        "m_SerializableColors": []
+    },
+    "m_SerializedDescriptor": "GeometryDescription.Geometry"
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
+    "m_ObjectId": "e35ec075f4de4b8b8fbaf54a2df347b3",
+    "m_Id": 1,
+    "m_DisplayName": "Vertices X",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "VerticesX",
+    "m_StageCapability": 7,
+    "m_Value": 2.0,
+    "m_DefaultValue": 2.0,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
+    "m_ObjectId": "eef8cebde0a64ffead3f07a28af71d2d",
+    "m_Id": 2,
+    "m_DisplayName": "Vertices Y",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "VerticesY",
+    "m_StageCapability": 7,
+    "m_Value": 2.0,
+    "m_DefaultValue": 2.0,
+    "m_Labels": []
+}
+

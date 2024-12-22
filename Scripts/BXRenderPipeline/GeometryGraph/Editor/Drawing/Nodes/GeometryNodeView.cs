@@ -37,8 +37,8 @@ namespace BXGeometryGraph
 
 		public void Initialize(AbstractGeometryNode inNode, PreviewManager previewManager, IEdgeConnectorListener connectorListener, GeometryGraphView graphView)
 		{
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/GeometryNodeView.uss");
-			this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/ColorMode.uss");
+			styleSheets.Add(Resources.Load<StyleSheet>("Styles/GeometryNodeView"));
+			styleSheets.Add(Resources.Load<StyleSheet>($"Styles/ColorMode"));
 			AddToClassList("GeometryNode");
 
 			if (inNode == null)
@@ -47,10 +47,14 @@ namespace BXGeometryGraph
 			var contents = this.Q("contents");
 
 			m_GraphView = graphView;
-			mainContainer.style.overflow = StyleKeyword.None; // Override explicit style set in base class
+			mainContainer.style.overflow = StyleKeyword.None;    // Override explicit style set in base class
 			m_ConnectorListener = connectorListener;
 			node = inNode;
+			viewDataKey = node.objectId;
 			UpdateTitle();
+
+			// Add disabled overlay
+			Add(new VisualElement() { name = "disabledOverlay", pickingMode = PickingMode.Ignore });
 
 			// Add controls container
 			var controlsContainer = new VisualElement { name = "controls" };
@@ -69,20 +73,35 @@ namespace BXGeometryGraph
 			if (m_ControlItems.childCount > 0)
 				contents.Add(controlsContainer);
 
+			// Add dropdowns container
+			if (inNode is SubGraphNode)
+			{
+				var dropdownContainer = new VisualElement { name = "dropdowns" };
+				{
+					m_DropdownsDivider = new VisualElement { name = "divider" };
+					m_DropdownsDivider.AddToClassList("horizontal");
+					dropdownContainer.Add(m_DropdownsDivider);
+					m_DropdownItems = new VisualElement { name = "items" };
+					dropdownContainer.Add(m_DropdownItems);
+					UpdateDropdownEntries();
+				}
+				contents.Add(dropdownContainer);
+			}
+
 			if (node.hasPreview)
 			{
 				// Add actual preview which floats on top of the node
 				m_PreviewContainer = new VisualElement
 				{
 					name = "previewContainer",
-					//clippingOptions = ClippingOptions.ClipAndCacheContents,
+					style = { overflow = Overflow.Hidden },
 					pickingMode = PickingMode.Ignore
 				};
 				m_PreviewImage = new Image
 				{
 					name = "preview",
 					pickingMode = PickingMode.Ignore,
-					image = Texture2D.whiteTexture
+					image = Texture2D.whiteTexture,
 				};
 				{
 					// Add preview collapse button on top of preview
@@ -90,8 +109,7 @@ namespace BXGeometryGraph
 					collapsePreviewButton.Add(new VisualElement { name = "icon" });
 					collapsePreviewButton.AddManipulator(new Clickable(() =>
 					{
-						node.owner.owner.RegisterCompleteObjectUndo("Collapse Preview");
-						UpdatePreviewExpandedState(false);
+						SetPreviewExpandedStateOnSelection(false);
 					}));
 					m_PreviewImage.Add(collapsePreviewButton);
 				}
@@ -114,8 +132,7 @@ namespace BXGeometryGraph
 					expandPreviewButton.Add(new VisualElement { name = "icon" });
 					expandPreviewButton.AddManipulator(new Clickable(() =>
 					{
-						node.owner.owner.RegisterCompleteObjectUndo("Expand Preview");
-						UpdatePreviewExpandedState(true);
+						SetPreviewExpandedStateOnSelection(true);
 					}));
 					m_PreviewFiller.Add(expandPreviewButton);
 				}
@@ -123,12 +140,11 @@ namespace BXGeometryGraph
 
 				UpdatePreviewExpandedState(node.previewExpanded);
 			}
-
 			base.expanded = node.drawState.expanded;
 			AddSlots(node.GetSlots<GeometrySlot>());
 
-            switch (node)
-            {
+			switch (node)
+			{
 				case SubGraphNode:
 					RegisterCallback<MouseDownEvent>(OnSubGraphDoubleClick);
 					m_UnregisterAll += () => { UnregisterCallback<MouseDownEvent>(OnSubGraphDoubleClick); };
