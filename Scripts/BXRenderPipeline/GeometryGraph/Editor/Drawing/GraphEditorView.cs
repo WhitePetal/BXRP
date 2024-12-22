@@ -369,7 +369,7 @@ namespace BXGeometryGraph
 			// As Contexts are hardcoded and contain a single port we can just give the direction
 			//var vertexContext = AddContext("Vertex", m_Graph.vertexContext, Direction.Output);
 			//var fragmentContext = AddContext("Fragment", m_Graph.fragmentContext, Direction.Input);
-			var geometryContext = AddContext("Geometry Input", m_Graph.geometryContext, Direction.Input);
+			var geometryContext = AddContext("Geometry Output", m_Graph.geometryContext, Direction.Input);
 			Debug.Log("Add Context By GraphEditorView: " + geometryContext.contextData.geometryStage);
 			// Connect Contexts
 			// Vertical Edges have no representation in Model

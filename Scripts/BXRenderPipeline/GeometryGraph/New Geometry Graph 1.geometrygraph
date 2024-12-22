@@ -66,8 +66,8 @@
 
 {
     "m_GGVersion": 0,
-    "m_Type": "BXGeometryGraph.DynamicVectorGeometrySlot",
-    "m_ObjectId": "3ba24c3bad574e6cb6e8c6a6f9718e46",
+    "m_Type": "BXGeometryGraph.Vector3GeometrySlot",
+    "m_ObjectId": "19bd413f171a40169840c04bd2a3fce1",
     "m_Id": 0,
     "m_DisplayName": "Size",
     "m_SlotType": 0,
@@ -77,15 +77,35 @@
     "m_Value": {
         "x": 1.0,
         "y": 1.0,
-        "z": 1.0,
-        "w": 0.0
+        "z": 1.0
+    },
+    "m_DefaultValue": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+    },
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Vector2GeometrySlot",
+    "m_ObjectId": "32e308cbe5994bf98c2d19c0d835e8d6",
+    "m_Id": 5,
+    "m_DisplayName": "UV Map",
+    "m_SlotType": 1,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "UVMap",
+    "m_StageCapability": 7,
+    "m_Value": {
+        "x": 0.0,
+        "y": 0.0
     },
     "m_DefaultValue": {
         "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    }
+        "y": 0.0
+    },
+    "m_Labels": []
 }
 
 {
@@ -115,15 +135,15 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -174.0,
-            "y": 25.0,
-            "width": 198.0,
+            "x": -153.0000457763672,
+            "y": -49.999996185302737,
+            "width": 198.00003051757813,
             "height": 149.0
         }
     },
     "m_Slots": [
         {
-            "m_Id": "3ba24c3bad574e6cb6e8c6a6f9718e46"
+            "m_Id": "19bd413f171a40169840c04bd2a3fce1"
         },
         {
             "m_Id": "e35ec075f4de4b8b8fbaf54a2df347b3"
@@ -138,7 +158,7 @@
             "m_Id": "5699a98c802f4ad5b9e75ea46bc34862"
         },
         {
-            "m_Id": "dfb3da90ec7643d4893431ec2a9acd93"
+            "m_Id": "32e308cbe5994bf98c2d19c0d835e8d6"
         }
     ],
     "synonyms": [
@@ -199,30 +219,6 @@
     "m_Value": 2.0,
     "m_DefaultValue": 2.0,
     "m_Labels": []
-}
-
-{
-    "m_GGVersion": 0,
-    "m_Type": "BXGeometryGraph.DynamicVectorGeometrySlot",
-    "m_ObjectId": "dfb3da90ec7643d4893431ec2a9acd93",
-    "m_Id": 5,
-    "m_DisplayName": "UV Map",
-    "m_SlotType": 1,
-    "m_Hidden": false,
-    "m_GeometryOutputName": "UVMap",
-    "m_StageCapability": 7,
-    "m_Value": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    },
-    "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    }
 }
 
 {

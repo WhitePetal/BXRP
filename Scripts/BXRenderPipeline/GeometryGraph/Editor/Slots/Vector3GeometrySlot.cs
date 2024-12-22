@@ -72,7 +72,7 @@ namespace BXGeometryGraph
 
         public override VisualElement InstantiateControl()
         {
-            return new MultiFloatSlotControlView(owner, m_Labels, () => value, (newValue) => value = newValue);
+            return new MultiFloatSlotControlView(owner, labels, () => value, (newValue) => value = newValue);
         }
 
         protected override string ConcreteSlotValueAsVariable()
