@@ -1,15 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Jobs;
 using UnityEngine;
+using UnityEngine.Assertions;
+using UnityEngine.Rendering;
 
 namespace BXGeometryGraph.Runtime
 {
+    [AddComponentMenu("BXGeometry/GeometryRenderer")]
+    //[ExecuteAlways]
     public class GeometryRenderer : MonoBehaviour
     {
         [SerializeField]
         private GeometrySO sharedGeometrySO;
 
+        [SerializeField]
+        private Material material;
+
         internal GeometrySO m_GeometrySO;
+
+        public GeometryData data;
+
+        private JobHandle jobHandle;
+
+        private bool init;
 
         public GeometrySO geometrySO
         {
@@ -28,18 +42,42 @@ namespace BXGeometryGraph.Runtime
         {
             m_GeometrySO = sharedGeometrySO;
             m_GeometrySO.Deserialize();
-            Debug.Log("GeometryRenderer Test: " + (m_GeometrySO.innerData.ouputJob as OutputJobManaged).testSerialize);
+            data = new GeometryData();
+            data.Init();
+            init = true;
+        }
+
+        private void Update()
+        {
+            data.Clear();
+            Schedule();
+        }
+
+        public void Render(CommandBuffer cmd)
+        {
+            if (!init) return;
+            Compelete();
+            Assert.IsNotNull(material, "GeometryRenderer's mat is null!");
+            MeshData meshData = data.meshs[0];
+            Mesh mesh = new Mesh();
+            mesh.SetVertices(meshData.positions);
+            mesh.SetIndices(meshData.corner_verts, MeshTopology.Quads, 0);
+            cmd.DrawMesh(mesh, transform.localToWorldMatrix, material, 0, 0);
         }
 
         public void Schedule()
         {
-            m_GeometrySO.Schedule();
+            jobHandle = m_GeometrySO.data.ouputJob.Schedule(ref data);
         }
 
-        public ref GeometryData Compelete()
+        public void Compelete()
         {
-            m_GeometrySO.Compelete();
-            return ref m_GeometrySO.innerData.geometryData;
+            jobHandle.Complete();
+        }
+
+        private void OnDestroy()
+        {
+            data.Dispose();
         }
     }
 }

@@ -260,6 +260,15 @@ namespace BXRenderPipelineDeferred
             opaqueDrawingSettings.SetShaderPassName(0, BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[0]);
             opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.deferredShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref opaqueDrawingSettings, ref filterSettings_opaue);
+            var geoRenderers = GameObject.FindObjectsByType<BXGeometryGraph.Runtime.GeometryRenderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            if(geoRenderers != null && geoRenderers.Length > 0)
+            {
+                for(int i = 0; i < geoRenderers.Length; ++i)
+                {
+                    geoRenderers[i].Render(commandBuffer);
+                }
+                ExecuteCommand();
+            }
 
             ExecuteRenderFeatures(afterOpaqueRenderFeatures);
 

@@ -130,5 +130,10 @@ namespace BXGeometryGraph
                 m_DefaultValue = ms.defaultValue;
             }
         }
+
+        public override Vector3 GetVector3DefaultValue()
+        {
+            return m_Value;
+        }
     }
 }

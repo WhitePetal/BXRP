@@ -150,8 +150,8 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -144.0,
-            "y": -48.0,
+            "x": -116.99999237060547,
+            "y": 198.0,
             "width": 198.0,
             "height": 149.0
         }
@@ -246,7 +246,7 @@
     "m_Hidden": false,
     "m_GeometryOutputName": "VerticesZ",
     "m_StageCapability": 7,
-    "m_Value": 2,
+    "m_Value": 4,
     "m_DefaultValue": 2,
     "m_Labels": []
 }

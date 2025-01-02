@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BXGeometryGraph.Runtime;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -48,10 +49,10 @@ namespace BXGeometryGraph
         private GeometrySO BuildGeometrySO()
         {
             GeometrySO so = ScriptableObject.CreateInstance<GeometrySO>();
-            so.innerData = new GeometrySO.InnerData();
+            so.data = new GeometrySO.InnerData();
 
             bool ignoreActiveState = (m_Mode == GenerationMode.Preview);  // for previews, we ignore node active state
-            so.innerData.ouputJob = BuildGeoJobFromBlockNode(m_ActiveBlcok);
+            so.data.ouputJob = BuildGeoJobFromBlockNode(m_ActiveBlcok);
 
             return so;
         }
@@ -66,6 +67,7 @@ namespace BXGeometryGraph
             AbstractGeometryJob[] depenedJobs = new AbstractGeometryJob[1];
             (ValueFrom geometryValueFrom, int geometryValueID) = GenerationUtils.GetSlotGeometryDataForGeoJob(node, 0, depenedJobs);
             job = new OutputJobManaged(node.objectId, geometryValueFrom, geometryValueID);
+            job.depenedJobs = depenedJobs;
 
             return job;
         }

@@ -28,14 +28,17 @@ namespace BXGeometryGraph.Runtime
 
         }
 
-        public override T GetOutput<T>(int outputId)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public override JobHandle Schedule(ref GeometryData geoData, JobHandle dependsOn = default)
         {
-            throw new System.NotImplementedException();
+            if (depenedJobs == null || depenedJobs.Length <= 0)
+                return dependsOn;
+
+
+            for(int i = 0; i < depenedJobs.Length; ++i)
+            {
+                dependsOn = JobHandle.CombineDependencies(dependsOn, depenedJobs[i].Schedule(ref geoData));
+            }
+            return dependsOn;
         }
 
         public override void WriteResultToGeoData(ref GeometryData geoData)

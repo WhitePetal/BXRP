@@ -12,7 +12,7 @@ using UnityEngine;
 namespace BXGeometryGraph.Runtime
 {
 	[Serializable]
-	public class GeometrySO : ScriptableObject, ISerializationCallbackReceiver
+	public class GeometrySO : ScriptableObject
 	{
 		[SerializeField]
 		public string json;
@@ -21,50 +21,11 @@ namespace BXGeometryGraph.Runtime
 		public class InnerData
         {
 			[SerializeField]
-			public GeometryData geometryData;
-
-			[SerializeField]
 			public AbstractGeometryJob ouputJob;
-
-			[SerializeField]
-			public int pathCount;
-
-			[NonSerialized]
-			private JobHandle[] jobHandles;
-
-			[NonSerialized]
-			private bool isScheduling;
 		}
 
         [NonSerialized]
-		public InnerData innerData;
-
-		private JobHandle jobHandle;
-
-		public void Schedule()
-		{
-			//if (isScheduling)
-			//	return;
-			//isScheduling = true;
-			//jobHandle = default;
-
-			//for(int i = 0; i < geometryJobs.Length; ++i)
-			//{
-			//	geometryJobs[i].Schedule(ref geometryData, jobHandle);
-			//}
-		}
-
-		public void Compelete()
-		{
-			//if (!isScheduling)
-			//	return;
-			//jobHandle.Complete();
-			//for (int i = 0; i < geometryJobs.Length; ++i)
-			//{
-			//	geometryJobs[i].WriteResultToGeoData(ref geometryData);
-			//}
-			//isScheduling = false;
-		}
+		public InnerData data;
 
 		public void ClearStates()
         {
@@ -78,16 +39,9 @@ namespace BXGeometryGraph.Runtime
 
 		public void Deserialize()
         {
-			if (string.IsNullOrEmpty(json) || innerData != null)
+			if (string.IsNullOrEmpty(json) || data != null)
 				return;
-			innerData = JsonSerialization.FromJson<InnerData>(json);
-		}
-
-        public unsafe void OnAfterDeserialize()
-        {
-			// will crash invoke JsonSerialization.FromJson in OnAfterDeserialize
-			// x_x
-			//Deserialize();
+			data = JsonSerialization.FromJson<InnerData>(json);
 		}
 	}
 }

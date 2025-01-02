@@ -50,14 +50,13 @@ Geometry ""Hidden/GraphErrorGeometry""
             graph.ValidateGraph();
 
             GeometrySO geoSO = BuildGeometrySO(ctx, importLog, assetCollection, graph);
-            geoSO.innerData.ouputJob.testSerialize = 100;
-            var json = JsonSerialization.ToJson(geoSO.innerData);
+            var json = JsonSerialization.ToJson(geoSO.data);
             geoSO.json = json;
 
             Texture2D texture = Resources.Load<Texture2D>("Icons/gg_graph_icon");
             ctx.AddObjectToAsset("MainAsset", geoSO, texture);
             ctx.SetMainObject(geoSO);
-            AssetDatabase.CreateAsset(geoSO, path + ".asset");
+            //AssetDatabase.CreateAsset(geoSO, path + ".asset");
 
             var graphDataReadOnly = new GraphDataReadOnly(graph);
             foreach(var target in graph.activeTargets)
