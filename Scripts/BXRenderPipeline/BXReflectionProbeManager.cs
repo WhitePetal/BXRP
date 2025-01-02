@@ -113,6 +113,25 @@ namespace BXRenderPipeline
         public unsafe void UpdateGPUData(CommandBuffer cmd, ref CullingResults cullingResults)
         {
             var probes = cullingResults.visibleReflectionProbes;
+            // Should probe come after otherProbe?
+            static bool IsProbeGreater(VisibleReflectionProbe probe, VisibleReflectionProbe otherProbe)
+            {
+                return probe.importance < otherProbe.importance ||
+                    (probe.importance == otherProbe.importance && probe.bounds.extents.sqrMagnitude > otherProbe.bounds.extents.sqrMagnitude);
+            }
+
+            for (var i = 1; i < probes.Length; i++)
+            {
+                var probe = probes[i];
+                var j = i - 1;
+                while (j >= 0 && IsProbeGreater(probes[j], probe))
+                {
+                    probes[j + 1] = probes[j];
+                    j--;
+                }
+
+                probes[j + 1] = probe;
+            }
             var probeCount = math.min(probes.Length, k_MaxVisibleReflectionProbeCount);
             var frameIndex = Time.renderedFrameCount;
 

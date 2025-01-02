@@ -12,6 +12,8 @@
 #define BX_FP_ZBIN_COUNT (uint(_ClusterParams2.x))
 #define BX_FP_TILE_COUNT (uint(_ClusterParams2.y))
 
+#define BX_FP_PROBES_BEGIN ((uint)_ClusterParams0.z)
+
 #define MAX_ZBIN_VEC4S 1024
 #define MAX_TILE_VEC4S 1024
 
@@ -208,9 +210,10 @@ bool ClusterNext(inout ClusterIterator it, out uint entityIndex)
 #define LIGHT_LOOP_END } }
 
 #define RELFECTION_LOOP_BEGIN(normalizedScreenSpaceUV, vSourceRev) { \
-    uint probeIndex; \
-    ClusterIterator _bx_internal_clusterIterator = ClusterInit(normalizedScreenSpaceUV, vSourceRev, 1); \
-    [loop] while (ClusterNext(_bx_internal_clusterIterator, probeIndex) && totalWeight < half(0.99)) { \
+    uint clusterIndex; \
+    ClusterIterator _bx_internal_clusterIterator = ClusterInit(normalizedScreenSpaceUV, vSourceRev, uint(1)); \
+    [loop] while (ClusterNext(_bx_internal_clusterIterator, clusterIndex) && totalWeight < half(0.99)) { \
+        uint probeIndex = clusterIndex - BX_FP_PROBES_BEGIN; \
         // lightIndex += URP_FP_DIRECTIONAL_LIGHTS_COUNT; \
         // FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
 

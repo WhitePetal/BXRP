@@ -55,6 +55,8 @@ namespace BXRenderPipelineForward
             commandBuffer.BeginSample(SampleName);
             context.SetupCameraProperties(camera);
             //GenerateGraphicsBuffe();
+            commandBuffer.ClearRenderTarget(true, true, Color.clear);
+            ExecuteCommand();
             DrawGeometry(useDynamicBatching, useGPUInstancing);
 #if UNITY_EDITOR
             DrawUnsupportShader();

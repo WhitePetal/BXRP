@@ -62,6 +62,7 @@ namespace BXRenderPipelineForward
             this.commonSettings = mainCameraRender.commonSettings;
             this.width = mainCameraRender.width;
             this.height = mainCameraRender.height;
+            reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);
             shadows.Setup(mainCameraRender);
             commandBuffer.BeginSample(BufferName);
             CollectLightDatas();
@@ -193,6 +194,7 @@ namespace BXRenderPipelineForward
 		{
             base.Dispose();
 
+            reflectionProbe.Dispose();
             shadows.Dispose();
             clusterCull.Dispose();
             lightCookie.Dispose();

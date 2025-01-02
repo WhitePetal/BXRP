@@ -45,8 +45,8 @@ namespace BXRenderPipelineForward
             width = Mathf.RoundToInt(width_screen * ((float)height / height_screen));
 
             // for ture camera.projectionMatrix
-            Rect originRect = camera.pixelRect;
-            camera.pixelRect = new Rect(originRect.position.x, originRect.position.y, width, height);
+            //Rect originRect = camera.pixelRect;
+            //camera.pixelRect = new Rect(originRect.position.x, originRect.position.y, width, height);
 
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
@@ -83,6 +83,7 @@ namespace BXRenderPipelineForward
             DrawPostProcess(onPostProcessRenderFeatures);
 
 #if UNITY_EDITOR
+            ExecuteCommand();
             DrawGizmosAfterPostProcess();
 #endif
             CleanUp();
@@ -130,7 +131,8 @@ namespace BXRenderPipelineForward
 		{
             commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._FrameBuffer_ID, width, height, 0, FilterMode.Bilinear, RenderTextureFormat.RGB111110Float, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.MSAA);
             commandBuffer.GetTemporaryRT(BXShaderPropertyIDs._DepthBuffer_ID, width, height, 24, FilterMode.Point, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear, commonSettings.msaa, false, RenderTextureMemoryless.Depth);
-		}
+            commandBuffer.SetGlobalVector("_ScreenParams", new Vector4(width, height, 1f + 1f / width, 1f + 1f / height));
+        }
 
         private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing,
             List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
@@ -210,7 +212,7 @@ namespace BXRenderPipelineForward
 #if UNITY_EDITOR
             if (camera.cameraType == CameraType.SceneView)
 			{
-                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 0, true, true, width_screen, height_screen);
+                DrawPostProcess(BXShaderPropertyIDs._FrameBuffer_TargetID, BuiltinRenderTextureType.CameraTarget, postProcessMat, 0, true);
 			}
 			else
 			{

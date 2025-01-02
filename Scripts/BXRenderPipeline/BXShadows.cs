@@ -149,7 +149,6 @@ namespace BXRenderPipeline
             }
 
             bool isPoint = light.type == LightType.Point;
-            int newTileCount = shadowedOtherLightTileCount + (isPoint ? 6 : 1);
 
             shadowedOtherLights[shadowedOtherLightCount] = new ShadowedOtherLight
             {
@@ -162,7 +161,7 @@ namespace BXRenderPipeline
             };
             ++shadowedOtherLightCount;
             Vector4 data = new Vector4(light.shadowStrength, shadowedOtherLightTileCount, isPoint ? 1 : 0, maskChannel);
-            shadowedOtherLightTileCount = newTileCount;
+            shadowedOtherLightTileCount += isPoint ? 6 : 1;
             return data;
         }
 

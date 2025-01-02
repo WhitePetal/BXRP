@@ -73,6 +73,7 @@ namespace BXRenderPipeline
         private float m_ZBinScale;
         private float m_ZBinOffset;
         private int m_LightCount;
+        private int m_ReflectionCount;
         private int m_BinCount;
 
         private static readonly ProfilingSampler m_ProfilingSamplerFPComplete = new ProfilingSampler("Cluster Complete");
@@ -110,9 +111,10 @@ namespace BXRenderPipeline
 
             var screenResolution = math.int2(width, height);
 
-            var clusterLights = lights.otherLights;
             m_LightCount = lights.clusterLightCount;
+            var clusterLights = lights.otherLights.GetSubArray(0, m_LightCount);
             var reflectionProbeCount = lights.reflectProneCount;
+            m_ReflectionCount = reflectionProbeCount;
             var reflectionProbes = lights.reflectionProbes;
             var itemsPerTile = m_LightCount + reflectionProbeCount;
             m_WordsPerTile = (itemsPerTile + 32 - 1) / 32; // 0 => 0 1~32 => 1, 33~64=>2 每 32 个 PerTile's Word + 1
@@ -189,7 +191,7 @@ namespace BXRenderPipeline
             // wordsPerTile: per bit 0 meains no this bitIndex Light, 1 means have this bitIndex Light
 
             // wait light minMaxZs
-            //reflectionProbeMinMaxZHandle.Complete(); // need wait?
+            reflectionProbeMinMaxZHandle.Complete(); // need wait?
 
             GetViewParams(camera, viewToClips, out float viewPlaneBottom0, out float viewPlaneTop0, out float4 viewToViewportScaleBias0);
 
@@ -255,7 +257,7 @@ namespace BXRenderPipeline
             commandBuffer.SetGlobalVector(_ClusterParams1_ID, math.float4(m_TileScale, m_TileResolution.x, m_WordsPerTile));
             commandBuffer.SetGlobalVector(_ClusterParams2_ID, math.float4(m_BinCount, m_TileResolution.x * m_TileResolution.y, 0, 0));
 
-            if(m_WordsPerTile > 1)
+            if(m_WordsPerTile > 1 || m_ReflectionCount > 0)
             {
                 commandBuffer.EnableKeyword(in _CLUSTER_GREATE_32);
             }
@@ -425,7 +427,7 @@ namespace BXRenderPipeline
 
             public void Execute(int jobIndex)
             {
-                var batchIndex = jobIndex;
+                var batchIndex = jobIndex % batchCount;
 
                 var binStart = batchSize * batchIndex;
                 var binEnd = math.min(binStart + batchSize, binCount) - 1;

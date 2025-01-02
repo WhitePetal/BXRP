@@ -16,8 +16,8 @@ Shader "Test/BRDF_FullLit"
         [Toggle] _Emission("Emission On", Int) = 0
         [NoScaleOffset]_EmissionMap("Emission RGB:Color A:Mask", 2D) = "black" {}
         _EmissionStrength("Emission Strength", Float) = 1.0
-        [Enum(UnityEngine.Rendering.BlendMode)]_SrcBlend("Src Blend", Int) = 0
-        [Enum(UnityEngine.Rendering.BlendMode)]_DstBlend("Dst Blend", Int) = 1
+        [Enum(UnityEngine.Rendering.BlendMode)]_SrcBlend("Src Blend", Int) = 1
+        [Enum(UnityEngine.Rendering.BlendMode)]_DstBlend("Dst Blend", Int) = 0
     }
     SubShader
     {
@@ -39,6 +39,7 @@ Shader "Test/BRDF_FullLit"
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_local __ _EMISSION_ON
             #pragma multi_compile _ENVIRONMENTREFLECTIONS_OFF _ENVIRONMENTREFLECTIONS_ON
+            #pragma multi_compile_fragment __ _CLUSTER_GREATE_32
 
             #include "Assets/Shaders/ShaderLibrarys/BXPipelineCommon.hlsl"
             #include "Assets/Shaders/ShaderLibrarys/Lights.hlsl"
@@ -198,7 +199,7 @@ Shader "Test/BRDF_FullLit"
                 #endif
                 ambient += SampleSH(n);
                 half3 F_ambient = F_Schlick(f0, f90, ndotv);
-                // half3 ambientSpecular = SampleEnvironment(i.vertex, depthEye, i.pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
+                half3 ambientSpecular = SampleEnvironment(i.vertex.xyz, vSource, pos_world, v, n, perceptRoughness) * F_ambient / (perceptRoughness + half(1.0));
                 #ifdef _EMISSION_ON
                 emission.rgb *= emission.a * GET_PROP(_EmissionStrength) * ndotv;
                 #endif
