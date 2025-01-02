@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
@@ -10,7 +11,6 @@ namespace BXGeometryGraph.Runtime
 	public struct GeometryData
 	{
 		[SerializeField]
-		public NativeArray<Vector3> points;
-
+		public NativeArray<float3> points;
 	}
 }

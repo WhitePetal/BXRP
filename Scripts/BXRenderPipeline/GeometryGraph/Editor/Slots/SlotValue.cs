@@ -23,6 +23,7 @@ namespace BXGeometryGraph
         Vector3,
         Vector2,
         Vector1,
+        Integer1,
         Dynamic,
         Boolean,
         VirtualTexture,

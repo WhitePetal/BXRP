@@ -1,0 +1,89 @@
+https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
+https://tigoe.github.io/LightProjects/color-spaces-color-temp.html
+https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+https://zhuanlan.zhihu.com/p/60977923
+https://github.com/wdas/brdf/blob/main/src/brdfs/disney.brdf
+https://google.github.io/filament/Filament.md.html#listing_diffusebrdf
+https://blog.selfshadow.com/publications/s2015-shading-course/#course_content
+https://en.wikipedia.org/wiki/Bidirectional_reflectance_distribution_function
+https://catlikecoding.com/unity/tutorials/custom-srp/
+色温：决定现实常见光的颜色
+![alt text](image_kelvin_color.png)
+
+Radiant flux/power 辐射通量 光强度 瓦特(W)
+Luminous flux/power 光通量 人眼感知的光强度 流明(lm)
+Luminous intensity 光强度 单位体积角的光通量 坎德拉(cd) 传入Shader的光强
+Illuminance        照度 单位面积的光通量 勒克斯(lx)
+Luminance          亮度   单位体积角单位面积的光通量 尼特(nt)(cd/m^2)
+Exposure Value    相机曝光值
+
+辐射通量(Radiant power)(W)(Xe) 与 光通量(Luminous power)(lm)(Xv) 之间的转换：
+Xv = n * Xe
+其中 n 为 光视效能(luminous efficacy) 其公式为:
+$$ n = 683 * \frac{\int_{380}^{780}X_e(\lambda)V_e(\lambda)d\lambda}{\int_{380}^{780}X_e(\lambda)d\lambda} $$
+$V_e$ 是 人眼对不同波长光的灵敏度曲线 CIE photometric curve(CIE光度曲线)
+![alt text](image_CIE_Curve.png)
+Xv = 683 * Ve * Xe
+几种光源的 n 值:
+白织灯 2%~5%
+LED灯 0.66%-8.8%
+荧光灯 9%~15%
+太阳 15%~19%
+
+曝光(EV) 与 亮度(Luminance)(nt) 之间的转换关系:
+$$EV = log_2(\frac{L_{avg}S}{K})$$
+$L_{avg}$ 表示场景平均的亮度，S 是相机 ISO(感光度), K是相机校准常数
+我们通常把 ISO 固定为 100，K 取 12.5 此时得到的 EV称为 $EV_{100}$
+$$EV_{100} = log_2(\frac{100L_{avg}}{12.5})$$
+$$L  = \frac{2^{EV_{100}}12.5}{100} = 2^{EV_{100}-3}$$
+![alt text](image_EV100_Luminance.png)
+
+光通量(luminous power)(lm)($\Phi$) 与 光强度(luminous intensity)(cd)($I$) 之间的转换：
+对于点光源：
+$$\Phi = \int_SIdl = \int_0^{2\pi}\int_0^{\pi}Id\theta d\phi = 4\pi I$$
+对于聚光灯：
+$$\Phi = \int_SIdl = \int_0^{2\pi}\int_0^{\theta_{outer}}Id\theta d\phi = 2\pi(1-cos\frac{\theta_{outer}}{2}) I$$
+
+照度(Illuminance)(lx)($E$)在距离方向上会衰减，且存在与 光强度(Luminous intensity)(cd)($I$)的转换关系:
+$$E = \frac{I}{distance^2}$$
+
+可得 照度(Illuminance)(lx)($E$) 与 光通量(luminous power)(lm)($\Phi$) 的 转换关系:
+对于点光源:
+$$E = \frac{\Phi}{4\pi distance^2}$$
+对于聚光灯:
+$$E = \frac{\Phi}{2\pi(1-cos\frac{\theta_{outer}}{2}) distance^2}$$
+
+光源能量到材质输出能量间的转换：
+对于一个点光源：
+其 Luminous flux 光通量为：
+$$\Phi$$
+球的总立体角为$4\pi$，因此点光源的单位立体角光通量即 光强度 Luminous intensity 为：
+$$I = \frac{\Phi}{4\pi}$$
+而对于距离球心 distance 处，光源到达此处单位面积的光通量即 照度 Illuminance 与 光强度 Luminous intensity 存在平方反比关系：
+![alt text](image_sr_d^2.png)
+$$E = \frac{I}{distance^2} = \frac{\Phi}{4\pi distance^2}$$
+而具体到一个具有法线方向n的表面上，光线方向照射过去只能保证在垂直光线方向上是单位面积即完整的照度，而在实际照射到表面上的方向即垂直于法线方向上存在一个投影关系：
+![alt text](image_E_proj.png)
+$$E' = E cos(\theta)$$
+BRDF函数被定义为：
+$$f = \frac{dL_r(\omega_r)}{dE'(\omega_i)}$$
+因此材质反射出的能量为：
+$$L_r = f * E' = f * E * cos(\theta) = f * \frac{I}{distance^2} * cos(\theta)$$
+因此我们可以向材质传入 光强度 Luminous intensity $I$，在材质内计算出到材质表面的照度 Illuminance $E'$ 即可通过 BRDF 函数 $f$ 计算出材质表面反射出的 亮度 Luminance $L$ 了。
+
+IES 用来描述光源光强度分布的文件。存储的数据是光强度因此以 cd 为单位。我们可以把它转换为cookie图，让其数据除以其中最大的光强度，即把数值规范化，这样就变成了用来描述其光强在空间上分布比例的cookie了。同样的把采样到的cookie值乘上其最大光强度也就得到了其在采样方向上的光强度。
+
+
+Relative aperture 光圈 N
+Shutter time: 快门 t
+Sensor sensitivity 传感器灵敏度 S
+
+场景亮度到相机传感器照度：
+$$H = \frac{qt}{N^2}L = tE$$
+q 是 透镜 和 渐晕衰减，一般值为 0.65
+
+![alt text](image_EV_Expourse.png)
+
+$$L = H * A * \frac{N^2}{qt} = H * \frac{1}{q} * 2^{EV_{100}} = 1.2 * Q$$
+
+$$18662400 / 864 * 10^{-6}$$

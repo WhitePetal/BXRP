@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using BXGeometryGraph.Runtime;
 using UnityEngine;
 
 namespace BXGeometryGraph
 {
     abstract class CodeFunctionNode : AbstractGeometryNode,
         IGeneratesShaderBodyCode,
+        IGenerateGeometryJob,
         IGeneratesShaderFunction
     {
         [NonSerialized]
@@ -154,6 +156,14 @@ namespace BXGeometryGraph
             if (t == typeof(Vector1))
             {
                 return SlotValueType.Vector1;
+            }
+            if(t == typeof(float))
+            {
+                return SlotValueType.Vector1;
+            }
+            if(t == typeof(int))
+            {
+                return SlotValueType.Integer1;
             }
             if (t == typeof(Vector2))
             {
@@ -477,5 +487,7 @@ namespace BXGeometryGraph
             var attrs = info.GetCustomAttributes(typeof(SlotAttribute), false).OfType<SlotAttribute>().ToList();
             return attrs.FirstOrDefault();
         }
+
+        public abstract AbstractGeometryJob BuildGeometryJob();
     }
 }

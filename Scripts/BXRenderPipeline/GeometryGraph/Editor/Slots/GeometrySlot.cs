@@ -195,6 +195,8 @@ namespace BXGeometryGraph
                     return new Vector2GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue, geometryStageCapability, hidden: hidden);
                 case SlotValueType.Vector1:
                     return new Vector1GeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue.x, geometryStageCapability, hidden: hidden);
+                case SlotValueType.Integer1:
+                    return new Integer1GeometrySlot(slotId, displayName, geometryOutputName, slotType, (int)defaultValue.x, geometryStageCapability, hidden: hidden);
                 //case SlotValueType.Dynamic:
                 //return new DynamicValueMaterialSlot(slotId, displayName, shaderOutputName, slotType, new Matrix4x4(defaultValue, Vector4.zero, Vector4.zero, Vector4.zero), shaderStageCapability, hidden);
                 //case SlotValueType.Boolean:
@@ -312,6 +314,19 @@ namespace BXGeometryGraph
         {
             string defaultValue = GetDefaultValue(generationMode);
             return defaultValue.Replace(PrecisionUtil.Token, concretePrecision.ToGeometryString());
+        }
+
+        public virtual int GetIntDefaultValue()
+        {
+            return 0;
+        }
+        public virtual float GetFloatDefaultValue()
+        {
+            return 0f;
+        }
+        public virtual Vector3 GetVector3DefaultValue()
+        {
+            return Vector3.zero;
         }
 
         public virtual string GetDefaultValue(GenerationMode generationMode)

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using BXGeometryGraph.Runtime;
 using UnityEngine;
 
 namespace BXGeometryGraph
@@ -30,6 +31,11 @@ namespace BXGeometryGraph
                 Out = A + B;
             }
             ";
+        }
+
+        public override AbstractGeometryJob BuildGeometryJob()
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

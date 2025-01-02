@@ -17,15 +17,13 @@ namespace BXGeometryGraph
 
         public MultiFloatSlotControlView(AbstractGeometryNode node, string[] labels, Func<Vector4> get, Action<Vector4> set)
         {
-            this.AddStyleSheetPath("Assets/Scripts/BXRenderPipeline/GeometryGraph/Editor/Resources/Styles/MultiFloatSlotControlView.uss");
+            styleSheets.Add(Resources.Load<StyleSheet>("Styles/Controls/MultiFloatSlotControlView"));
             m_Node = node;
             m_Get = get;
             m_Set = set;
-            var initalValue = get();
-            for(var i = 0; i < labels.Length; ++i)
-            {
-                AddField(initalValue, i, labels[i]);
-            }
+            var initialValue = get();
+            for (var i = 0; i < labels.Length; i++)
+                AddField(initialValue, i, labels[i]);
         }
 
         private void AddField(Vector4 initialValue, int index, string subLabel)
@@ -35,7 +33,7 @@ namespace BXGeometryGraph
             dummy.Add(label);
             Add(dummy);
             var field = new FloatField { userData = index, value = initialValue[index] };
-            var dragger = new FieldMouseDragger<double>(field as IValueField<double>);
+            var dragger = new FieldMouseDragger<double>(field);
             dragger.SetDragZone(label);
             field.Q("unity-text-input").RegisterCallback<KeyDownEvent>(evt =>
             {
@@ -45,7 +43,6 @@ namespace BXGeometryGraph
                     m_UndoGroup = Undo.GetCurrentGroup();
                     m_Node.owner.owner.RegisterCompleteObjectUndo("Change " + m_Node.name);
                 }
-
                 // Handle scaping input field edit
                 if (evt.keyCode == KeyCode.Escape && m_UndoGroup > -1)
                 {
@@ -53,7 +50,6 @@ namespace BXGeometryGraph
                     m_UndoGroup = -1;
                     evt.StopPropagation();
                 }
-
                 // Dont record Undo again until input field is unfocused
                 m_UndoGroup++;
                 this.MarkDirtyRepaint();
@@ -63,12 +59,12 @@ namespace BXGeometryGraph
             {
                 // Only true when setting value via FieldMouseDragger
                 // Undo recorded once per dragger release
-                if(m_UndoGroup == -1)
+                if (m_UndoGroup == -1)
                 {
                     m_Node.owner.owner.RegisterCompleteObjectUndo("Change " + m_Node.name);
                 }
                 var value = m_Get();
-                if(value[index] != (float)evt.newValue)
+                if (value[index] != (float)evt.newValue)
                 {
                     value[index] = (float)evt.newValue;
                     m_Set(value);

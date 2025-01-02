@@ -110,6 +110,21 @@
 
 {
     "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Integer1GeometrySlot",
+    "m_ObjectId": "44968ee51248476b80cc07ebffa2e9f5",
+    "m_Id": 2,
+    "m_DisplayName": "Vertices Y",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "VerticesY",
+    "m_StageCapability": 7,
+    "m_Value": 2,
+    "m_DefaultValue": 2,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
     "m_Type": "BXGeometryGraph.GeometryGeometrySlot",
     "m_ObjectId": "5699a98c802f4ad5b9e75ea46bc34862",
     "m_Id": 4,
@@ -135,9 +150,9 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -153.0000457763672,
-            "y": -49.999996185302737,
-            "width": 198.00003051757813,
+            "x": -144.0,
+            "y": -48.0,
+            "width": 198.0,
             "height": 149.0
         }
     },
@@ -146,13 +161,13 @@
             "m_Id": "19bd413f171a40169840c04bd2a3fce1"
         },
         {
-            "m_Id": "e35ec075f4de4b8b8fbaf54a2df347b3"
+            "m_Id": "b34860a355344d2f813c0b55c0b0b07e"
         },
         {
-            "m_Id": "eef8cebde0a64ffead3f07a28af71d2d"
+            "m_Id": "44968ee51248476b80cc07ebffa2e9f5"
         },
         {
-            "m_Id": "b4e83b8b70ea4a2b86efa5303f5e1ecd"
+            "m_Id": "d12482500b614be5b23822fa4d132d94"
         },
         {
             "m_Id": "5699a98c802f4ad5b9e75ea46bc34862"
@@ -208,16 +223,31 @@
 
 {
     "m_GGVersion": 0,
-    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
-    "m_ObjectId": "b4e83b8b70ea4a2b86efa5303f5e1ecd",
+    "m_Type": "BXGeometryGraph.Integer1GeometrySlot",
+    "m_ObjectId": "b34860a355344d2f813c0b55c0b0b07e",
+    "m_Id": 1,
+    "m_DisplayName": "Vertices X",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_GeometryOutputName": "VerticesX",
+    "m_StageCapability": 7,
+    "m_Value": 2,
+    "m_DefaultValue": 2,
+    "m_Labels": []
+}
+
+{
+    "m_GGVersion": 0,
+    "m_Type": "BXGeometryGraph.Integer1GeometrySlot",
+    "m_ObjectId": "d12482500b614be5b23822fa4d132d94",
     "m_Id": 3,
     "m_DisplayName": "Vertices Z",
     "m_SlotType": 0,
     "m_Hidden": false,
     "m_GeometryOutputName": "VerticesZ",
     "m_StageCapability": 7,
-    "m_Value": 2.0,
-    "m_DefaultValue": 2.0,
+    "m_Value": 2,
+    "m_DefaultValue": 2,
     "m_Labels": []
 }
 
@@ -253,35 +283,5 @@
         "m_SerializableColors": []
     },
     "m_SerializedDescriptor": "GeometryDescription.Geometry"
-}
-
-{
-    "m_GGVersion": 0,
-    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
-    "m_ObjectId": "e35ec075f4de4b8b8fbaf54a2df347b3",
-    "m_Id": 1,
-    "m_DisplayName": "Vertices X",
-    "m_SlotType": 0,
-    "m_Hidden": false,
-    "m_GeometryOutputName": "VerticesX",
-    "m_StageCapability": 7,
-    "m_Value": 2.0,
-    "m_DefaultValue": 2.0,
-    "m_Labels": []
-}
-
-{
-    "m_GGVersion": 0,
-    "m_Type": "BXGeometryGraph.Vector1GeometrySlot",
-    "m_ObjectId": "eef8cebde0a64ffead3f07a28af71d2d",
-    "m_Id": 2,
-    "m_DisplayName": "Vertices Y",
-    "m_SlotType": 0,
-    "m_Hidden": false,
-    "m_GeometryOutputName": "VerticesY",
-    "m_StageCapability": 7,
-    "m_Value": 2.0,
-    "m_DefaultValue": 2.0,
-    "m_Labels": []
 }
 

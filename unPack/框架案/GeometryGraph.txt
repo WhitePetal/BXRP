@@ -1,0 +1,2 @@
+Blender GeometryNodes Source Code:
+https://github.com/blender/blender/blob/00ee917fdf979c41742942e43ec72b85057eb3a1/source/blender/nodes/geometry/nodes/node_geo_mesh_primitive_cube.cc

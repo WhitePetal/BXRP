@@ -1,8 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
+using Unity.Serialization.Json;
 using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
@@ -11,47 +15,79 @@ namespace BXGeometryGraph.Runtime
 	public class GeometrySO : ScriptableObject, ISerializationCallbackReceiver
 	{
 		[SerializeField]
-		public GeometryData geometryData;
+		public string json;
 
-		[SerializeField]
-		public AbstractGeometryJob[] geometryJobs;
+		[Serializable]
+		public class InnerData
+        {
+			[SerializeField]
+			public GeometryData geometryData;
 
-		[SerializeField]
-		private int pathCount;
+			[SerializeField]
+			public AbstractGeometryJob ouputJob;
 
-		private JobHandle[] jobHandles;
+			[SerializeField]
+			public int pathCount;
 
-		
+			[NonSerialized]
+			private JobHandle[] jobHandles;
+
+			[NonSerialized]
+			private bool isScheduling;
+		}
+
+        [NonSerialized]
+		public InnerData innerData;
 
 		private JobHandle jobHandle;
 
 		public void Schedule()
 		{
-			jobHandle = default;
+			//if (isScheduling)
+			//	return;
+			//isScheduling = true;
+			//jobHandle = default;
 
-			for(int i = 0; i < geometryJobs.Length; ++i)
-			{
-				geometryJobs[i].Schedule(ref geometryData, jobHandle);
-			}
+			//for(int i = 0; i < geometryJobs.Length; ++i)
+			//{
+			//	geometryJobs[i].Schedule(ref geometryData, jobHandle);
+			//}
 		}
 
 		public void Compelete()
 		{
-			jobHandle.Complete();
-			for (int i = 0; i < geometryJobs.Length; ++i)
-			{
-				geometryJobs[i].WriteResultToGeoData(ref geometryData);
-			}
+			//if (!isScheduling)
+			//	return;
+			//jobHandle.Complete();
+			//for (int i = 0; i < geometryJobs.Length; ++i)
+			//{
+			//	geometryJobs[i].WriteResultToGeoData(ref geometryData);
+			//}
+			//isScheduling = false;
 		}
 
-		public void OnBeforeSerialize()
-		{
-			return;
+		public void ClearStates()
+        {
+			//isScheduling = false;
+        }
+
+        public void OnBeforeSerialize()
+        {
+
+        }
+
+		public void Deserialize()
+        {
+			if (string.IsNullOrEmpty(json) || innerData != null)
+				return;
+			innerData = JsonSerialization.FromJson<InnerData>(json);
 		}
 
-		public void OnAfterDeserialize()
-		{
-			jobHandles = new JobHandle[pathCount];
+        public unsafe void OnAfterDeserialize()
+        {
+			// will crash invoke JsonSerialization.FromJson in OnAfterDeserialize
+			// x_x
+			//Deserialize();
 		}
 	}
 }

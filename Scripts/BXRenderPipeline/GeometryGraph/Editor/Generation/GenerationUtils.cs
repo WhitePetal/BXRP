@@ -1,5 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using BXGeometryGraph.Runtime;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace BXGeometryGraph
@@ -264,6 +268,102 @@ namespace BXGeometryGraph
                 default:
                     return kErrorString;
             }
+        }
+
+        private static void SetDepenedJobs(AbstractGeometryNode node, IEnumerable<IEdge> edges, int slotId, AbstractGeometryJob[] depenedJobs)
+        {
+            var outputNode = edges.First().outputSlot.node;
+            while (outputNode is RedirectNodeData redirectNode)
+            {
+                //outputNode = redirectNode.
+                // TODO
+                throw new NotImplementedException("Not Implement GetSlotVector3DataForGeoJob while outputNode is RedirectNodeData");
+            }
+            if (outputNode is IGenerateGeometryJob generatorNode)
+            {
+                var containJobCollection = depenedJobs.Where(x => x != null && x.nodeGuid == node.objectId);
+                var containJob = containJobCollection.Any() ? containJobCollection.First() : null;
+                if (containJob == null)
+                {
+                    depenedJobs[slotId] = generatorNode.BuildGeometryJob();
+                }
+            }
+            else
+            {
+                depenedJobs[slotId] = null;
+            }
+        }
+
+        internal static (ValueFrom, int, int) GetSlotIntDataForGeoJob(AbstractGeometryNode node, int slotId, AbstractGeometryJob[] depenedJobs)
+        {
+            var slotRef = node.GetSlotReference(slotId);
+            var edges = node.owner.GetEdges(slotRef);
+            ValueFrom valueFrom;
+            int valueId;
+            int valueDefault;
+            if (edges.Count() > 0)
+            {
+                valueFrom = ValueFrom.DepenedJob;
+                valueId = edges.First().outputSlot.slot.id;
+                valueDefault = default;
+
+                SetDepenedJobs(node, edges, slotId, depenedJobs);
+            }
+            else
+            {
+                valueFrom = ValueFrom.Default;
+                valueId = 0;
+                valueDefault = slotRef.slot.GetIntDefaultValue();
+                depenedJobs[slotId] = null;
+            }
+            return (valueFrom, valueId, valueDefault);
+        }
+
+        internal static (ValueFrom, int, float3) GetSlotVector3DataForGeoJob(AbstractGeometryNode node, int slotId, AbstractGeometryJob[] depenedJobs)
+        {
+            var slotRef = node.GetSlotReference(slotId);
+            var edges = node.owner.GetEdges(slotRef);
+            ValueFrom valueFrom;
+            int valueId;
+            float3 valueDefault;
+            if (edges.Count() > 0)
+            {
+                valueFrom = ValueFrom.DepenedJob;
+                valueId = edges.First().outputSlot.slot.id;
+                valueDefault = default;
+
+                SetDepenedJobs(node, edges, slotId, depenedJobs);
+            }
+            else
+            {
+                valueFrom = ValueFrom.Default;
+                valueId = 0;
+                valueDefault = slotRef.slot.GetVector3DefaultValue();
+                depenedJobs[slotId] = null;
+            }
+            return (valueFrom, valueId, valueDefault);
+        }
+
+        internal static (ValueFrom, int) GetSlotGeometryDataForGeoJob(AbstractGeometryNode node, int slotId, AbstractGeometryJob[] depenedJobs)
+        {
+            var slotRef = node.GetSlotReference(slotId);
+            var edges = node.owner.GetEdges(slotRef);
+            ValueFrom valueFrom;
+            int valueId;
+            if (edges.Count() > 0)
+            {
+                valueFrom = ValueFrom.DepenedJob;
+                valueId = edges.First().outputSlot.slot.id;
+
+                SetDepenedJobs(node, edges, slotId, depenedJobs);
+            }
+            else
+            {
+                valueFrom = ValueFrom.Default;
+                valueId = 0;
+                depenedJobs[slotId] = null;
+            }
+            return (valueFrom, valueId);
         }
     }
 }

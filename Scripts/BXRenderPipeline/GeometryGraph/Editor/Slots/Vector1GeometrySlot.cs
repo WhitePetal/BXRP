@@ -119,5 +119,15 @@ namespace BXGeometryGraph
                 m_DefaultValue = ms.defaultValue;
             }
         }
+
+        public override int GetIntDefaultValue()
+        {
+            return (int)m_Value;
+        }
+
+        public override float GetFloatDefaultValue()
+        {
+            return m_Value;
+        }
     }
 }

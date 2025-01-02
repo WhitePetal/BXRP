@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using BXGeometryGraph.Runtime;
+using Unity.Serialization.Json;
 using UnityEditor;
 using UnityEditor.AssetImporters;
 using UnityEngine;
@@ -47,11 +49,15 @@ Geometry ""Hidden/GraphErrorGeometry""
             graph.OnEnable();
             graph.ValidateGraph();
 
-            UnityEngine.Object mainObject = new Geometry();
+            GeometrySO geoSO = BuildGeometrySO(ctx, importLog, assetCollection, graph);
+            geoSO.innerData.ouputJob.testSerialize = 100;
+            var json = JsonSerialization.ToJson(geoSO.innerData);
+            geoSO.json = json;
 
             Texture2D texture = Resources.Load<Texture2D>("Icons/gg_graph_icon");
-            ctx.AddObjectToAsset("MainAsset", mainObject, texture);
-            ctx.SetMainObject(mainObject);
+            ctx.AddObjectToAsset("MainAsset", geoSO, texture);
+            ctx.SetMainObject(geoSO);
+            AssetDatabase.CreateAsset(geoSO, path + ".asset");
 
             var graphDataReadOnly = new GraphDataReadOnly(graph);
             foreach(var target in graph.activeTargets)
@@ -185,7 +191,7 @@ Geometry ""Hidden/GraphErrorGeometry""
                     // Ensure that dependency path is relative to project
                     if (!string.IsNullOrEmpty(assetPath) && !assetPath.StartsWith("Packages/") && !assetPath.StartsWith("Assets/"))
                     {
-                        importLog.LogWarning($"Invalid dependency path: {assetPath}", mainObject);
+                        importLog.LogWarning($"Invalid dependency path: {assetPath}", geoSO);
                     }
                 }
 
@@ -197,6 +203,30 @@ Geometry ""Hidden/GraphErrorGeometry""
                     ctx.DependsOnArtifact(asset.Key);
                 }
             }
+        }
+
+        private GeometrySO BuildGeometrySO(AssetImportContext importContext, AssetImportErrorLog importErrorLog, AssetCollection allImportAssetDependencies, GraphData graph)
+        {
+            GeometrySO primaryGeoSO = null;
+
+            string path = importContext.assetPath;
+            var primaryGeoSOName = Path.GetFileNameWithoutExtension(path);
+
+            try
+            {
+                // this will also add Target dependencies into the asset collection
+                Generator generator;
+                generator = new Generator(graph, graph.outputNode, GenerationMode.ForReals, primaryGeoSOName, assetCollection: allImportAssetDependencies);
+
+                primaryGeoSO = generator.geometrySO;
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                // ignored
+            }
+
+            return primaryGeoSO;
         }
 
         internal class AssetImportErrorLog : MessageManager.IErrorLog
@@ -219,7 +249,6 @@ Geometry ""Hidden/GraphErrorGeometry""
                 ctx.LogImportWarning(message, context);
             }
         }
-
     }
 
     //class GeometryGraphAssetPostProcess : AssetPostprocessor
