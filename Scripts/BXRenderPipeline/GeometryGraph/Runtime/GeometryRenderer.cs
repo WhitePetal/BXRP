@@ -130,11 +130,11 @@ namespace BXGeometryGraph.Runtime
             if (meshes.Count < meshDatas.Length)
             {
                 meshes.Add(new Mesh());
+                m_MeshID = m_BRG.RegisterMesh(meshes[0]);
             }
             var mesh = meshes[0];
             mesh.SetVertices(meshData.positions);
             mesh.SetIndices(meshData.corner_verts, MeshTopology.Quads, 0);
-            m_MeshID = m_BRG.RegisterMesh(mesh);
             //cmd.DrawMesh(mesh, transform.localToWorldMatrix, material, 0, 0);
         }
 
@@ -169,6 +169,7 @@ namespace BXGeometryGraph.Runtime
             jobHandle.Complete();
         }
 
+        [GenerateTestsForBurstCompatibility]
         public unsafe JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext cullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
         {
             // UnsafeUtility.Malloc() requires an alignment, so use the largest integer type's alignment
