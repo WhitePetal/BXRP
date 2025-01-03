@@ -75,5 +75,8 @@ namespace BXRenderPipeline
             new RenderTargetIdentifier(_BloomTempRT_IDs[8]),
             new RenderTargetIdentifier(_BloomTempRT_IDs[9]),
         };
+
+
+        public static readonly int _DiffuseColor_ID = Shader.PropertyToID("_DiffuseColor");
     }
 }
