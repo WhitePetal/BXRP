@@ -17,6 +17,18 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Assets/Shaders/ShaderLibrarys/DOTSInstancing.hlsl"
 
+#if defined(INSTANCING_ON)
+#define BX_CBUFFER_START(name) UNITY_INSTANCING_BUFFER_START(name)
+#define BX_CBUFFER_END(name) UNITY_INSTANCING_BUFFER_END(name)
+#define DEFINE_PROP(type, name) UNITY_DEFINE_INSTANCED_PROP(type, name)
+#else
+#define BX_CBUFFER_START(name) CBUFFER_START(name)
+#define BX_CBUFFER_END(name) CBUFFER_END
+#define DEFINE_PROP(type, name) type name;
+#endif
+
+#define GET_PROP(name) UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, name)
+
 #define pi half(3.141592)
 #define pi_inv half(0.318309)
 
@@ -142,8 +154,6 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
-
-#define GET_PROP(name) UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, name)
 
 half3 DecodeHDR(half4 data, half4 decodeInstructions)
 {

@@ -88,6 +88,7 @@ CBUFFER_START(UnityPerCamera)
 CBUFFER_END
 
 #ifndef DOTS_INSTANCING_ON // UnityPerDraw cbuffer doesn't exist with hybrid renderer
+// Need GPU INSTANCING Batch Performances?
 CBUFFER_START(UnityPerDraw)
     float4x4 unity_ObjectToWorld;
     float4x4 unity_WorldToObject;

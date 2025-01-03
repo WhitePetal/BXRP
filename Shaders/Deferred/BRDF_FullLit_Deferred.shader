@@ -32,7 +32,7 @@ Shader "Test/BRDF_FullLit_Deferred"
             #pragma fragment frag
             #pragma multi_compile _ DOTS_INSTANCING_ON
             #pragma target 4.5 DOTS_INSTANCING_ON
-            // #pragma multi_compile_instancing
+            #pragma multi_compile_instancing
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_fragment __ _CLUSTER_GREATE_32
             #pragma multi_compile_local_fragment __ _EMISSION_ON
@@ -75,23 +75,34 @@ Shader "Test/BRDF_FullLit_Deferred"
                 // #endif
             };
 
-            CBUFFER_START(UnityPerMaterial)
-                half _EmissionStrength;
-                half _Reflectance;
-                half4 _MainTex_ST;
-                half4 _DetilTexA_ST;
-                half4 _DetilTexB_ST;
-                half4 _DiffuseColor;
-                half4 _MetallicRoughnessAO;
-                half4 _NormalScales;
-                half4 _KdsExpoureClampMinMax;
-            CBUFFER_END
+            BX_CBUFFER_START(UnityPerMaterial)
+                DEFINE_PROP(half, _EmissionStrength)
+                DEFINE_PROP(half, _Reflectance)
+                DEFINE_PROP(half4, _MainTex_ST)
+                DEFINE_PROP(half4, _DetilTexA_ST)
+                DEFINE_PROP(half4, _DetilTexB_ST)
+                DEFINE_PROP(half4, _DiffuseColor)
+                DEFINE_PROP(half4, _MetallicRoughnessAO)
+                DEFINE_PROP(half4, _NormalScales)
+                DEFINE_PROP(half4, _KdsExpoureClampMinMax)
+            BX_CBUFFER_END(UnityPerMaterial)
 
             #if defined(DOTS_INSTANCING_ON)
             UNITY_DOTS_INSTANCING_START(UserPropertyMetadata)
                 UNITY_DOTS_INSTANCED_PROP_OVERRIDE_SUPPORTED(half4, _DiffuseColor)
             UNITY_DOTS_INSTANCING_END(UserPropertyMetadata)
             #define _DiffuseColor UNITY_ACCESS_DOTS_INSTANCED_PROP(half4, _DiffuseColor)
+            #endif
+            #if defined(UNITY_INSTANCING_ENABLED)
+            #define _EmissionStrength GET_PROP(_EmissionStrength)
+            #define _Reflectance GET_PROP(_Reflectance)
+            #define _MainTex_ST GET_PROP(_MainTex_ST)
+            #define _DetilTexA_ST GET_PROP(_DetilTexA_ST)
+            #define _DetilTexB_ST GET_PROP(_DetilTexB_ST)
+            #define _DiffuseColor GET_PROP(_DiffuseColor)
+            #define _MetallicRoughnessAO GET_PROP(_MetallicRoughnessAO)
+            #define _NormalScales GET_PROP(_NormalScales)
+            #define _KdsExpoureClampMinMax GET_PROP(_KdsExpoureClampMinMax)
             #endif
 
             Texture2D<half4> _MainTex, _MRATex, _DetilMask;
