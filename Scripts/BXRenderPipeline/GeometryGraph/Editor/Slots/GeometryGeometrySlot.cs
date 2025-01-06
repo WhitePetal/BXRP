@@ -56,7 +56,7 @@ namespace BXGeometryGraph
 
         public override VisualElement InstantiateControl()
         {
-            return new LabelSlotControlView("Gepmetry");
+            return new LabelSlotControlView("");
         }
 
         public override string GetDefaultValue(GenerationMode generationMode)

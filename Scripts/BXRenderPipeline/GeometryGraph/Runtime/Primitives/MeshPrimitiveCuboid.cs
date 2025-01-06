@@ -58,7 +58,7 @@ namespace BXGeometryGraph.Runtime
 		{
 			CuboidConfig config = new CuboidConfig(size, verts_x, verts_y, verts_z);
 
-			MeshData mesh = new MeshData(config.vertex_count, 0, config.face_count, config.loop_count);
+			MeshData mesh = new MeshData(config.vertex_count, 0, config.face_count, config.loop_count, Allocator.TempJob);
 
 			create_cuboid_mesh_job job = new create_cuboid_mesh_job()
 			{

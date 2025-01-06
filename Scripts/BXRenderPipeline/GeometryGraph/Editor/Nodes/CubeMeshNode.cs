@@ -27,7 +27,7 @@ namespace BXGeometryGraph
             [Slot(1, Binding.None, 2, 0, 0, 0)] int VerticesX,
             [Slot(2, Binding.None, 2, 0, 0, 0)] int VerticesY,
             [Slot(3, Binding.None, 2, 0, 0, 0)] int VerticesZ,
-            [Slot(4, Binding.None)] out CodeFunctionNode.Mesh Mesh,
+            [Slot(4, Binding.None)] out Mesh Mesh,
             [Slot(5, Binding.None)] out Vector2 UVMap
             )
         {

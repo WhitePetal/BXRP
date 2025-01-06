@@ -199,8 +199,8 @@ namespace BXGeometryGraph
                     return new Integer1GeometrySlot(slotId, displayName, geometryOutputName, slotType, (int)defaultValue.x, geometryStageCapability, hidden: hidden);
                 //case SlotValueType.Dynamic:
                 //return new DynamicValueMaterialSlot(slotId, displayName, shaderOutputName, slotType, new Matrix4x4(defaultValue, Vector4.zero, Vector4.zero, Vector4.zero), shaderStageCapability, hidden);
-                //case SlotValueType.Boolean:
-                //return new BooleanMaterialSlot(slotId, displayName, shaderOutputName, slotType, false, shaderStageCapability, hidden);
+                case SlotValueType.Boolean:
+                    return new BooleanGeometrySlot(slotId, displayName, geometryOutputName, slotType, defaultValue.x == 1, geometryStageCapability, hidden);
                 //case SlotValueType.PropertyConnectionState:
                 //return new PropertyConnectionStateMaterialSlot(slotId, displayName, shaderOutputName, slotType, shaderStageCapability, hidden);
                 case SlotValueType.Geometry:

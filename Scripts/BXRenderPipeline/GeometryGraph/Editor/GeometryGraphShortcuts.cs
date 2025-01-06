@@ -220,6 +220,21 @@ namespace BXGeometryGraph
                 }
         }
 
+        internal const string nodeDeleteShortcutID = "GeometryGraph/Selection: Delete";
+        [Shortcut(nodeGroupShortcutID, typeof(GeometryGraphEditWindow), KeyCode.X, ShortcutModifiers.None)]
+        static void Delete(ShortcutArguments args)
+        {
+            CheckBindings(nodeGroupShortcutID);
+            var graphView = GetGraphView();
+            foreach (var selected in graphView.selection)
+                if ((selected is IGeometryNodeView nodeView && nodeView.node is AbstractGeometryNode)
+                    || selected.GetType() == typeof(StickyNote) || selected is UnityEditor.Experimental.GraphView.Edge)
+                {
+                    graphView.DeleteSelection();
+                    break;
+                }
+        }
+
         internal const string nodePreviewShortcutID = "GeometryGraph/Selection: Toggle Node Previews";
         [Shortcut(nodePreviewShortcutID, typeof(GeometryGraphEditWindow), KeyCode.T, ShortcutModifiers.Action)]
         static void ToggleNodePreviews(ShortcutArguments args)

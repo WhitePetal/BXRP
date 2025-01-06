@@ -365,5 +365,30 @@ namespace BXGeometryGraph
             }
             return (valueFrom, valueId);
         }
+
+        internal static (ValueFrom, int, bool) GetSlotBooleanDataForGeoJob(AbstractGeometryNode node, int slotId, AbstractGeometryJob[] depenedJobs)
+        {
+            var slotRef = node.GetSlotReference(slotId);
+            var edges = node.owner.GetEdges(slotRef);
+            ValueFrom valueFrom;
+            int valueId;
+            bool valueDefault;
+            if (edges.Count() > 0)
+            {
+                valueFrom = ValueFrom.DepenedJob;
+                valueId = edges.First().outputSlot.slot.id;
+                valueDefault = false;
+
+                SetDepenedJobs(node, edges, slotId, depenedJobs);
+            }
+            else
+            {
+                valueFrom = ValueFrom.Default;
+                valueId = 0;
+                valueDefault = slotRef.slot.GetIntDefaultValue() == 1 ? true : false;
+                depenedJobs[slotId] = null;
+            }
+            return (valueFrom, valueId, valueDefault);
+        }
     }
 }

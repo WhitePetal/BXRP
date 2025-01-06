@@ -7,7 +7,7 @@ using UnityEngine;
 namespace BXGeometryGraph.Runtime
 {
     [Serializable]
-    public class OutputJobManaged : AbstractGeometryJob
+    public unsafe class OutputJobManaged : AbstractGeometryJob
     {
         [SerializeField]
         private ValueFrom m_GeometryValueFrom;
@@ -28,7 +28,7 @@ namespace BXGeometryGraph.Runtime
 
         }
 
-        public override JobHandle Schedule(ref GeometryData geoData, JobHandle dependsOn = default)
+        public override JobHandle Schedule(JobHandle dependsOn = default)
         {
             if (depenedJobs == null || depenedJobs.Length <= 0)
                 return dependsOn;
@@ -36,14 +36,30 @@ namespace BXGeometryGraph.Runtime
 
             for(int i = 0; i < depenedJobs.Length; ++i)
             {
-                dependsOn = JobHandle.CombineDependencies(dependsOn, depenedJobs[i].Schedule(ref geoData));
+                dependsOn = depenedJobs[i].Schedule(dependsOn);
             }
             return dependsOn;
         }
 
-        public override void WriteResultToGeoData(ref GeometryData geoData)
+        public override JobHandle WriteResultToGeoData(GeometryData* geoData, JobHandle dependsOn = default)
         {
-            throw new System.NotImplementedException();
+            for (int i = 0; i < depenedJobs.Length; ++i)
+            {
+                dependsOn = depenedJobs[i].WriteResultToGeoData(geoData, dependsOn);
+            }
+            return dependsOn;
+        }
+
+        public override void Dispose()
+        {
+            if (depenedJobs == null || depenedJobs.Length <= 0)
+                return;
+
+
+            for (int i = 0; i < depenedJobs.Length; ++i)
+            {
+                depenedJobs[i].Dispose();
+            }
         }
     }
 }

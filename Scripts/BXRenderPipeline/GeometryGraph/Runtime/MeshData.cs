@@ -1,13 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
 {
-    public struct MeshData : IDisposable
+    public unsafe struct MeshData : IDisposable
     {
         public NativeArray<float3> positions;
         public NativeArray<int2> edges;
@@ -20,13 +22,13 @@ namespace BXGeometryGraph.Runtime
         public int faces_num;
         public int corners_num;
 
-        public MeshData(int verts_num, int edges_num, int faces_num, int corners_num)
+        public MeshData(int verts_num, int edges_num, int faces_num, int corners_num, Allocator allocator)
         {
-            positions = new NativeArray<float3>(verts_num, Allocator.Persistent);
-            edges = new NativeArray<int2>(edges_num, Allocator.Persistent);
-            corner_verts = new NativeArray<int>(corners_num, Allocator.Persistent);
-            corner_edges = new NativeArray<int>(corners_num, Allocator.Persistent);
-            face_offset_indices = new NativeArray<int>(faces_num + 1, Allocator.Persistent);
+            positions = new NativeArray<float3>(verts_num, allocator);
+            edges = new NativeArray<int2>(edges_num, allocator);
+            corner_verts = new NativeArray<int>(corners_num, allocator);
+            corner_edges = new NativeArray<int>(corners_num, allocator);
+            face_offset_indices = new NativeArray<int>(faces_num + 1, allocator);
 
             face_offset_indices[0] = 0;
             face_offset_indices[faces_num] = corners_num;
@@ -35,6 +37,77 @@ namespace BXGeometryGraph.Runtime
             this.edges_num = edges_num;
             this.faces_num = faces_num;
             this.corners_num = corners_num;
+        }
+
+        public JobHandle AddToGeometry(GeometryData* geo, JobHandle dependensOn)
+        {
+            MeshData mesh = new MeshData(verts_num, edges_num, faces_num, corners_num, Allocator.Persistent);
+            geo->meshs.Add(mesh);
+            CopyToGeometryJob job = new CopyToGeometryJob()
+            {
+                positions_from = positions,
+                edges_from = edges,
+                corner_verts_from = corner_verts,
+                corner_edges_from = corner_edges,
+                face_offset_indices_from = face_offset_indices,
+
+                positions_to = mesh.positions,
+                edges_to = mesh.edges,
+                corner_verts_to = mesh.corner_verts,
+                corner_edges_to = mesh.corner_edges,
+                face_offset_indices_to = mesh.face_offset_indices
+            };
+            return job.Schedule(dependensOn);
+        }
+
+        [BurstCompile]
+        public struct CopyToGeometryJob : IJob
+        {
+            [ReadOnly]
+            public NativeArray<float3> positions_from;
+            [ReadOnly]
+            public NativeArray<int2> edges_from;
+            [ReadOnly]
+            public NativeArray<int> corner_verts_from;
+            [ReadOnly]
+            public NativeArray<int> corner_edges_from;
+            [ReadOnly]
+            public NativeArray<int> face_offset_indices_from;
+
+            [WriteOnly]
+            public NativeArray<float3> positions_to;
+            [WriteOnly]
+            public NativeArray<int2> edges_to;
+            [WriteOnly]
+            public NativeArray<int> corner_verts_to;
+            [WriteOnly]
+            public NativeArray<int> corner_edges_to;
+            [WriteOnly]
+            public NativeArray<int> face_offset_indices_to;
+
+            public void Execute()
+            {
+                for(int i = 0; i < positions_from.Length; ++i)
+                {
+                    positions_to[i] = positions_from[i];
+                }
+                for (int i = 0; i < edges_from.Length; ++i)
+                {
+                    edges_to[i] = edges_from[i];
+                }
+                for (int i = 0; i < corner_verts_from.Length; ++i)
+                {
+                    corner_verts_to[i] = corner_verts_from[i];
+                }
+                for (int i = 0; i < corner_edges_from.Length; ++i)
+                {
+                    corner_edges_to[i] = corner_edges_from[i];
+                }
+                for (int i = 0; i < face_offset_indices_from.Length; ++i)
+                {
+                    face_offset_indices_to[i] = face_offset_indices_from[i];
+                }
+            }
         }
 
         public void Dispose()

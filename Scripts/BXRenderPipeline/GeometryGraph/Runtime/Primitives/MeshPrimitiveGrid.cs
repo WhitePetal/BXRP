@@ -16,7 +16,7 @@ namespace BXGeometryGraph.Runtime
             int edgesX = verticesX - 1;
             int edgesY = verticesY - 1;
 
-            MeshData mesh = new MeshData(verticesX * verticesY, edgesX * verticesY + edgesY * verticesX, edgesX + edgesY, edgesX * edgesY * 4);
+            MeshData mesh = new MeshData(verticesX * verticesY, edgesX * verticesY + edgesY * verticesX, edgesX + edgesY, edgesX * edgesY * 4, Allocator.Temp);
 
             create_grid_mesh_job job = new create_grid_mesh_job()
             {

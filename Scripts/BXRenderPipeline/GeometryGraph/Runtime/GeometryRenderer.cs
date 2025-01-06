@@ -12,7 +12,7 @@ namespace BXGeometryGraph.Runtime
 {
     [AddComponentMenu("BXGeometry/GeometryRenderer")]
     //[ExecuteAlways]
-    public class GeometryRenderer : MonoBehaviour
+    public unsafe class GeometryRenderer : MonoBehaviour
     {
         [SerializeField]
         private GeometrySO sharedGeometrySO;
@@ -22,7 +22,7 @@ namespace BXGeometryGraph.Runtime
 
         internal GeometrySO m_GeometrySO;
 
-        public GeometryData data;
+        public GeometryData* data;
 
         private JobHandle jobHandle;
 
@@ -97,8 +97,9 @@ namespace BXGeometryGraph.Runtime
             //Unity.Entities.World.DefaultGameObjectInjectionWorld.Dispose();
             m_GeometrySO = sharedGeometrySO;
             m_GeometrySO.Deserialize();
-            data = new GeometryData();
-            data.Init();
+
+            data = (GeometryData*)UnsafeUtility.Malloc(sizeof(GeometryData), UnsafeUtility.AlignOf<GeometryData>(), Allocator.Persistent);
+            data->CreatePersistent();
 
             meshes = new List<Mesh>();
 
@@ -113,7 +114,7 @@ namespace BXGeometryGraph.Runtime
 
         private void Update()
         {
-            data.Clear();
+            data->Clear();
             Schedule();
         }
 
@@ -121,8 +122,8 @@ namespace BXGeometryGraph.Runtime
         {
             if (!init) return;
             Compelete();
-            MeshData meshData = data.meshs[0];
-            var meshDatas = data.meshs;
+            MeshData meshData = data->meshs[0];
+            var meshDatas = data->meshs;
             //for(int i = 0; i < meshDatas.Length; ++i)
             //{
 
@@ -135,33 +136,17 @@ namespace BXGeometryGraph.Runtime
             var mesh = meshes[0];
             mesh.SetVertices(meshData.positions);
             mesh.SetIndices(meshData.corner_verts, MeshTopology.Quads, 0);
-            //cmd.DrawMesh(mesh, transform.localToWorldMatrix, material, 0, 0);
         }
 
         public void Render(CommandBuffer cmd)
         {
-            //    if (!init) return;
-            //    Compelete();
-            //    MeshData meshData = data.meshs[0];
-            //    var meshDatas = data.meshs;
-            //    //for(int i = 0; i < meshDatas.Length; ++i)
-            //    //{
-
-            //    //}
-            //    if(meshes.Count < meshDatas.Length)
-            //    {
-            //        meshes.Add(new Mesh());
-            //    }
-            //    var mesh = meshes[0];
-            //    mesh.SetVertices(meshData.positions);
-            //    mesh.SetIndices(meshData.corner_verts, MeshTopology.Quads, 0);
-            //    m_MeshID = m_BRG.RegisterMesh(mesh);
-            //    //cmd.DrawMesh(mesh, transform.localToWorldMatrix, material, 0, 0);
+            //cmd.DrawMesh(mesh, transform.localToWorldMatrix, material, 0, 0);
         }
 
         public void Schedule()
         {
-            jobHandle = m_GeometrySO.data.ouputJob.Schedule(ref data);
+            jobHandle = m_GeometrySO.data.ouputJob.Schedule();
+            jobHandle = m_GeometrySO.data.ouputJob.WriteResultToGeoData(data, jobHandle);
         }
 
         public void Compelete()
@@ -242,7 +227,8 @@ namespace BXGeometryGraph.Runtime
         private void OnDestroy()
         {
             m_BRG.Dispose();
-            data.Dispose();
+            m_GeometrySO.data.ouputJob.Dispose();
+            data->Dispose();
         }
 
         private void AllocateInstanceDataBuffer()

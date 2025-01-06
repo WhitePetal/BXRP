@@ -17,7 +17,7 @@ namespace BXGeometryGraph.Runtime
                 return (default, new MeshData());
 
             int edgesNum = count - 1;
-            MeshData mesh = new MeshData(count, edgesNum, 0, 0);
+            MeshData mesh = new MeshData(count, edgesNum, 0, 0, Allocator.Temp);
             var postitions = mesh.positions;
             var edges = mesh.edges;
 

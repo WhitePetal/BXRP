@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace BXGeometryGraph
+namespace BRG
 {
-    public struct GeometryData
+    public unsafe class BRG_Container
     {
 
     }

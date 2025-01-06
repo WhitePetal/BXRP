@@ -11,7 +11,7 @@ using UnityEngine;
 namespace BXGeometryGraph.Runtime
 {
 	[Serializable]
-	public class CubeMeshJobManaged : AbstractGeometryJob
+	public unsafe class CubeMeshJobManaged : AbstractGeometryJob
 	{
 		[SerializeField]
 		private ValueFrom m_SizeValueFrom;
@@ -45,10 +45,10 @@ namespace BXGeometryGraph.Runtime
 		private int verticesY;
 		private int verticesZ;
 
-		private int meshIndex;
+		private MeshData mesh;
 
 		public CubeMeshJobManaged(string nodeGuid, ValueFrom sizeValueFrom, ValueFrom verticesXValueFrom, ValueFrom verticesYValueFrom, ValueFrom verticesZValueFrom,
-			int sizeValueID = 0, int verticesXValueID = 0, int verticesYValueID = 0, int verticesZValueID = 0,
+			int sizeValueID = -1, int verticesXValueID = -1, int verticesYValueID = -1, int verticesZValueID = -1,
 			float3 sizeValueDefault = default, int verticesXValueDefault = 0, int verticesYValueDefault = 0, int verticesZValueDefault = 0)
 		{
 			this.nodeGuid = nodeGuid;	
@@ -73,30 +73,27 @@ namespace BXGeometryGraph.Runtime
 
         }
 
-		public override JobHandle Schedule(ref GeometryData geoData, JobHandle dependsOn = default)
+		public override JobHandle Schedule(JobHandle dependsOn = default)
 		{
+			if (depenedJobs != null && depenedJobs.Length > 0)
+			{
+				for (int i = 0; i < depenedJobs.Length; ++i)
+				{
+					dependsOn = JobHandle.CombineDependencies(dependsOn, depenedJobs[i].Schedule());
+				}
+			}
+
 			size = m_SizeValueFrom == ValueFrom.Default ? m_SizeValueDefault : depenedJobs[0].GetFloat3(m_SizeValueID);
 			verticesX = m_VerticesXValueFrom == ValueFrom.Default ? m_VerticesXValueDefault : depenedJobs[1].GetInt(m_VerticesXValueID);
 			verticesY = m_VerticesYValueFrom == ValueFrom.Default ? m_VerticesYValueDefault : depenedJobs[2].GetInt(m_VerticesYValueID);
 			verticesZ = m_VerticesZValueFrom == ValueFrom.Default ? m_VerticesZValueDefault : depenedJobs[3].GetInt(m_VerticesZValueID);
 
-			meshIndex = geoData.meshs.Length;
-
-			if (depenedJobs != null && depenedJobs.Length > 0)
-			{
-				for (int i = 0; i < depenedJobs.Length; ++i)
-				{
-					dependsOn = JobHandle.CombineDependencies(dependsOn, depenedJobs[i].Schedule(ref geoData));
-				}
-			}
-
 			JobHandle jobHandle;
-			MeshData meshData;
 			int dimensions = ((verticesX - 1) > 0 ? 1 : 0) + ((verticesY - 1) > 0 ? 1 : 0) + ((verticesZ - 1) > 0 ? 1 : 0);
 
 			if (dimensions == 0)
 			{
-				(jobHandle, meshData) = MeshPrimitiveLine.create_line_mesh(float3.zero, float3.zero, 1, dependsOn);
+				(jobHandle, this.mesh) = MeshPrimitiveLine.create_line_mesh(float3.zero, float3.zero, 1, dependsOn);
 			}
             else if(dimensions == 1)
             {
@@ -118,41 +115,59 @@ namespace BXGeometryGraph.Runtime
 					delta = new float3(0f, 0f, size.z / (verticesZ - 1));
 				}
 
-				(jobHandle, meshData) = MeshPrimitiveLine.create_line_mesh(start, delta, verticesX * verticesY * verticesZ, dependsOn);
+				(jobHandle, this.mesh) = MeshPrimitiveLine.create_line_mesh(start, delta, verticesX * verticesY * verticesZ, dependsOn);
 			}
             else if(dimensions == 2)
             {
 				// XY Plane
 				if (verticesZ <= 1)
 				{
-					(jobHandle, meshData) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesY, size.x, size.y, dependsOn);
+					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesY, size.x, size.y, dependsOn);
 				}
 				else if (verticesY <= 1)
 				{
-					(jobHandle, meshData) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesZ, size.x, size.z, dependsOn);
+					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesZ, size.x, size.z, dependsOn);
 					// TODO
 					// transform_mesh
 				}
                 else
                 {
-					(jobHandle, meshData) = MeshPrimitiveGrid.create_grid_mesh(verticesZ, verticesY, size.z, size.y, dependsOn);
+					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesZ, verticesY, size.z, size.y, dependsOn);
 					// TODO
 					// transform_mesh
                 }
 			}
             else
             {
-				(jobHandle, meshData) = MeshPrimitiveCuboid.create_cuboid_mesh(size, verticesX, verticesY, verticesZ, dependsOn);
+				(jobHandle, this.mesh) = MeshPrimitiveCuboid.create_cuboid_mesh(size, verticesX, verticesY, verticesZ, dependsOn);
 			}
-
-			geoData.meshs.Add(meshData);
 
 			return jobHandle;
 		}
 
-		public override void WriteResultToGeoData(ref GeometryData geoData)
+		public override JobHandle WriteResultToGeoData(GeometryData* geoData, JobHandle dependsOn = default)
 		{
-			throw new System.NotImplementedException();
+			return mesh.AddToGeometry(geoData, dependsOn);
 		}
+
+        public override void Dispose()
+        {
+			if (depenedJobs != null && depenedJobs.Length > 0)
+            {
+				for (int i = 0; i < depenedJobs.Length; ++i)
+				{
+					depenedJobs[i].Dispose();
+				}
+			}
+		}
+
+        public override GeometryData GetGeometry(int outputId)
+        {
+			GeometryData geo = new GeometryData();
+			geo.points = new NativeList<float3>(0, Allocator.TempJob);
+			geo.meshs = new NativeList<MeshData>(1, Allocator.TempJob);
+			geo.meshs.Add(mesh);
+			return geo;
+        }
     }
 }
