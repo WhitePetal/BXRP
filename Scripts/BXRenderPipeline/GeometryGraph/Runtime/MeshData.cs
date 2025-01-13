@@ -22,6 +22,8 @@ namespace BXGeometryGraph.Runtime
         public int faces_num;
         public int corners_num;
 
+        private bool disposed;
+
         public MeshData(int verts_num, int edges_num, int faces_num, int corners_num, Allocator allocator)
         {
             positions = new NativeArray<float3>(verts_num, allocator);
@@ -37,6 +39,8 @@ namespace BXGeometryGraph.Runtime
             this.edges_num = edges_num;
             this.faces_num = faces_num;
             this.corners_num = corners_num;
+
+            disposed = false;
         }
 
         public JobHandle AddToGeometry(GeometryData* geo, JobHandle dependensOn)
@@ -112,11 +116,26 @@ namespace BXGeometryGraph.Runtime
 
         public void Dispose()
         {
+            if (disposed)
+                return;
+
             positions.Dispose();
             edges.Dispose();
             corner_verts.Dispose();
             corner_edges.Dispose();
             face_offset_indices.Dispose();
+            disposed = true;
+        }
+
+        public JobHandle Dispose(JobHandle depend)
+        {
+            if (disposed)
+                return new JobHandle();
+
+            JobHandle handle = JobHandle.CombineDependencies(positions.Dispose(depend), edges.Dispose(depend), corner_verts.Dispose(depend));
+            handle = JobHandle.CombineDependencies(handle, corner_edges.Dispose(depend), face_offset_indices.Dispose(depend));
+            disposed = true;
+            return handle;
         }
     }
 }

@@ -1,11 +1,15 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
 {
+	[Serializable]
     public class SetPositionJob : AbstractGeometryJob
     {
 		[SerializeField]
@@ -37,7 +41,7 @@ namespace BXGeometryGraph.Runtime
 		private float3 position;
 		private float3 offset;
 
-		private MeshData mesh;
+		private GeometryData geo;
 
 		public SetPositionJob(string nodeGuid, ValueFrom geometryValueFrom, ValueFrom selectionValueFrom, ValueFrom positionValueFrom, ValueFrom offsetValueFrom,
 			int geometryValueID = -1, int selectionValueID = -1, int positionValueID = -1, int offsetValueID = -1,
@@ -75,23 +79,64 @@ namespace BXGeometryGraph.Runtime
 			{
 				for (int i = 0; i < depenedJobs.Length; ++i)
 				{
+					if (depenedJobs[i] == null)
+						continue;
 					dependsOn = JobHandle.CombineDependencies(dependsOn, depenedJobs[i].Schedule());
 				}
 			}
 
-			GeometryData geo = depenedJobs[0].GetGeometry(m_GeometryValueID);
+			geo = depenedJobs[0].GetGeometry(m_GeometryValueID);
+			JobHandle job = default;
+			if(geo.points.IsCreated && geo.points.Length > 0)
+            {
+				SetPointsPosition setpointJob = new SetPointsPosition()
+				{
+					points = geo.points.AsArray(),
+					time = owner.time
+				};
+				job = JobHandle.CombineDependencies(job, setpointJob.Schedule(dependsOn));
+            }
+			if(geo.meshs.IsCreated && geo.meshs.Length > 0)
+            {
+				for(int i = 0; i < geo.meshs.Length; ++i)
+                {
+					MeshData mesh = geo.meshs[i];
+					SetPointsPosition setpointJob = new SetPointsPosition()
+					{
+						points = mesh.positions,
+						time = owner.time
+					};
+					job = JobHandle.CombineDependencies(job, setpointJob.Schedule(dependsOn));
+				}
+            }
+			
+			return job;
+        }
 
-            return new JobHandle();
+		[BurstCompile]
+        struct SetPointsPosition : IJob
+        {
+			public NativeArray<float3> points;
+			public float time;
+
+            public void Execute()
+            {
+                for(int i = 0; i < points.Length; ++i)
+                {
+					points[i] += math.float3(0, 1, 0) * time;
+                }
+            }
         }
 
         public override unsafe JobHandle WriteResultToGeoData(GeometryData* geoData, JobHandle dependsOn = default)
         {
-            throw new System.NotImplementedException();
+			return geo.AddToGeometry(geoData, dependsOn);
         }
 
         public override void Dispose()
         {
-            throw new System.NotImplementedException();
+			base.Dispose();
+			geo.Dispose();
         }
     }
 }

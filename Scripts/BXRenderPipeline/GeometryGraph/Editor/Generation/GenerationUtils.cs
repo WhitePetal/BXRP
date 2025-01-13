@@ -385,7 +385,7 @@ namespace BXGeometryGraph
             {
                 valueFrom = ValueFrom.Default;
                 valueId = 0;
-                valueDefault = slotRef.slot.GetIntDefaultValue() == 1 ? true : false;
+                valueDefault = slotRef.slot.GetBooleanDefaultValue();
                 depenedJobs[slotId] = null;
             }
             return (valueFrom, valueId, valueDefault);

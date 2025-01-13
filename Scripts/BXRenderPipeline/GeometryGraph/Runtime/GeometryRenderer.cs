@@ -24,6 +24,8 @@ namespace BXGeometryGraph.Runtime
 
         public GeometryData* data;
 
+        public float time;
+
         private JobHandle jobHandle;
 
         private bool init;
@@ -84,19 +86,26 @@ namespace BXGeometryGraph.Runtime
             {
                 if (m_GeometrySO == sharedGeometrySO || m_GeometrySO == null)
                 {
-                    m_GeometrySO = Instantiate<GeometrySO>(sharedGeometrySO);
-                    m_GeometrySO.ClearStates();
+                    InitGeometrySO();
                 }
                 return m_GeometrySO;
             }
+        }
+
+        private void InitGeometrySO()
+        {
+            m_GeometrySO = Instantiate<GeometrySO>(sharedGeometrySO);
+            m_GeometrySO.Deserialize();
+            m_GeometrySO.ClearStates();
+            m_GeometrySO.Init(this);
         }
 
         private void Awake()
         {
             Assert.IsNotNull(material, "GeometryRenderer's mat is null!");
             //Unity.Entities.World.DefaultGameObjectInjectionWorld.Dispose();
-            m_GeometrySO = sharedGeometrySO;
-            m_GeometrySO.Deserialize();
+            InitGeometrySO();
+            time = 0f;
 
             data = (GeometryData*)UnsafeUtility.Malloc(sizeof(GeometryData), UnsafeUtility.AlignOf<GeometryData>(), Allocator.Persistent);
             data->CreatePersistent();
@@ -114,6 +123,8 @@ namespace BXGeometryGraph.Runtime
 
         private void Update()
         {
+            if (!init) return;
+            time += Time.deltaTime;
             data->Clear();
             Schedule();
         }
@@ -136,6 +147,7 @@ namespace BXGeometryGraph.Runtime
             var mesh = meshes[0];
             mesh.SetVertices(meshData.positions);
             mesh.SetIndices(meshData.corner_verts, MeshTopology.Quads, 0);
+            mesh.RecalculateNormals();
         }
 
         public void Render(CommandBuffer cmd)
@@ -152,6 +164,7 @@ namespace BXGeometryGraph.Runtime
         public void Compelete()
         {
             jobHandle.Complete();
+            m_GeometrySO.data.ouputJob.Dispose();
         }
 
         [GenerateTestsForBurstCompatibility]
@@ -226,9 +239,12 @@ namespace BXGeometryGraph.Runtime
 
         private void OnDestroy()
         {
+            m_InstanceData.Dispose();
             m_BRG.Dispose();
             m_GeometrySO.data.ouputJob.Dispose();
             data->Dispose();
+            UnsafeUtility.Free(data, Allocator.Persistent);
+            GameObject.Destroy(m_GeometrySO);
         }
 
         private void AllocateInstanceDataBuffer()

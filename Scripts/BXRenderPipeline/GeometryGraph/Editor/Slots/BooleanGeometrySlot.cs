@@ -50,6 +50,11 @@ namespace BXGeometryGraph
             return (value ? 1 : 0).ToString();
         }
 
+        public override bool GetBooleanDefaultValue()
+        {
+            return value;
+        }
+
         public override void AddDefaultProperty(PropertyCollector properties, GenerationMode generationMode)
         {
             if (!generationMode.IsPreview())

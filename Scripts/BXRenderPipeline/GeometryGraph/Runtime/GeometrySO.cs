@@ -37,6 +37,11 @@ namespace BXGeometryGraph.Runtime
 
         }
 
+		public void Init(GeometryRenderer owner)
+        {
+			data.ouputJob.Init(owner);
+        }
+
 		public void Deserialize()
         {
 			if (string.IsNullOrEmpty(json) || data != null)

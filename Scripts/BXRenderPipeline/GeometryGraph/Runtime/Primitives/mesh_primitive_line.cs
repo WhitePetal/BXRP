@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
 {
-    static class MeshPrimitiveLine
+    static class mesh_primitive_line
     {
         [BurstCompile]
         internal static (JobHandle, MeshData) create_line_mesh(float3 start, float3 delta, int count, JobHandle dependsOn = default)

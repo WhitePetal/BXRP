@@ -93,7 +93,7 @@ namespace BXGeometryGraph.Runtime
 
 			if (dimensions == 0)
 			{
-				(jobHandle, this.mesh) = MeshPrimitiveLine.create_line_mesh(float3.zero, float3.zero, 1, dependsOn);
+				(jobHandle, this.mesh) = mesh_primitive_line.create_line_mesh(float3.zero, float3.zero, 1, dependsOn);
 			}
             else if(dimensions == 1)
             {
@@ -115,31 +115,31 @@ namespace BXGeometryGraph.Runtime
 					delta = new float3(0f, 0f, size.z / (verticesZ - 1));
 				}
 
-				(jobHandle, this.mesh) = MeshPrimitiveLine.create_line_mesh(start, delta, verticesX * verticesY * verticesZ, dependsOn);
+				(jobHandle, this.mesh) = mesh_primitive_line.create_line_mesh(start, delta, verticesX * verticesY * verticesZ, dependsOn);
 			}
             else if(dimensions == 2)
             {
 				// XY Plane
 				if (verticesZ <= 1)
 				{
-					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesY, size.x, size.y, dependsOn);
+					(jobHandle, this.mesh) = mesh_primitive_grid.create_grid_mesh(verticesX, verticesY, size.x, size.y, dependsOn);
 				}
 				else if (verticesY <= 1)
 				{
-					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesX, verticesZ, size.x, size.z, dependsOn);
+					(jobHandle, this.mesh) = mesh_primitive_grid.create_grid_mesh(verticesX, verticesZ, size.x, size.z, dependsOn);
 					// TODO
 					// transform_mesh
 				}
                 else
                 {
-					(jobHandle, this.mesh) = MeshPrimitiveGrid.create_grid_mesh(verticesZ, verticesY, size.z, size.y, dependsOn);
+					(jobHandle, this.mesh) = mesh_primitive_grid.create_grid_mesh(verticesZ, verticesY, size.z, size.y, dependsOn);
 					// TODO
 					// transform_mesh
                 }
 			}
             else
             {
-				(jobHandle, this.mesh) = MeshPrimitiveCuboid.create_cuboid_mesh(size, verticesX, verticesY, verticesZ, dependsOn);
+				(jobHandle, this.mesh) = mesh_primitive_cuboid.create_cuboid_mesh(size, verticesX, verticesY, verticesZ, dependsOn);
 			}
 
 			return jobHandle;
@@ -150,17 +150,6 @@ namespace BXGeometryGraph.Runtime
 			return mesh.AddToGeometry(geoData, dependsOn);
 		}
 
-        public override void Dispose()
-        {
-			if (depenedJobs != null && depenedJobs.Length > 0)
-            {
-				for (int i = 0; i < depenedJobs.Length; ++i)
-				{
-					depenedJobs[i].Dispose();
-				}
-			}
-		}
-
         public override GeometryData GetGeometry(int outputId)
         {
 			GeometryData geo = new GeometryData();
@@ -168,6 +157,12 @@ namespace BXGeometryGraph.Runtime
 			geo.meshs = new NativeList<MeshData>(1, Allocator.TempJob);
 			geo.meshs.Add(mesh);
 			return geo;
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+			mesh.Dispose();
         }
     }
 }

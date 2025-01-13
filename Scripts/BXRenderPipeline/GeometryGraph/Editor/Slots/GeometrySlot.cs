@@ -328,6 +328,10 @@ namespace BXGeometryGraph
         {
             return Vector3.zero;
         }
+        public virtual bool GetBooleanDefaultValue()
+        {
+            return false;
+        }
 
         public virtual string GetDefaultValue(GenerationMode generationMode)
         {

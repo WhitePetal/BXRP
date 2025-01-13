@@ -33,33 +33,17 @@ namespace BXGeometryGraph.Runtime
             if (depenedJobs == null || depenedJobs.Length <= 0)
                 return dependsOn;
 
-
+            JobHandle jobHandle = default;
             for(int i = 0; i < depenedJobs.Length; ++i)
             {
-                dependsOn = depenedJobs[i].Schedule(dependsOn);
+                jobHandle = JobHandle.CombineDependencies(jobHandle, depenedJobs[i].Schedule(dependsOn));
             }
-            return dependsOn;
+            return jobHandle;
         }
 
         public override JobHandle WriteResultToGeoData(GeometryData* geoData, JobHandle dependsOn = default)
         {
-            for (int i = 0; i < depenedJobs.Length; ++i)
-            {
-                dependsOn = depenedJobs[i].WriteResultToGeoData(geoData, dependsOn);
-            }
-            return dependsOn;
-        }
-
-        public override void Dispose()
-        {
-            if (depenedJobs == null || depenedJobs.Length <= 0)
-                return;
-
-
-            for (int i = 0; i < depenedJobs.Length; ++i)
-            {
-                depenedJobs[i].Dispose();
-            }
+            return depenedJobs[0].WriteResultToGeoData(geoData, dependsOn);
         }
     }
 }

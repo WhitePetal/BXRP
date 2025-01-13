@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
 {
-    static class MeshPrimitiveGrid
+    static class mesh_primitive_grid
     {
         [BurstCompile]
         internal static (JobHandle, MeshData) create_grid_mesh(int verticesX, int verticesY, float sizeX, float sizeY, JobHandle dependsOn = default)

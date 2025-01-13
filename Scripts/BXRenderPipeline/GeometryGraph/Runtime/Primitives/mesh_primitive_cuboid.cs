@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace BXGeometryGraph.Runtime
 {
-    static class MeshPrimitiveCuboid
+    static class mesh_primitive_cuboid
     {
 		struct CuboidConfig
 		{

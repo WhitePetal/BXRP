@@ -49,6 +49,8 @@ namespace BXGeometryGraph
             SetPositionJob job = new SetPositionJob(objectId, geometryValueFrom, selectionValueFrom, positionValueFrom, offsetValueFrom,
                 geometryValueID, selectionValueID, positionValueID, offsetValueID,
                 selectionValueDefault, positionValueDefault, offsetValueDefault);
+            job.depenedJobs = depenedJobs;
+
             return job;
         }
     }

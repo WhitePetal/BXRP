@@ -5,6 +5,8 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
+using Unity.Burst;
 
 namespace BXGeometryGraph.Runtime
 {
@@ -22,12 +24,6 @@ namespace BXGeometryGraph.Runtime
 			points = new NativeList<float3>(Allocator.Persistent);
 			meshs = new NativeList<MeshData>(Allocator.Persistent);
         }
-
-		public void CreateEmpty(Allocator allocator)
-        {
-			points = new NativeList<float3>(0, allocator);
-			meshs = new NativeList<MeshData>(0, allocator);
-		}
 
 		public void Clear()
         {
@@ -47,6 +43,41 @@ namespace BXGeometryGraph.Runtime
 				meshs[i].Dispose();
             }
 			meshs.Dispose();
+        }
+
+        public JobHandle AddToGeometry(GeometryData* geo, JobHandle dependensOn)
+        {
+            JobHandle jobHandle = default;
+            if(points.IsCreated && points.Length > 0)
+            {
+                geo->points.AddRange(points.AsArray());
+            }
+            if(meshs.IsCreated && meshs.Length > 0)
+            {
+                for (int i = 0; i < meshs.Length; ++i)
+                {
+                    jobHandle = JobHandle.CombineDependencies(jobHandle, meshs[i].AddToGeometry(geo, dependensOn));
+                }
+            }
+            return jobHandle;
+        }
+
+        [BurstCompile]
+        public struct CopyPointsToGeometryJob : IJob
+        {
+            [ReadOnly]
+            public NativeArray<float3> positions_from;
+
+            [WriteOnly]
+            public NativeArray<float3> positions_to;
+
+            public void Execute()
+            {
+                for (int i = 0; i < positions_from.Length; ++i)
+                {
+                    positions_to[i] = positions_from[i];
+                }
+            }
         }
     }
 }

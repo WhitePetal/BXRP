@@ -36,6 +36,20 @@
             },
             "m_InputSlot": {
                 "m_Node": {
+                    "m_Id": "ad30ff2fd6c14526a7cc75035eb345cd"
+                },
+                "m_SlotId": 0
+            }
+        },
+        {
+            "m_OutputSlot": {
+                "m_Node": {
+                    "m_Id": "ad30ff2fd6c14526a7cc75035eb345cd"
+                },
+                "m_SlotId": 4
+            },
+            "m_InputSlot": {
+                "m_Node": {
                     "m_Id": "e208f03fbce8418783dc89b9cf130ada"
                 },
                 "m_SlotId": 0
@@ -44,8 +58,8 @@
     ],
     "m_GepmetryContext": {
         "m_Position": {
-            "x": 163.0,
-            "y": 37.0
+            "x": 409.9999694824219,
+            "y": 320.0
         },
         "m_Blocks": [
             {
@@ -354,8 +368,8 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": 144.0,
-            "y": 320.0,
+            "x": 106.00003051757813,
+            "y": 283.0000305175781,
             "width": 243.0,
             "height": 149.0
         }
@@ -416,7 +430,7 @@
     "m_Hidden": false,
     "m_GeometryOutputName": "VerticesZ",
     "m_StageCapability": 7,
-    "m_Value": 4,
+    "m_Value": 2,
     "m_DefaultValue": 2,
     "m_Labels": []
 }
@@ -480,7 +494,7 @@
     "m_Hidden": false,
     "m_GeometryOutputName": "Selection",
     "m_StageCapability": 7,
-    "m_Value": false,
+    "m_Value": true,
     "m_DefaultValue": false
 }
 

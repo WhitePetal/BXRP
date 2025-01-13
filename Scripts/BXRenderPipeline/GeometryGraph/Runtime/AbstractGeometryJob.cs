@@ -20,6 +20,21 @@ namespace BXGeometryGraph.Runtime
 		[NonSerialized]
 		public string nodeGuid;
 		//#endif
+		[NonSerialized]
+		protected GeometryRenderer owner;
+
+		public virtual void Init(GeometryRenderer owner)
+		{
+			this.owner = owner;
+
+			if (depenedJobs == null) return;
+			for(int i = 0; i < depenedJobs.Length; ++i)
+			{
+				if (depenedJobs[i] == null)
+					continue;
+				depenedJobs[i].Init(owner);
+			}
+		}
 
 		public abstract JobHandle Schedule(JobHandle dependsOn = new JobHandle());
 
@@ -30,11 +45,21 @@ namespace BXGeometryGraph.Runtime
 		public virtual GeometryData GetGeometry(int outputId)
         {
 			GeometryData data = new GeometryData();
-			data.CreateEmpty(Allocator.TempJob);
 			return data;
 
 		}
 
-		public abstract void Dispose();
+		public virtual void Dispose()
+        {
+			if (depenedJobs != null && depenedJobs.Length > 0)
+			{
+				for (int i = 0; i < depenedJobs.Length; ++i)
+				{
+					if (depenedJobs[i] == null)
+						continue;
+					depenedJobs[i].Dispose();
+				}
+			}
+		}
     }
 }
