@@ -7,9 +7,24 @@
 #define _OTHER_PCF7 1
 #define _CASCADE_BLEND_DITHER 1
 
+// PCF3 在部分安卓机有阴影条纹，且效果较差，因此这里PCF3实际使用PCF5
 #if defined(_DIRECTIONAL_PCF3)
-	#define DIRECTIONAL_FILTER_SAMPLES 4
-	#define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_3x3
+    // #define DIRECTIONAL_FILTER_SAMPLES 4
+    // #define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_3x3
+    #define DIRECTIONAL_FILTER_SAMPLES 9
+    #define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_5x5
+    // 该方法可解决PCF3部分安卓机阴影条纹问题
+    // shadowOffset0 -> 0.5 / shadowMapSize
+    // half SampleShadowmapFiltered(TEXTURE2D_SHADOW_PARAM(ShadowMap, sampler_ShadowMap), float3 shadowCoord, float4 shadowOffset0, float4 shadowOffset1)
+    // {
+    //     // 4-tap hardware comparison
+    //     half4 attenuation4;
+    //     attenuation4.x = real(SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord + float3(shadowOffset0.xy, 0)));
+    //     attenuation4.y = real(SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord + float3(shadowOffset0.zw, 0)));
+    //     attenuation4.z = real(SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord + float3(shadowOffset1.xy, 0)));
+    //     attenuation4.w = real(SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord + float3(shadowOffset1.zw, 0)));
+    //     return dot(attenuation4, half(0.25));
+    // }
 #elif defined(_DIRECTIONAL_PCF5)
 	#define DIRECTIONAL_FILTER_SAMPLES 9
 	#define DIRECTIONAL_FILTER_SETUP SampleShadow_ComputeSamples_Tent_5x5
@@ -100,12 +115,16 @@ half FilterDirectionalShadow (float3 shadowCoord) {
 		float4 size = _ShadowMapSize.yyxx;
 		DIRECTIONAL_FILTER_SETUP(size, shadowCoord.xy, weights, positions);
 		half shadow = half(0.0);
-		for (int i = 0; i < int(DIRECTIONAL_FILTER_SAMPLES); ++i) 
+        [unroll(DIRECTIONAL_FILTER_SAMPLES)]
+		for (int i = 0; i < DIRECTIONAL_FILTER_SAMPLES; ++i) 
         {
 			shadow += weights[i] * SampleDirectionalShadowMap(
-				half3(positions[i].xy, half(shadowCoord.z))
+				float3(positions[i].xy, shadowCoord.z)
 			);
 		}
+        // float4 offset0 = float4(_ShadowMapSize.y, -_ShadowMapSize.y, -_ShadowMapSize.y, _ShadowMapSize.y) * 0.5;
+        // float4 offset1 = float4(_ShadowMapSize.y, _ShadowMapSize.y, -_ShadowMapSize.y, -_ShadowMapSize.y) * 0.5;
+        // half shadow = SampleShadowmapFiltered(TEXTURE2D_SHADOW_ARGS(_DirectionalShadowMap, SHADOW_SAMPLER), shadowCoord, offset0, offset1);
         return max(half(0.0), shadow);
 	#else
 		return SampleDirectionalShadowMap(shadowCoord);
