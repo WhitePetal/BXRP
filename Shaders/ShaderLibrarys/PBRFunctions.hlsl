@@ -41,7 +41,7 @@ half V_SmithGGXCorrelated(half ndotl, half ndotv, half rr)
 {
     half lambda_GGXV = ndotl * sqrt((-ndotv * rr + ndotv) * ndotv + rr);
     half lambda_GGXL = ndotv * sqrt((-ndotl * rr + ndotl) * ndotl + rr);
-    return half(0.5) / (lambda_GGXV + lambda_GGXL + half(0.00001));
+    return half(0.5) / (lambda_GGXV + lambda_GGXL + half(0.0001));
 }
 
 half D_GGX(half ndoth, half rr)

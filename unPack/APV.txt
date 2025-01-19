@@ -1,0 +1,22 @@
+
+
+Cell
+{
+    Entrys
+}
+
+Entry
+{
+    Chunks: chunkIndex,  numberOfChunk
+}
+
+Chunk
+{
+    Bricks
+}
+
+Brick
+{
+    BrickCell
+    Probes 4 * 4 * 4 => 64
+}
