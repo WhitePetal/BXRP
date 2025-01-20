@@ -7,7 +7,6 @@ using UnityEngine.Serialization;
 using Unity.Mathematics;
 using Unity.IO.LowLevel.Unsafe;
 using Unity.Collections;
-using BXRenderPipeline.HighDefinition;
 
 using CellDesc = BXRenderPipeline.ProbeReferenceVolume.CellDesc;
 using CellData = BXRenderPipeline.ProbeReferenceVolume.CellData;
@@ -332,10 +331,68 @@ namespace BXRenderPipeline
 				for (int i = 0; i < renderingLayerMasks.Length; ++i)
 					masks[i] = renderingLayerMasks[i].mask;
 			}
+			return masks;
 		}
 
 		internal static int GetCellSizeInBricks(int simplificationLevels) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, simplificationLevels);
 		internal static int GetMaxSubdivision(int simplificationLevels) => simplificationLevels + 1; // we add one for the top subdiv level which is the same size as a cell
 		internal static float GetMinBrickSize(float minDistanceBetweenProbes) => Mathf.Max(0.01f, minDistanceBetweenProbes);
-	}
+
+		private bool m_HasSupportData = false;
+		private bool m_SharedDataIsValid = false;
+		private bool m_UseStreamingAsset = true;
+
+        public void OnValidate()
+        {
+			singleSceneMode &= m_SceneGUIDs.Count <= 1;
+
+			if (m_LightingScenarios.Count == 0)
+				m_LightingScenarios = new List<string>() { ProbeReferenceVolume.defaultLightingScenario };
+
+			settings.Upgrade();
+        }
+
+        private void OnEnable()
+        {
+			Migrate();
+
+			m_HasSupportData = ComputeHasSupportData();
+			m_SharedDataIsValid = ComputeHasValidSharedData();
+        }
+
+		internal void Migrate()
+        {
+			if(version != CoreUtils.GetLastEnumValue<Version>())
+            {
+#pragma warning disable 618 // Type or member is obsolete
+				if(version < Version.RemoveProbeVolumeSceneData)
+                {
+#if UNITY_EDITOR
+					var sceneData = ProbeReferenceVolume.instance.sceeneData;
+					if (sceneData == null)
+						return;
+
+					foreach(var scene in m_SceneGUIDs)
+                    {
+						SceneBakeData newSceneData = new SceneBakeData();
+						
+                    }
+#endif
+				}
+			}
+        }
+
+		// For functions below:
+		// In editor users can delete asset at any moment, so we need to compute the result from scratch all the time
+		// In builds however, we want to avoid the expensive I/O operations
+		private bool ComputeHasValidSharedData()
+        {
+			return cellSharedDataAsset != null && cellSharedDataAsset.FileExists() && cellBricksDataAsset.FileExists();
+        }
+
+		private bool ComputeHasSupportData()
+        {
+			return cellSupportDataAsset != null && cellSupportDataAsset.IsValid() && cellSupportDataAsset.FileExists();
+        }
+    }
 }

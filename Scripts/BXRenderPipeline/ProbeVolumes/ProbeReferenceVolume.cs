@@ -422,7 +422,7 @@ namespace BXRenderPipeline
 
 		internal class CellStreamingInfo
 		{
-			public CellStreamingRequest
+			//public CellStreamingRequest
 		}
 
 		[DebuggerDisplay("Index = {desc.index} Loaded = {loaded}")]
@@ -436,7 +436,21 @@ namespace BXRenderPipeline
 			public CellIndexInfo indexInfo = new CellIndexInfo();
 			public CellBlendingInfo blendingInfo = new CellBlendingInfo();
 			public CellStreamingInfo streamingInfo = new CellStreamingInfo();
-		}
+
+			public int referenceCount = 0;
+			public bool loaded; // "Loaded" means the streaming system decided the cell should be loaded. It does not mean it's ready for GPU consumption (because of blending or dist streaming)
+
+			public CellData.PerScenarioData scenario0;
+			public CellData.PerScenarioData scenario1;
+			public bool hasTwoScenarios;
+
+			//public CellInstanceDebugProbes debugProbes;
+
+            public int CompareTo(Cell other)
+            {
+                throw new NotImplementedException();
+            }
+        }
 
 
 		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
