@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace BXRenderPipeline
 {
+	[BXVolumeComponentMenu("PostProcess/Bloom")]
     public class BXBloomComponent : BXVolumeComponment
     {
         [Range(0f, 10f)]

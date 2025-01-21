@@ -454,5 +454,12 @@ namespace BXRenderPipeline
 
 
 		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+
+		private static ProbeReferenceVolume _instance = new ProbeReferenceVolume();
+
+		/// <summary>
+		/// Get the instance of the probe reference volume (singleton)
+		/// </summary>
+		public static ProbeReferenceVolume instance => _instance;
 	}
 }

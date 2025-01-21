@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace BXRenderPipeline
 {
     /// <summary>
@@ -263,7 +267,112 @@ namespace BXRenderPipeline
         /// <param name="exposureTexture">Texture containing the exposure value for this frame.</param>
         public void RenderDebug(Camera camera, ProbeVolumesOptions options, Texture exposureTexture)
         {
+			if(camera.cameraType != CameraType.Reflection && camera.cameraType != CameraType.Preview)
+			{
+				if (options != null)
+					ProbeVolumeDebug.currentOffset = options.worldOffset_runtime;
 
+				DrawProbeDebug(camera, exposureTexture);
+			}
         }
-    }
+
+		/// <summary>
+		/// Checks if APV sampling debug is enabled
+		/// </summary>
+		/// <returns>True if APV sampling debug is enabled</returns>
+		public bool IsProbeSamplingDebugEnabled()
+		{
+			return probeSamplingDebugData.update != ProbeSamplingDebugUpdate.Never;
+		}
+
+		/// <summary>
+		/// Returns the resources used for APV probe sampling debug mode
+		/// </summary>
+		/// <param name="camera">The camera for which to evaluate the debug mode</param>
+		/// <param name="resultBuffer">The buffer that should be filled with position and normal</param>
+		/// <param name="coords">The screen space coords to sample the position and normal</param>
+		/// <returns>True if the pipeline should write position and normal at coords in resultBuffer</returns>
+		public bool GetProbeSamplingDebugResources(Camera camera, out GraphicsBuffer resultBuffer, out Vector2 coords)
+		{
+			resultBuffer = probeSamplingDebugData.positionNormalBuffer;
+			coords = probeSamplingDebugData.coordinates;
+
+			if (!probeVolumeDebug.drawProbeSamplingDebug)
+				return false;
+
+#if UNITY_EDITOR
+			if (probeSamplingDebugData.camera != camera)
+				return false;
+#endif
+
+			if (probeSamplingDebugData.update == ProbeSamplingDebugUpdate.Never)
+				return false;
+
+			if(probeSamplingDebugData.update == ProbeSamplingDebugUpdate.Once)
+			{
+				probeSamplingDebugData.update = ProbeSamplingDebugUpdate.Never;
+				probeSamplingDebugData.forceScreenCenterCoordinates = false;
+			}
+
+			return true;
+		}
+
+#if UNITY_EDITOR
+		private static void SceneGUI(SceneView sceneView)
+		{
+			// APV debug needs to detect user keyboard and mouse position to update ProbeSamplingPositionDebug
+			Event e = Event.current;
+
+			if (e.control && !ProbeReferenceVolume.probeSamplingDebugData.shortcutPressed)
+				ProbeReferenceVolume.probeSamplingDebugData.update = ProbeSamplingDebugUpdate.Always;
+
+			if (!e.control && ProbeReferenceVolume.probeSamplingDebugData.shortcutPressed)
+				ProbeReferenceVolume.probeSamplingDebugData.update = ProbeSamplingDebugUpdate.Never;
+
+			ProbeReferenceVolume.probeSamplingDebugData.shortcutPressed = e.control;
+
+			if(e.clickCount > 0 && e.button == 0)
+			{
+				if (ProbeReferenceVolume.probeSamplingDebugData.shortcutPressed)
+					ProbeReferenceVolume.probeSamplingDebugData.update = ProbeSamplingDebugUpdate.Once;
+				else
+					ProbeReferenceVolume.probeSamplingDebugData.update = ProbeSamplingDebugUpdate.Never;
+			}
+
+			if (ProbeReferenceVolume.probeSamplingDebugData.update == ProbeSamplingDebugUpdate.Never)
+				return;
+
+			Vector2 screenCoordinates;
+
+			if (ProbeReferenceVolume.probeSamplingDebugData.forceScreenCenterCoordinates)
+				screenCoordinates = new Vector2(sceneView.camera.scaledPixelWidth * 0.5f, sceneView.camera.scaledPixelHeight * 0.5f);
+			else
+				screenCoordinates = HandleUtility.GUIPointToScreenPixelCoordinate(e.mousePosition);
+
+			if (screenCoordinates.x < 0 || screenCoordinates.x > sceneView.camera.scaledPixelWidth ||
+				screenCoordinates.y < 0 || screenCoordinates.y > sceneView.camera.scaledPixelHeight)
+				return;
+
+			ProbeReferenceVolume.probeSamplingDebugData.camera = sceneView.camera;
+			ProbeReferenceVolume.probeSamplingDebugData.coordinates = screenCoordinates;
+
+			if(e.type != EventType.Repaint && e.type != EventType.Layout)
+			{
+				var go = HandleUtility.PickGameObject(e.mousePosition, false);
+				if (go != null && go.TryGetComponent<MeshRenderer>(out var renderer))
+					instance.probeVolumeDebug.samplingRenderingLayer = renderer.renderingLayerMask;
+			}
+
+			SceneView.currentDrawingSceneView.Repaint(); // useful when 'Always Refresh' is not toggled
+		}
+#endif
+
+		private bool TryCreateDebugRenderData()
+		{
+			if (!BXRenderPipeline.TryGetRenderCommonSettings(out var settings))
+				return false;
+
+			return true;
+		}
+	}
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace BXRenderPipeline
 {
+	[BXVolumeComponentMenu("PostProcess/Expourse")]
     public class BXExpourseComponent : BXVolumeComponment
     {
         [Header("光圈")]

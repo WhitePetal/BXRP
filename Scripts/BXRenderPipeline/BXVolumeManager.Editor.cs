@@ -73,7 +73,7 @@ namespace BXRenderPipeline
                 {
                     switch (attr)
                     {
-                        case VolumeComponentMenu attrMenu:
+                        case BXVolumeComponentMenu attrMenu:
                             {
                                 path = attrMenu.menu;
                                 break;

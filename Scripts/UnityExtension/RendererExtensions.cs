@@ -7,6 +7,7 @@ namespace BXRenderPipeline
 {
 	public static class RendererExtensions
 	{
+		// Need Remove in 2023
 		public static bool isLOD0(this Renderer renderer)
 		{
 			var trans = renderer.transform;

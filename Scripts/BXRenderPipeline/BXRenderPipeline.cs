@@ -248,5 +248,21 @@ namespace BXRenderPipeline
 			}
 			return null;
 		}
+
+		public static bool TryGetRenderCommonSettings(out BXRenderCommonSettings settings)
+		{
+			settings = null;
+			var pipelineAsset = GraphicsSettings.currentRenderPipeline;
+			if (pipelineAsset == null)
+				return false;
+
+			var bxPipelineAsset = pipelineAsset as BXRenderPipelineAsset;
+			if (bxPipelineAsset == null)
+				return false;
+
+			settings = bxPipelineAsset.commonSettings;
+
+			return settings != null;
+		}
 	}
 }
