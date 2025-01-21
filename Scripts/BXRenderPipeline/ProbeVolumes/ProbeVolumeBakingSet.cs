@@ -211,7 +211,9 @@ namespace BXRenderPipeline
 		}
 
 		[SerializeField]
-		internal string lightingScenario = ProbeReferenceVolume.defaultLightingScenario;
+		// TODO:NEED IMPLEMENT
+		//internal string lightingScenario = ProbeReferenceVolume.defaultLightingScenario;
+		internal string lightingScenario = "";
 		private string m_OtherScenario = null;
 		private float m_ScenarioBlendingFactor = 0f;
 
@@ -347,7 +349,8 @@ namespace BXRenderPipeline
 			singleSceneMode &= m_SceneGUIDs.Count <= 1;
 
 			if (m_LightingScenarios.Count == 0)
-				m_LightingScenarios = new List<string>() { ProbeReferenceVolume.defaultLightingScenario };
+				// TODO:NEED IMPLEMENT
+				//m_LightingScenarios = new List<string>() { ProbeReferenceVolume.defaultLightingScenario };
 
 			settings.Upgrade();
         }
@@ -368,15 +371,16 @@ namespace BXRenderPipeline
 				if(version < Version.RemoveProbeVolumeSceneData)
                 {
 #if UNITY_EDITOR
-					var sceneData = ProbeReferenceVolume.instance.sceeneData;
-					if (sceneData == null)
-						return;
+					//TODO: NEED IMPLEMENT
+					//var sceneData = ProbeReferenceVolume.instance.sceeneData;
+					//if (sceneData == null)
+					//	return;
 
-					foreach(var scene in m_SceneGUIDs)
-                    {
-						SceneBakeData newSceneData = new SceneBakeData();
-						
-                    }
+					//foreach(var scene in m_SceneGUIDs)
+					//               {
+					//	SceneBakeData newSceneData = new SceneBakeData();
+
+				//}
 #endif
 				}
 			}
@@ -393,6 +397,16 @@ namespace BXRenderPipeline
 		private bool ComputeHasSupportData()
         {
 			return cellSupportDataAsset != null && cellSupportDataAsset.IsValid() && cellSupportDataAsset.FileExists();
+        }
+
+        public void OnBeforeSerialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnAfterDeserialize()
+        {
+            throw new NotImplementedException();
         }
     }
 }

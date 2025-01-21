@@ -6,11 +6,16 @@ namespace BXRenderPipeline
 {
     public class BXExpourseComponent : BXVolumeComponment
     {
+        [Header("光圈")]
         public float aperture = 22f;
+        [Header("快门")]
         public float shutter = 1f / 125f;
+        [Header("感光度")]
         public float sensor_sensitvity = 100f;
 
+        [HideInInspector]
         public float ev100Runtime;
+        [HideInInspector]
         public float expourseRuntime;
 
         public override void OverrideData(BXVolumeComponment component, float interpFactor)

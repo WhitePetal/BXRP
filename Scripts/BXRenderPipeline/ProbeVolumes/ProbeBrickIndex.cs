@@ -429,7 +429,8 @@ namespace BXRenderPipeline
 			// This can still be improved but is not the bottleneck currently
 
 			// Compute some stuff
-			var prv = ProbeReferenceVolume.instance;
+			// TODO:NEED IMPLEMENT
+			//var prv = ProbeReferenceVolume.instance;
 		}
 	}
 }
