@@ -374,5 +374,10 @@ namespace BXRenderPipeline
 
 			return true;
 		}
+
+        private void DrawProbeDebug(Camera camera, Texture exposureTexture)
+        {
+
+        }
 	}
 }
