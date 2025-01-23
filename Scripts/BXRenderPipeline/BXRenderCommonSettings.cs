@@ -1,12 +1,17 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace BXRenderPipeline
 {
     [CreateAssetMenu(menuName = "Rendering/BXRenderPipeline/RenderCommonSettings")]
-    public class BXRenderCommonSettings : ScriptableObject
+    public class BXRenderCommonSettings : ScriptableObject, ISerializationCallbackReceiver
     {
         public const string GraphicsQualityKey = "_BXGraphicsQuality";
         public const int GraphicsQualityExtreValue = 0;
@@ -121,12 +126,19 @@ namespace BXRenderPipeline
         [Header("LOD Bias")]
         public float lodBias = 1f;
 
+        [Header("Adaptive Probe Volume")]
+        public ProbeVolumeRuntimeResources probeVolumeRuntimeResources;
+
+
+
         [HideInInspector]
         public int quality;
         [HideInInspector]
         public bool supportComputeShader;
         [HideInInspector]
         public bool fewMemory;
+
+
 
         private int GetDefaultGraphicsQuality()
 		{
@@ -196,5 +208,15 @@ namespace BXRenderPipeline
                     break;
 			}
 		}
+
+        public void OnBeforeSerialize()
+        {
+            BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeRuntimeResources, out var result, out var message);
+        }
+
+        public void OnAfterDeserialize()
+        {
+
+        }
     }
 }

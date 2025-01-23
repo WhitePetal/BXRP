@@ -6,18 +6,19 @@ using UnityEngine;
 namespace BXRenderPipeline
 {
 	[Serializable]
-	internal class ProbeVolumeRuntimeResources
+	public class ProbeVolumeRuntimeResources : IRenderPipelineResources
 	{
 		[Header("Runtime")]
 
 		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/ProbeVolumeBlendStates.compute")]
 		public ComputeShader probeVolumeBlendStateCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/ProbeVolumeUploadData.compute")]
 		public ComputeShader probeVolumeUploadDataCS;
 		public ComputeShader probeVolumeUploadDataL2CS;
 	}
 
 	[Serializable]
-	internal class ProbeVolumeGlobalSettings
+	public class ProbeVolumeGlobalSettings : IRenderPipelineResources
 	{
 		[Header("Debug")]
 

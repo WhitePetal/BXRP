@@ -372,7 +372,14 @@ namespace BXRenderPipeline
 			if (!BXRenderPipeline.TryGetRenderCommonSettings(out var settings))
 				return false;
 
-			return true;
+            // TODO: NEED IMPLEMENT
+#if UNITY_EDITOR // On non editor builds, we need to check if the standalone build contains debug shaders
+            //var shaderStrippingSetting = settings.shaderStrippingSetting;
+            //if (shaderStrippingSetting != null && shaderStrippingSetting.stripRuntimeDebugShaders)
+                //return false;
+#endif
+
+            return true;
 		}
 
         private void DrawProbeDebug(Camera camera, Texture exposureTexture)

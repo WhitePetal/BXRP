@@ -1,0 +1,41 @@
+#pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch gles3 /** webgpu **/
+//#pragma enable_d3d11_debug_symbols
+
+#include "ProbeVolumeUploadDataCommon.hlsl"
+
+#pragma kernel UploadData
+
+#pragma multi_compile_local _ PROBE_VOLUMES_SHARED_DATA
+#pragma multi_compile_local _ PROBE_VOLUMES_SKY_OCCLUSION
+#pragma multi_compile_local _ PROBE_VOLUMES_SKY_SHADING_DIRECTION
+#pragma multi_compile_local _ PROBE_VOLUMES_PROBE_OCCLUSION
+
+RWTexture3D<float4> _Out_L0_L1Rx;
+RWTexture3D<float4> _Out_L1G_L1Ry;
+RWTexture3D<float4> _Out_L1B_L1Rz;
+
+#ifdef PROBE_VOLUMES_SHARED_DATA
+    RWTexture3D<float> _Out_Shared;
+
+    #ifdef PROBE_VOLUMES_SKY_OCCLUSION
+        RWTexture3D<float4> _Out_SkyOcclusionL0L1;
+        #ifdef PROBE_VOLUMES_SKY_SHADING_DIRECTION
+            RWTexture3D<float> _Out_SkyShadingDirectionIndices;
+        #endif
+    #endif
+#endif
+
+#ifdef PROBE_VOLUMES_PROBE_OCCLUSION
+    RWTexture3D<float4> _Out_ProbeOcclusion;
+#endif
+
+[numthreads(64, 1, 1)]
+void UploadData(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    uint chunkIndex = dispatchThreadID.z;
+    uint chunkProbeIndex = dispatchThreadID.x * 4; // One thread processes 4 probes
+
+    uint offsetL0_L1Rx = _L0L1rxOffset + chunkIndex * _L0Size + chunkProbeIndex * _L0ProbeSize; // 4 x 8 bytes probes
+    uint offsetL1G_L1Ry = _L1GryOffset + chunkIndex * _L1Size + chunkProbeIndex * _L1ProbeSize; // 4 x 4 bytes probes
+    uint offsetL1B_L1Rz = _L1BrzOffset + chunkIndex * _L1Size + chunkProbeIndex * _L1ProbeSize; // 4 * 4 bytes probes
+}

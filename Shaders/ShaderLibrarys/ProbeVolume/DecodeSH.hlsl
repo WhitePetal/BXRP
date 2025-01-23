@@ -8,7 +8,7 @@
 
 float3 DecodeSH(float l0, float3 l1)
 {
-    return (l1 - 0.5f) * (2.0f * APV_L1_ENCODING_SCALE * l0)
+    return (l1 - 0.5f) * (2.0f * APV_L1_ENCODING_SCALE * l0);
 }
 
 void DecodeSH_L2(inout float3 l0, inout float4 l2_R, inout float4 l2_G, inout float4 l2_B, inout float3 l2_C)
