@@ -128,6 +128,8 @@ namespace BXRenderPipeline
 
         [Header("Adaptive Probe Volume")]
         public ProbeVolumeRuntimeResources probeVolumeRuntimeResources;
+        public ProbeVolumeDebugResources probeVolumeDebugResources;
+        public ProbeVolumeBakingResources probeVolumeBakingResources;
 
 
 
@@ -211,7 +213,8 @@ namespace BXRenderPipeline
 
         public void OnBeforeSerialize()
         {
-            BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeRuntimeResources, out var result, out var message);
+            BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeRuntimeResources, out var runtimeResult, out var runtimeMessage);
+            BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeDebugResources, out var debugResult, out var debugMessage);
         }
 
         public void OnAfterDeserialize()

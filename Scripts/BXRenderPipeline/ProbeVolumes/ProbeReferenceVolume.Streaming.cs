@@ -22,6 +22,7 @@ namespace BXRenderPipeline
 			public int _SkyShadingDirectionOffset;
 			public int _L2_0Offset;
 			public int _L2_1Offset;
+			public int _L2_2Offset;
 			public int _L2_3Offset;
 
 			public int _L0Size;

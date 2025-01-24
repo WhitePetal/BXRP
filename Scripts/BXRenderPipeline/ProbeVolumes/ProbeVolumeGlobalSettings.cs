@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace BXRenderPipeline
 {
@@ -10,23 +11,57 @@ namespace BXRenderPipeline
 	{
 		[Header("Runtime")]
 
+
 		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/ProbeVolumeBlendStates.compute")]
 		public ComputeShader probeVolumeBlendStateCS;
 		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/ProbeVolumeUploadData.compute")]
 		public ComputeShader probeVolumeUploadDataCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/ProbeVolumeUploadDataL2.compute")]
 		public ComputeShader probeVolumeUploadDataL2CS;
 	}
 
 	[Serializable]
-	public class ProbeVolumeGlobalSettings : IRenderPipelineResources
-	{
+	public class ProbeVolumeDebugResources : IRenderPipelineResources
+    {
 		[Header("Debug")]
 
+
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Debug/ProbeVolumeDebug.shader")]
 		public Shader probeVolumeDebugShader;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Debug/ProbeVolumeFragmentationDebug.shader")]
 		public Shader probeVolumeFragmentationDebugShader;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Debug/ProbeVolumeSamplingDebug.shader")]
 		public Shader probeVolumeSamplingDebugShader;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Debug/ProbeVolumeOffsetDebug.shader")]
 		public Shader probeVolumeOffsetDebugShader;
+		[ResourcePath("Assets/Scripts/BXRenderPipeline/ProbeVolumes/Debug/ProbeSamplingDebugMesh.fbx")]
 		public Mesh probeSamplingDebugMesh;
+		[ResourcePath("Assets/Scripts/BXRenderPipeline/ProbeVolumes/Debug/ProbeVolumeNumbersDisplayTex.fbx")]
 		public Texture2D numbersDisplayTex;
+	}
+
+	[Serializable]
+	public class ProbeVolumeBakingResources : IRenderPipelineResources
+    {
+		[Header("Baking")]
+
+
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/ProbeVolumeCellDilation.shader")]
+		public ComputeShader dilationShader;
+    }
+
+	[Serializable]
+	public class ProbeVolumeGlobalSettings : IRenderPipelineResources
+	{
+		[SerializeField, Tooltip("Enabling this will make APV baked data assets compatible with Addressables and Asset Bundles.This will also make Disk Streaming unavailable. After changing this setting, a clean rebuild may be required for data assets to be included in Adressables and Asset Bundles.")]
+		private bool m_ProbeVolumeDisableStreamingAssets;
+
+		public bool probeVolumeDisableStreamingAssets
+        {
+			get => m_ProbeVolumeDisableStreamingAssets;
+			//set => this.SetValueAndNotify(ref m_ProbeVolumeDisableStreamingAssets, value, nameof(m_ProbeVolumeDisableStreamingAssets));
+			set => m_ProbeVolumeDisableStreamingAssets = value;
+
+		}
 	}
 }

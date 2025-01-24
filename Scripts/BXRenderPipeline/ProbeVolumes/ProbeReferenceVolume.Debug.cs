@@ -43,7 +43,7 @@ namespace BXRenderPipeline
         /// <summary>
         /// Show in red probes that have been made invalid by adjustment volumes. Important to note that this debug view will only show result for volumes still pressent in the scene
         /// </summary>
-        InvalidateByAdjustmentVolumes,
+        InvalidatedByAdjustmentVolumes,
         /// <summary>
         /// Base on size
         /// </summary>

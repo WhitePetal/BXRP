@@ -17,6 +17,7 @@ CBUFFER_START(CellStreamingScratchBufferLayout)
     int _SkyShadingDirectionOffset;
     int _L2_0Offset;
     int _L2_1Offset;
+    int _L2_2Offset;
     int _L2_3Offset;
     int _L0Size;
     int _L0ProbeSize;

@@ -335,4 +335,14 @@ inline float DecodeFloatRGBA( float4 enc )
     return dot( enc, kDecodeDot );
 }
 
+float Remap(float origFrom, float origTo, float targetFrom, float targetTo, float value)
+{
+    return lerp(targetFrom, targetTo, (value - origFrom) / (origTo - origFrom));
+}
+
+half Remap(half origFrom, half origTo, half targetFrom, half targetTo, half value)
+{
+    return lerp(targetFrom, targetTo, (value - origFrom) / (origTo - origFrom));
+}
+
 #endif
