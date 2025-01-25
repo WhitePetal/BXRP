@@ -1,0 +1,24 @@
+#pragma kernel DilateCell
+
+#pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch webgpu
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+#include "Assets/Scripts/BXRenderPipeline/ProbeVolumes/EditorOnly/ProbeGIBaking.Dilate.cs.hlsl"
+#include "../ProbeVolume.hlsl"
+
+CBUFFER_START(APVDilation)
+float4 _DilationParameters;
+float4 _DilationParameters2;
+CBUFFER_END
+
+#define _ProbeCount (uint)_DilationParameters.x;
+#define _ValidityThreshold _DilationParameters.y;
+#define _SearchRadius _DilationParameters.z;
+#define _SquaredDistanceWeight (_DilationParameters.w > 0)
+
+StructuredBuffer<int> _NeedDilating;
+StructuredBuffer<float3> _ProbePositionBuffer;
+
+RWStructuredBuffer<DilatedProbe> _OutputProbes;
+

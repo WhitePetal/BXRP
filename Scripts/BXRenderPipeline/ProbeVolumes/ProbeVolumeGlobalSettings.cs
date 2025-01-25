@@ -45,9 +45,30 @@ namespace BXRenderPipeline
     {
 		[Header("Baking")]
 
+		// TODO: NEED IMPLEMENT SHADERs
 
-		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/ProbeVolumeCellDilation.shader")]
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/ProbeVolumeCellDilation.compute")]
 		public ComputeShader dilationShader;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/ProbeVolumeSubdivide.compute")]
+		public ComputeShader subdivideSceneCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/VoxelizeScene.shader")]
+		public Shader voxelizeSceneShader;
+
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/TraceVirtualOffset.urtshader")]
+		public ComputeShader traceVirtualOffsetCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/TraceVirtualOffset.urtshader")]
+		public RayTracingShader traceVirtualOffsetRT;
+
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/DynamicGISkyOcclusion.urtshader")]
+		public ComputeShader skyOcclusionCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/DynamicGISkyOcclusion.urtshader")]
+		public RayTracingShader skyOcclusionRT;
+
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/TraceRenderingLayerMask.urtshader")]
+		public ComputeShader renderingLayerCS;
+		[ResourcePath("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/TraceRenderingLayerMask.urtshader")]
+		public RayTracingShader renderingLayerRT;
+
     }
 
 	[Serializable]

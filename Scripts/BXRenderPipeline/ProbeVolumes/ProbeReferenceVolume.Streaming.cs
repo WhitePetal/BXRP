@@ -111,5 +111,33 @@ namespace BXRenderPipeline
 
 			//public ProbeVolumeBakingSet
 		}
+
+#if UNITY_EDITOR
+		// By default on editor we load a lot of cells in one go to avoid having to mess with scene view
+		// to see results, this value can still be changed via API.
+		private bool m_LoadMaxCellsPerFrame = true;
+#else
+		private bool m_LoadMaxCellsPerFrame = false;
+#endif
+
+		public bool loadMaxCellsPerFrame
+        {
+			get => m_LoadMaxCellsPerFrame;
+			set => m_LoadMaxCellsPerFrame = value;
+        }
+
+		private const int kMaxCellLoadedPerFrame = 10;
+		private int m_NumberOfCellsLoadedPerFrame = 1;
+
+		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
+
+		/// <summary>
+		/// Set the number of cells that are loaded per frame when needed. This number is capped at 10.
+		/// </summary>
+		/// <param name="numberOfCells"></param>
+		public void SetNumberOfCellsLoadedPerFrame(int numberOfCells)
+        {
+			m_NumberOfCellsLoadedPerFrame = Mathf.Min(kMaxCellLoadedPerFrame, Mathf.Max(1, numberOfCells));
+        }
 	}
 }

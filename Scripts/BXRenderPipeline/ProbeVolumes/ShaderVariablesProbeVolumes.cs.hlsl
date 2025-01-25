@@ -5,13 +5,6 @@
 #ifndef SHADERVARIABLESPROBEVOLUMES_CS_HLSL
 #define SHADERVARIABLESPROBEVOLUMES_CS_HLSL
 //
-// BXRenderPipeline.APVDefinitions:  static fields
-//
-#define PROBE_INDEX_CHUNK_SIZE (243)
-#define PROBE_VALIDITY_THRESHOLD (0.05)
-#define PROBE_MAX_REGION_COUNT (4)
-
-//
 // BXRenderPipeline.APVLeakReductionMode:  static fields
 //
 #define APVLEAKREDUCTIONMODE_NONE (0)
@@ -19,6 +12,13 @@
 #define APVLEAKREDUCTIONMODE_QUALITY (2)
 #define APVLEAKREDUCTIONMODE_VALIDITY_BASED (1)
 #define APVLEAKREDUCTIONMODE_VALIDITY_AND_NORMAL_BASE (2)
+
+//
+// BXRenderPipeline.APVDefinitions:  static fields
+//
+#define PROBE_INDEX_CHUNK_SIZE (243)
+#define PROBE_VALIDITY_THRESHOLD (0.05)
+#define PROBE_MAX_REGION_COUNT (4)
 
 // Generated from BXRenderPipeline.ShaderVariablesProbeVolumes
 // PackingRules = Exact

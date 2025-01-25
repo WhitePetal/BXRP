@@ -461,5 +461,20 @@ namespace BXRenderPipeline
 		/// Get the instance of the probe reference volume (singleton)
 		/// </summary>
 		public static ProbeReferenceVolume instance => _instance;
+
+		private int m_MaxSubdivision;
+		private float m_MinBrickSize;
+		internal int GetMaxSubdivision() => m_MaxSubdivision;
+		internal float MinBrickSize() => m_MinBrickSize;
+
+		private bool m_SupportGPUStreaming;
+		private bool m_SupportDiskStreaming;
+		private bool m_ForceNoDiskStreaming;
+		internal bool gpuStreamingEnabled => m_SupportGPUStreaming;
+		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
+
+		private ProbeVolumeBakingSet m_CurrentBakingSet = null;
+
+		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
 	}
 }
