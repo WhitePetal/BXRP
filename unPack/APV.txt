@@ -20,3 +20,15 @@ Brick
     BrickCell
     Probes 4 * 4 * 4 => 64
 }
+
+
+
+
+Cell
+{
+    4 * 4 Probes
+    Bricks - Subdivision
+    {
+        4 * 4 Probes
+    }
+}

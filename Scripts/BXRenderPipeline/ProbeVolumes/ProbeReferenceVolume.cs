@@ -462,18 +462,44 @@ namespace BXRenderPipeline
 		/// </summary>
 		public static ProbeReferenceVolume instance => _instance;
 
+		private ProbeBrickIndex m_Index;
+
+		private bool m_ProbeReferenceVolumeInit;
+
+		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
+
 		private int m_MaxSubdivision;
 		private float m_MinBrickSize;
+		private float m_MaxBrickSize;
+		private Vector3 m_ProbeOffset;
+
 		internal int GetMaxSubdivision() => m_MaxSubdivision;
 		internal float MinBrickSize() => m_MinBrickSize;
+		internal float MaxBrickSize() => m_MaxBrickSize;
+		internal Vector3 ProbeOffset() => m_ProbeOffset;
 
+		private bool m_SupportScenarioBlending;
 		private bool m_SupportGPUStreaming;
 		private bool m_SupportDiskStreaming;
 		private bool m_ForceNoDiskStreaming;
+
+		internal bool supportScenarioBlending => m_SupportScenarioBlending;
 		internal bool gpuStreamingEnabled => m_SupportGPUStreaming;
 		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
 
 		private ProbeVolumeBakingSet m_CurrentBakingSet = null;
+
+		public float scenarioBlendingFactor
+		{
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.scenarioBlendingFactor : 0.0f;
+			set
+			{
+				if (m_CurrentBakingSet != null)
+					m_CurrentBakingSet.BlendLightingScenario(m_CurrentBakingSet.otherScenario, value);
+			}
+		}
+
+		internal static string GetSceneGUID(Scene scene) => scene.GetGUID();
 
 		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
 	}

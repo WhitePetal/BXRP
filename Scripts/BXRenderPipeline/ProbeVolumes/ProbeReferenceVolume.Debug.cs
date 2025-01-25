@@ -3,6 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using System.Linq;
+using UnityEngine.SceneManagement;
+using UnityEngine.Experimental.Rendering.RenderGraphModule;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -785,11 +788,263 @@ namespace BXRenderPipeline
             // Those are mostly for internal dev purpose
             if (Debug.isDebugBuild)
             {
-
+				streamingContainer.children.Add(new DebugUI.BoolField
+				{
+					displayName = "Display Index Fragmentation",
+					getter = () => probeVolumeDebug.displayIndexFragmentation,
+					setter = value => probeVolumeDebug.displayIndexFragmentation = value
+				});
+				var indexDefragContainerChildren = new DebugUI.Container()
+				{
+					isHiddenCallback = () => !probeVolumeDebug.displayIndexFragmentation
+				};
+				indexDefragContainerChildren.children.Add(new DebugUI.Value
+				{
+					displayName = "Index Fragmentation Rate",
+					getter = () => instance.indexFragmentationRate
+				});
+				streamingContainer.children.Add(indexDefragContainerChildren);
+				streamingContainer.children.Add(new DebugUI.BoolField
+				{
+					displayName = "Verbose Log",
+					getter = () => probeVolumeDebug.verboseStreamingLog,
+					setter = value => probeVolumeDebug.verboseStreamingLog = value
+				});
+				streamingContainer.children.Add(new DebugUI.BoolField
+				{
+					displayName = "Debug Streaming",
+					getter = () => probeVolumeDebug.debugStreaming,
+					setter = value => probeVolumeDebug.debugStreaming = value
+				});
             }
+
+			widgetList.Add(streamingContainer);
+
+			if(supportScenarioBlending && m_CurrentBakingSet != null)
+			{
+				var blendingContainer = new DebugUI.Container()
+				{
+					displayName = "Scenario Blending"
+				};
+				blendingContainer.children.Add(new DebugUI.IntField
+				{
+					displayName = "Number Of Cells Blended Per Frame",
+					getter = () => instance.numberOfCellsBlendedPerFram,
+					setter = value => instance.numberOfCellsBlendedPerFram = value,
+					min = () => 0
+				});
+				blendingContainer.children.Add(new DebugUI.FloatField
+				{
+					displayName = "Turnover Rate",
+					getter = () => instance.turnoverRate,
+					setter = value => instance.turnoverRate = value,
+					min = () => 0,
+					max = () => 1
+				});
+
+				void RefreshScenarioNames(string guid)
+				{
+					HashSet<string> allScenarios = new();
+					foreach(var set in Resources.FindObjectsOfTypeAll<ProbeVolumeBakingSet>())
+					{
+						if (!set.sceneGUIDs.Contains(guid))
+							continue;
+						foreach (var scenario in set.lightingScenarios)
+							allScenarios.Add(scenario);
+					}
+
+					allScenarios.Remove(m_CurrentBakingSet.lightingScenario);
+					if(m_DebugActiveSceneGUID == guid && allScenarios.Count + 1 == m_DebugScenarioNames.Length && m_DebugActiveScenario == m_CurrentBakingSet.lightingScenario)
+					{
+						return;
+					}
+
+					int i = 0;
+					ArrayExtensions.ResizeArray(ref m_DebugScenarioNames, allScenarios.Count + 1);
+					ArrayExtensions.ResizeArray(ref m_DebugScenarioValues, allScenarios.Count + 1);
+					m_DebugScenarioNames[0] = new GUIContent("None");
+					m_DebugScenarioValues[0] = 0;
+					foreach(var scenario in allScenarios)
+					{
+						i++;
+						m_DebugScenarioNames[i] = new GUIContent(scenario);
+						m_DebugScenarioValues[i] = i;
+					}
+
+					m_DebugActiveSceneGUID = guid;
+					m_DebugActiveScenario = m_CurrentBakingSet.lightingScenario;
+					m_DebugScenarioField.enumNames = m_DebugScenarioNames;
+					m_DebugScenarioField.enumValues = m_DebugScenarioValues;
+					if (probeVolumeDebug.otherStateIndex >= m_DebugScenarioNames.Length)
+						probeVolumeDebug.otherStateIndex = 0;
+				}
+
+				m_DebugScenarioField = new DebugUI.EnumField
+				{
+					displayName = "Scenario Blend Target",
+					tooltip = "Select another lighting scenario to blend with the active lighting scenario",
+					enumNames = m_DebugScenarioNames,
+					enumValues = m_DebugScenarioValues,
+					getIndex = () =>
+					{
+						if (m_CurrentBakingSet == null)
+							return 0;
+						RefreshScenarioNames(GetSceneGUID(SceneManager.GetActiveScene()));
+
+						probeVolumeDebug.otherStateIndex = 0;
+						if (!string.IsNullOrEmpty(m_CurrentBakingSet.otherScenario))
+						{
+							for (int i = 1; i < m_DebugScenarioNames.Length; i++)
+							{
+								if (m_DebugScenarioNames[i].text == m_CurrentBakingSet.otherScenario)
+								{
+									probeVolumeDebug.otherStateIndex = i;
+									break;
+								}
+							}
+						}
+						return probeVolumeDebug.otherStateIndex;
+					},
+					setIndex = value =>
+					{
+						string other = value == 0 ? null : m_DebugScenarioNames[value].text;
+						m_CurrentBakingSet.BlendLightingScenario(other, m_CurrentBakingSet.scenarioBlendingFactor);
+						probeVolumeDebug.otherStateIndex = value;
+					},
+					getter = () => probeVolumeDebug.otherStateIndex,
+					setter = value => probeVolumeDebug.otherStateIndex = value
+				};
+
+				blendingContainer.children.Add(m_DebugScenarioField);
+				blendingContainer.children.Add(new DebugUI.FloatField
+				{
+					displayName = "Scenario Blending Factor",
+					tooltip = "Blend between lighting scenarios by adjusting this slider",
+					getter = () => instance.scenarioBlendingFactor,
+					setter = value => instance.scenarioBlendingFactor = value,
+					min = () => 0.0f,
+					max = () => 1.0f
+				});
+
+				widgetList.Add(blendingContainer);
+			}
+
+			if(widgetList.Count > 0)
+			{
+				m_DebugItems = widgetList.ToArray();
+				var panel = DebugManager.instance.GetPanel(k_DebugPanelName, true);
+				panel.children.Add(m_DebugItems);
+			}
+
+			DebugManager debugManager = DebugManager.instance;
+			debugManager.RegisterData(probeVolumeDebug);
         }
 
-        private void DrawProbeDebug(Camera camera, Texture exposureTexture)
+		void UnregisterDebug(bool destoryPanel)
+		{
+			if (destoryPanel)
+				DebugManager.instance.RemovePanel(k_DebugPanelName);
+			else
+				DebugManager.instance.GetPanel(k_DebugPanelName, false).children.Remove(m_DebugItems);
+		}
+
+		private void ClearDebugData()
+		{
+			realtimeSubdivisionInfo.Clear();
+		}
+
+		private void OnClearLightingdata()
+		{
+			ClearDebugData();
+		}
+
+		class RenderFragmentationOverlayPassData
+		{
+			public Material debugFragmentationMaterial;
+			public DebugOverlay debugOverlay;
+			public int chunkCount;
+			public ComputeBuffer debugFragmentationData;
+			public TextureHandle colorBuffer;
+			public TextureHandle depthBuffer;
+		}
+
+		/// <summary>
+		/// Render a debug view showing fragmentation of the GPU memory
+		/// </summary>
+		/// <param name="renderGraph">The RenderGraph responsible for executing this pass</param>
+		/// <param name="colorBuffer">The color buffer where the overlay will be rendered</param>
+		/// <param name="depthBuffer">The depth buffer used for depth-testing the overly</param>
+		/// <param name="debugOverlay">The debug overlay manager to orchestrate multiple overlays</param>
+		public void RenderFragmentationOverlay(RenderGraph renderGraph, TextureHandle colorBuffer, TextureHandle depthBuffer, DebugOverlay debugOverlay)
+		{
+			if (!m_ProbeReferenceVolumeInit || !probeVolumeDebug.displayIndexFragmentation)
+				return;
+
+			using(var builder = renderGraph.AddRenderPass<RenderFragmentationOverlayPassData>("APVFragmentationOverlay", out var passData))
+			{
+				passData.debugOverlay = debugOverlay;
+				passData.debugFragmentationMaterial = m_DebugFragmentationMaterial;
+				passData.colorBuffer = builder.UseColorBuffer(colorBuffer, 0);
+				passData.depthBuffer = builder.UseDepthBuffer(depthBuffer, DepthAccess.ReadWrite);
+				passData.debugFragmentationData = m_Index.GetDebugFragmentationBuffer();
+				passData.chunkCount = passData.debugFragmentationData.count;
+
+				builder.SetRenderFunc(
+					(RenderFragmentationOverlayPassData data, RenderGraphContext ctx) =>
+					{
+						var mpb = ctx.renderGraphPool.GetTempMaterialPropertyBlock();
+
+						data.debugOverlay.SetViewport(ctx.cmd);
+						mpb.SetInt("_ChunkCount", data.chunkCount);
+						mpb.SetBuffer("_DebugFragmentation", data.debugFragmentationData);
+						ctx.cmd.DrawProcedural(Matrix4x4.identity, data.debugFragmentationMaterial, 0, MeshTopology.Triangles, 3, 1, mpb);
+						data.debugOverlay.Next();
+					});
+			}
+		}
+
+		private bool ShouldCullCell(Vector3 cellPosition, Transform cameraTransform, Plane[] frustumPlanes)
+		{
+			var volumeAABB = GetCellBounds(cellPosition);
+			var cellSize = MaxBrickSize();
+
+			// We do coarse culling with cell, finer culling later
+			float distanceRoundedUpWithCellSize = Mathf.CeilToInt(probeVolumeDebug.probeCullingDistance / cellSize) * cellSize;
+
+			if (Vector3.Distance(cameraTransform.position, volumeAABB.center) > distanceRoundedUpWithCellSize)
+				return true;
+
+			return !GeometryUtility.TestPlanesAABB(frustumPlanes, volumeAABB);
+		}
+
+
+		private Bounds GetCellBounds(Vector3 cellPosition)
+		{
+			var cellSize = MaxBrickSize();
+			var cellOffset = ProbeOffset() + ProbeVolumeDebug.currentOffset;
+			Vector3 cellCenterWS = cellOffset + cellPosition * cellSize + Vector3.one * (cellSize * 0.5f);
+
+			return new Bounds(cellCenterWS, cellSize * Vector3.one);
+		}
+
+		private static Vector4[] s_BoundsArray = new Vector4[16 * 3];
+
+		private static void UpdateDebugFromSelection(ref Vector4[] _AdjustmentVolumeBounds, ref int _AdjustmentVolumeCount)
+		{
+			if (ProbeVolumeDebug.s_ActiveAdjustmentVolumes == 0)
+				return;
+
+#if UNITY_EDITOR
+			foreach(var touchup in Selection.GetFiltered<ProbeAdjustmentVolume>(SelectionMode.Unfiltered))
+			{
+				if (!touchup.isActiveAndEnabled) continue;
+			}
+#endif
+		}
+
+
+
+		private void DrawProbeDebug(Camera camera, Texture exposureTexture)
         {
 
         }

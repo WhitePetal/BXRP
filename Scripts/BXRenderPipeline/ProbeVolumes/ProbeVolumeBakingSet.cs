@@ -399,6 +399,11 @@ namespace BXRenderPipeline
 			return cellSupportDataAsset != null && cellSupportDataAsset.IsValid() && cellSupportDataAsset.FileExists();
         }
 
+		internal void BlendLightingScenario(string otherScenario, float blendingFactor)
+		{
+			throw new NotImplementedException();
+		}
+
         public void OnBeforeSerialize()
         {
             throw new NotImplementedException();

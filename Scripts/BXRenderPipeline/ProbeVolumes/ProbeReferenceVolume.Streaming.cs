@@ -120,6 +120,8 @@ namespace BXRenderPipeline
 		private bool m_LoadMaxCellsPerFrame = false;
 #endif
 
+		private int m_NumberOfCellsBlendedPerFrame = 10000;
+
 		public bool loadMaxCellsPerFrame
         {
 			get => m_LoadMaxCellsPerFrame;
@@ -128,8 +130,27 @@ namespace BXRenderPipeline
 
 		private const int kMaxCellLoadedPerFrame = 10;
 		private int m_NumberOfCellsLoadedPerFrame = 1;
+		private float m_TurnoverRate = 0.1f;
 
 		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
+
+		/// <summary>
+		/// Maximum number of cells that are blended per frame
+		/// </summary>
+		public int numberOfCellsBlendedPerFram
+		{
+			get => m_NumberOfCellsBlendedPerFrame;
+			set => m_NumberOfCellsBlendedPerFrame = Mathf.Max(1, value);
+		}
+
+		/// <summary>
+		/// Percentage of cells loaded in the blending pool that can be replaced by out of date cells
+		/// </summary>
+		public float turnoverRate
+		{
+			get => m_TurnoverRate;
+			set => m_TurnoverRate = Mathf.Clamp01(value);
+		}
 
 		/// <summary>
 		/// Set the number of cells that are loaded per frame when needed. This number is capped at 10.

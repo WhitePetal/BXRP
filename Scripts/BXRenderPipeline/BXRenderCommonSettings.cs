@@ -49,8 +49,6 @@ namespace BXRenderPipeline
         public ComputeShader hizCompute;
         public Material hizPixelMat;
 
-        public BXShaderStrippingSetting shaderStrippingSetting;
-
         [Header("分辨率")]
         [Range(0.1f, 4f)]
         public float downSample = 1;
