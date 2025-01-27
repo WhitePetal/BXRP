@@ -422,7 +422,15 @@ namespace BXRenderPipeline
 
 		internal class CellStreamingInfo
 		{
-			//public CellStreamingRequest
+			public CellStreamingRequest request = null;
+			public CellStreamingRequest blendingRequest0 = null;
+			public CellStreamingRequest blendingRequest1 = null;
+			public float streamingScore;
+
+			public bool IsStreaming()
+			{
+				return request != null && request.IsStreaming();
+			}
 		}
 
 		[DebuggerDisplay("Index = {desc.index} Loaded = {loaded}")]
@@ -444,13 +452,122 @@ namespace BXRenderPipeline
 			public CellData.PerScenarioData scenario1;
 			public bool hasTwoScenarios;
 
-			//public CellInstanceDebugProbes debugProbes;
+			public CellInstancedDebugProbes debugProbes;
 
-            public int CompareTo(Cell other)
+			public int CompareTo(Cell other)
             {
-                throw new NotImplementedException();
+				if (streamingInfo.streamingScore < other.streamingInfo.streamingScore)
+					return -1;
+				else if (streamingInfo.streamingScore > other.streamingInfo.streamingScore)
+					return 1;
+				else
+					return 0;
             }
         }
+
+		internal struct Volume : IEquatable<Volume>
+		{
+			internal Vector3 corner;
+			internal Vector3 X; // the vectors are NOT normalized, their length determines the size of the box
+			internal Vector3 Y;
+			internal Vector3 Z;
+
+			internal float maxSubdivisionMultiplier;
+			internal float minSubdivisionMultiplier;
+
+			public Volume(Matrix4x4 trs, float maxSubdivision, float minSubdivision)
+			{
+				X = trs.GetColumn(0);
+				Y = trs.GetColumn(1);
+				Z = trs.GetColumn(2);
+				corner = (Vector3)trs.GetColumn(3) - 0.5f * X - 0.5f * Y - 0.5f * Z;
+
+				this.maxSubdivisionMultiplier = maxSubdivision;
+				this.minSubdivisionMultiplier = minSubdivision;
+			}
+
+			public Volume(Vector3 corner, Vector3 X, Vector3 Y, Vector3 Z, float maxSubdivision = 1f, float minSubdivision = 0f)
+			{
+				this.corner = corner;
+				this.X = X;
+				this.Y = Y;
+				this.Z = Z;
+				this.maxSubdivisionMultiplier = maxSubdivision;
+				this.minSubdivisionMultiplier = minSubdivision;
+			}
+
+			public Volume(Volume copy)
+			{
+				this.corner = copy.corner;
+				this.X = copy.X;
+				this.Y = copy.Y;
+				this.Z = copy.Z;
+				this.maxSubdivisionMultiplier = copy.maxSubdivisionMultiplier;
+				this.minSubdivisionMultiplier = copy.minSubdivisionMultiplier;
+			}
+
+			public Volume(Bounds bounds)
+			{
+				var size = bounds.size;
+				this.corner = bounds.center - size * 0.5f;
+				X = new Vector3(size.x, 0f, 0f);
+				Y = new Vector3(0f, size.y, 0f);
+				Z = new Vector3(0f, 0f, size.z);
+
+				maxSubdivisionMultiplier = minSubdivisionMultiplier = 0f;
+			}
+
+			public Bounds CalculateAABB()
+			{
+				Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+				Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+
+				for(int x = 0; x < 2; ++x)
+				{
+					for(int y = 0; y < 2; ++y)
+					{
+						for(int z = 0; z < 2; ++z)
+						{
+							Vector3 dir = new Vector3(x, y, z);
+							Vector3 pt = corner + X * dir.x + Y * dir.y + Z * dir.z;
+							min = Vector3.Min(min, pt);
+							max = Vector3.Max(max, pt);
+						}
+					}
+				}
+
+				return new Bounds((min + max) * 0.5f, max - min);
+			}
+
+			public void CalculateCenterAndSize(out Vector3 center, out Vector3 size)
+			{
+				size = new Vector3(X.magnitude, Y.magnitude, Z.magnitude);
+				center = corner + 0.5f * X + 0.5f * Y + 0.5f * Z;
+			}
+
+			public void Transform(Matrix4x4 trs)
+			{
+				corner = trs.MultiplyPoint(corner);
+				X = trs.MultiplyVector(X);
+				Z = trs.MultiplyVector(Y);
+				Z = trs.MultiplyVector(Z);
+			}
+
+			public override string ToString()
+			{
+				return $"Corner: {corner}, X: {X}, Y: {Y}, Z: {Z}, MaxSubdiv: {maxSubdivisionMultiplier}";
+			}
+
+			public bool Equals(Volume other)
+			{
+				return corner == other.corner
+					&& X == other.X
+					&& Y == other.Y
+					&& Z == other.Z
+					&& minSubdivisionMultiplier == other.minSubdivisionMultiplier
+					&& maxSubdivisionMultiplier == other.maxSubdivisionMultiplier;
+			}
+		}
 
 
 		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
@@ -478,6 +595,8 @@ namespace BXRenderPipeline
 		internal float MaxBrickSize() => m_MaxBrickSize;
 		internal Vector3 ProbeOffset() => m_ProbeOffset;
 
+		private bool m_IsInitialized;
+		private bool m_EnabledBySRP;
 		private bool m_SupportScenarioBlending;
 		private bool m_SupportGPUStreaming;
 		private bool m_SupportDiskStreaming;
@@ -486,6 +605,12 @@ namespace BXRenderPipeline
 		internal bool supportScenarioBlending => m_SupportScenarioBlending;
 		internal bool gpuStreamingEnabled => m_SupportGPUStreaming;
 		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
+
+		/// <summary>
+		/// This Probe Volume is initialized
+		/// </summary>
+		public bool isInitialized => m_IsInitialized;
+		internal bool enabledBySRP => m_EnabledBySRP;
 
 		private ProbeVolumeBakingSet m_CurrentBakingSet = null;
 
@@ -502,5 +627,7 @@ namespace BXRenderPipeline
 		internal static string GetSceneGUID(Scene scene) => scene.GetGUID();
 
 		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
+
+		private ProbeVolumeSHBands m_SHBands;
 	}
 }

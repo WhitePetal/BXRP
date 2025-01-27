@@ -96,8 +96,10 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 392e3f8914bb94166a905a98f9b1ab67, type: 2}
-  m_LightingSettings: {fileID: 4890085278179872738, guid: 4cab18b5c39de423e979ed50d53476e7, type: 2}
+  m_LightingDataAsset: {fileID: 112000000, guid: 392e3f8914bb94166a905a98f9b1ab67,
+    type: 2}
+  m_LightingSettings: {fileID: 4890085278179872738, guid: 4cab18b5c39de423e979ed50d53476e7,
+    type: 2}
 --- !u!196 &4
 NavMeshSettings:
   serializedVersion: 2
@@ -1859,7 +1861,8 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488, type: 3}
+  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488,
+    type: 3}
 --- !u!1 &848638480
 GameObject:
   m_ObjectHideFlags: 0
@@ -2299,7 +2302,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1d1c960da42524fb6bf2856e2745344c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sharedGeometrySO: {fileID: -5475051401550479605, guid: 1a041969ad0cdb1448a2756b8da7772b, type: 3}
+  sharedGeometrySO: {fileID: -5475051401550479605, guid: 1a041969ad0cdb1448a2756b8da7772b,
+    type: 3}
   material: {fileID: 2100000, guid: 8305b8e06b44a45b0b95176209b083c3, type: 2}
   time: 0
 --- !u!1 &1000957437
@@ -2366,7 +2370,8 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488, type: 3}
+  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488,
+    type: 3}
 --- !u!114 &1021702489
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -2828,7 +2833,8 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 1.1708726e-19, y: 1.8904281e+23, z: 7.144328e+31, w: 1.8129028e+34}
+  m_BoundingSphereOverride: {x: 1.1708726e-19, y: 1.8904281e+23, z: 7.144328e+31,
+    w: 1.8129028e+34}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 1
@@ -3357,7 +3363,8 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488, type: 3}
+  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488,
+    type: 3}
 --- !u!1 &1534060967
 GameObject:
   m_ObjectHideFlags: 0
@@ -4342,7 +4349,8 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488, type: 3}
+  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488,
+    type: 3}
 --- !u!1 &1956017154
 GameObject:
   m_ObjectHideFlags: 0
@@ -4557,7 +4565,8 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488, type: 3}
+  m_CustomBakedTexture: {fileID: 8900000, guid: c7820eb28a2e542e5a4b5bfe0fe62488,
+    type: 3}
 --- !u!1 &2065464447
 GameObject:
   m_ObjectHideFlags: 0

@@ -230,7 +230,7 @@ namespace BXRenderPipeline
         // Sample position debug
         private Mesh m_DebugProbeSamplingMesh; // mesh with 8 quads, 1 arrow and 2 locators
         private Material m_ProbeSamplingDebugMaterial; // Used to draw probe sampling information (quad with weight, arrow, locator)
-        private Material m_ProbeSampingDebugMaterial02; // Used to draw probe sampling information (shaded probes)
+        private Material m_ProbeSamplingDebugMaterial02; // Used to draw probe sampling information (shaded probes)
 
         private Texture m_DisplayNumbersTexture;
 
@@ -393,8 +393,8 @@ namespace BXRenderPipeline
             m_DebugProbeSamplingMesh = debugResources.probeSamplingDebugMesh;
             m_DebugProbeSamplingMesh.bounds = new Bounds(Vector3.zero, Vector3.one * 9999999.9f); // dirty way of disabling culling (objects spawned at (0.0, 0.0, 0.0) but vertices moved in vertex shader)
             m_ProbeSamplingDebugMaterial = CoreUtils.CreateEngineMaterial(debugResources.probeVolumeSamplingDebugShader);
-            m_ProbeSampingDebugMaterial02 = CoreUtils.CreateEngineMaterial(debugResources.probeVolumeDebugShader);
-            m_ProbeSampingDebugMaterial02.enableInstancing = true;
+            m_ProbeSamplingDebugMaterial02 = CoreUtils.CreateEngineMaterial(debugResources.probeVolumeDebugShader);
+            m_ProbeSamplingDebugMaterial02.enableInstancing = true;
 
             probeSamplingDebugData.positionNormalBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 2, System.Runtime.InteropServices.Marshal.SizeOf(typeof(Vector4)));
 
@@ -439,7 +439,7 @@ namespace BXRenderPipeline
             UnregisterDebug(true);
             CoreUtils.Destroy(m_DebugMaterial);
             CoreUtils.Destroy(m_ProbeSamplingDebugMaterial);
-            CoreUtils.Destroy(m_ProbeSampingDebugMaterial02);
+            CoreUtils.Destroy(m_ProbeSamplingDebugMaterial02);
             CoreUtils.Destroy(m_DebugOffsetMaterial);
             CoreUtils.Destroy(m_DebugFragmentationMaterial);
             CoreUtils.SafeRelease(probeSamplingDebugData?.positionNormalBuffer);
@@ -1017,7 +1017,6 @@ namespace BXRenderPipeline
 			return !GeometryUtility.TestPlanesAABB(frustumPlanes, volumeAABB);
 		}
 
-
 		private Bounds GetCellBounds(Vector3 cellPosition)
 		{
 			var cellSize = MaxBrickSize();
@@ -1038,15 +1037,353 @@ namespace BXRenderPipeline
 			foreach(var touchup in Selection.GetFiltered<ProbeAdjustmentVolume>(SelectionMode.Unfiltered))
 			{
 				if (!touchup.isActiveAndEnabled) continue;
+
+				Volume volume = new Volume(Matrix4x4.TRS(touchup.transform.position, touchup.transform.rotation, touchup.GetExtents()), 0, 0);
+				volume.CalculateCenterAndSize(out var center, out var _);
+
+				if(touchup.shape == ProbeAdjustmentVolume.Shape.Sphere)
+				{
+					volume.Z.x = float.MaxValue;
+					volume.X.x = touchup.radius;
+				}
+				else
+				{
+					volume.X *= 0.5f;
+					volume.Y *= 0.5f;
+					volume.Z *= 0.5f;
+				}
+
+				_AdjustmentVolumeBounds[_AdjustmentVolumeCount * 3 + 0] = new Vector4(center.x, center.y, center.z, volume.Z.x);
+				_AdjustmentVolumeBounds[_AdjustmentVolumeCount * 3 + 1] = new Vector4(volume.X.x, volume.X.y, volume.X.z, volume.Z.y);
+				_AdjustmentVolumeBounds[_AdjustmentVolumeCount * 3 + 2] = new Vector4(volume.Y.x, volume.Y.y, volume.Y.z, volume.Z.z);
+
+				if (++_AdjustmentVolumeCount == 16)
+					break;
 			}
 #endif
 		}
 
+		private bool ShouldCullCell(Vector3 cellPosition, Vector4[] adjustmentVolumeBounds, int adjustmentVolumeCount)
+		{
+			var cellAABB = GetCellBounds(cellPosition);
+
+			for (int touchup = 0; touchup < adjustmentVolumeCount; ++touchup)
+			{
+				Vector3 center = adjustmentVolumeBounds[touchup * 3 + 0];
+
+				if(adjustmentVolumeBounds[touchup * 3].w == float.MaxValue) // sphere
+				{
+					var diameter = adjustmentVolumeBounds[touchup * 3 + 1].x * 2f;
+					Bounds bounds = new Bounds(center, Vector3.one * diameter);
+
+					if (bounds.Intersects(cellAABB))
+						return false;
+				}
+				else
+				{
+					Volume volume = new Volume();
+					volume.X = adjustmentVolumeBounds[touchup * 3 + 1];
+					volume.Y = adjustmentVolumeBounds[touchup * 3 + 2];
+					volume.Z = new Vector3(
+						adjustmentVolumeBounds[touchup * 3 + 0].w,
+						adjustmentVolumeBounds[touchup * 3 + 1].w,
+						adjustmentVolumeBounds[touchup * 3 + 2].w
+						);
+
+					volume.corner = center - volume.X - volume.Y - volume.Z;
+					volume.X *= 2.0f;
+					volume.Y *= 2.05f;
+					volume.Z *= 2.0f;
+
+					if (ProbeVolumePositioning.OBBAABBIntersect(volume, cellAABB, volume.CalculateAABB()))
+						return false;
+				}
+			}
+
+			return true;
+		}
 
 
 		private void DrawProbeDebug(Camera camera, Texture exposureTexture)
         {
+			if (!enabledBySRP || !isInitialized)
+				return;
 
-        }
+			bool drawProbes = probeVolumeDebug.drawProbes;
+			bool drawDebug = drawProbes || probeVolumeDebug.drawVirtualOffsetPush || probeVolumeDebug.drawProbeSamplingDebug;
+
+			int adjustmentVolumeCount = 0;
+			Vector4[] adjustmentVolumeBounds = s_BoundsArray;
+			if(!drawDebug && probeVolumeDebug.autoDrawProbes)
+			{
+				UpdateDebugFromSelection(ref adjustmentVolumeBounds, ref adjustmentVolumeCount);
+				drawProbes |= adjustmentVolumeCount != 0;
+			}
+
+			if (!drawDebug && !drawProbes)
+				return;
+
+			GeometryUtility.CalculateFrustumPlanes(camera, m_DebugFrustumPlanes);
+
+			m_DebugMaterial.shaderKeywords = null;
+			if (m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL1)
+				m_DebugMaterial.EnableKeyword("PROBE_VOLUMES_L1");
+			else if (m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
+				m_DebugMaterial.EnableKeyword("PROBE_VOLUMES_L2");
+
+			// This is to force the rendering not to draw to the depth pre pass and still behave.
+			// They are going to be rendered opaque anyhow, just using the transparent render queue to make sure
+			// they properly behave w.r.t fog.
+			m_DebugMaterial.renderQueue = (int)RenderQueue.Transparent;
+			m_DebugOffsetMaterial.renderQueue = (int)RenderQueue.Transparent;
+			m_ProbeSamplingDebugMaterial.renderQueue = (int)RenderQueue.Transparent;
+			m_ProbeSamplingDebugMaterial02.renderQueue = (int)RenderQueue.Transparent;
+
+			m_DebugMaterial.SetVector("_DebugEmptyProbeData", APVDefinitions.debugEmptyColor);
+
+			if (probeVolumeDebug.drawProbeSamplingDebug)
+			{
+				m_ProbeSamplingDebugMaterial.SetInt("_ShadingMode", (int)probeVolumeDebug.probeShading);
+				m_ProbeSamplingDebugMaterial.SetInt("_RenderingLayerMask", (int)probeVolumeDebug.samplingRenderingLayer);
+				m_ProbeSamplingDebugMaterial.SetVector("_DebugArrowColor", new Vector4(1f, 1f, 1f, 1f));
+				m_ProbeSamplingDebugMaterial.SetVector("_DebugLocator01Color", new Vector4(1f, 1f, 1f, 1f));
+				m_ProbeSamplingDebugMaterial.SetVector("_DebugLocator02Color", new Vector4(0.3f, 0.3f, 0.3f));
+				m_ProbeSamplingDebugMaterial.SetFloat("_ProbeSize", probeVolumeDebug.probeSamplingDebugSize);
+				m_ProbeSamplingDebugMaterial.SetTexture("_NumbersTex", m_DisplayNumbersTexture);
+				m_ProbeSamplingDebugMaterial.SetInt("_DebugSamplingNoise", Convert.ToInt32(probeVolumeDebug.debugWithSamplingNoise));
+				m_ProbeSamplingDebugMaterial.SetInt("_ForceDebugNormalViewBias", 0); // Add a secondary locator to show intermediate position (with no Anti-Leak) when Anti-Leak is active
+
+				m_ProbeSamplingDebugMaterial.SetBuffer("_positionNormalBuffer", probeSamplingDebugData.positionNormalBuffer);
+
+				Graphics.DrawMesh(m_DebugProbeSamplingMesh, new Vector4(0f, 0f, 0f, 1f), Quaternion.identity, m_ProbeSamplingDebugMaterial, 0, camera);
+				Graphics.ClearRandomWriteTargets();
+			}
+
+			// Sanitize the min max subdiv levels with what is available
+			int minAvailableSubdiv = cells.Count > 0 ? GetMaxSubdivision() - 1 : 0;
+			foreach(var cell in cells.Values)
+			{
+				minAvailableSubdiv = Mathf.Min(minAvailableSubdiv, cell.desc.minSubdiv);
+			}
+
+			int maxSubdivToVisualize = Mathf.Max(0, Mathf.Min(probeVolumeDebug.maxSubdivToVisualize, GetMaxSubdivision() - 1));
+			int minSubdivToVisualize = Mathf.Clamp(probeVolumeDebug.minSubdivToVisualize, minAvailableSubdiv, maxSubdivToVisualize);
+			m_MaxSubdivVisualizedIsMaxAvailable = maxSubdivToVisualize == GetMaxSubdivision() - 1;
+
+			bool adjustmentCull = drawProbes && !probeVolumeDebug.drawProbes && probeVolumeDebug.isolationProbeDebug;
+			foreach(var cell in cells.Values)
+			{
+				if (ShouldCullCell(cell.desc.position, camera.transform, m_DebugFrustumPlanes))
+					continue;
+
+				if (adjustmentCull && ShouldCullCell(cell.desc.position, adjustmentVolumeBounds, adjustmentVolumeCount))
+					continue;
+
+				var debug = CreateInstanceProbes(cell);
+
+				if (debug == null)
+					continue;
+
+				for(int i = 0; i < debug.probeBuffers.Count; ++i)
+				{
+					var props = debug.props[i];
+					props.SetInt("_ShadingMode", (int)probeVolumeDebug.probeShading);
+					props.SetFloat("_ExposureCompensation", probeVolumeDebug.exposureCompensation);
+					props.SetFloat("_ProbeSize", probeVolumeDebug.probeSize);
+					props.SetFloat("_CullDistance", probeVolumeDebug.probeCullingDistance);
+					props.SetInt("_MaxAllowedSubdiv", maxSubdivToVisualize);
+					props.SetInt("_MinAllowedSubdiv", minSubdivToVisualize);
+					props.SetFloat("_ValidityThreshold", m_CurrentBakingSet.settings.dilationSettings.dilationValidityThreshold);
+					props.SetInt("_RenderingLayerMask", probeVolumeDebug.visibleLayers);
+					props.SetFloat("_OffsetSize", probeVolumeDebug.offsetSize);
+					props.SetTexture("_ExposureTexture", exposureTexture);
+
+					if (drawProbes)
+					{
+						m_DebugMaterial.SetVectorArray("_TouchupVolumeBounds", adjustmentVolumeBounds);
+						m_DebugMaterial.SetInt("_AdjustmentVolumeCount", adjustmentVolumeCount);
+						m_DebugMaterial.SetVector("_ScreenSize", new Vector4(camera.pixelWidth, camera.pixelHeight, 1f / camera.pixelWidth, 1f / camera.pixelHeight));
+
+						var probeBuffer = debug.probeBuffers[i];
+						m_DebugMaterial.SetInt("_DebugProbeVolumeSampling", 0);
+						m_DebugMaterial.SetBuffer("_positionNormalBuffer", probeSamplingDebugData.positionNormalBuffer);
+						Graphics.DrawMeshInstanced(debugMesh, 0, m_DebugMaterial, probeBuffer, probeBuffer.Length, props, ShadowCastingMode.Off, false, 0, camera, LightProbeUsage.Off, null);
+					}
+
+					if (probeVolumeDebug.drawProbeSamplingDebug)
+					{
+						var probeBuffer = debug.probeBuffers[i];
+						m_ProbeSamplingDebugMaterial02.SetInt("_DebugProbeVolumeSampling", 1);
+						props.SetInt("_ShadingMode", (int)DebugProbeShadingMode.SH);
+						props.SetFloat("_ProbeSize", probeVolumeDebug.probeSamplingDebugSize);
+						props.SetInt("_DebugSamplingNoise", Convert.ToInt32(probeVolumeDebug.debugWithSamplingNoise));
+						props.SetInt("_RenderingLayerMask", (int)probeVolumeDebug.samplingRenderingLayer);
+						m_ProbeSamplingDebugMaterial02.SetBuffer("_positionNormalBuffer", probeSamplingDebugData.positionNormalBuffer);
+						Graphics.DrawMeshInstanced(debugMesh, 0, m_ProbeSamplingDebugMaterial02, probeBuffer, probeBuffer.Length, props, ShadowCastingMode.Off, false, 0, camera, LightProbeUsage.Off, null);
+					}
+
+					if (probeVolumeDebug.drawVirtualOffsetPush)
+					{
+						m_DebugOffsetMaterial.SetVectorArray("_TouchupVolumeBounds", adjustmentVolumeBounds);
+						m_DebugOffsetMaterial.SetInt("_AdjustmentVolumeCount", probeVolumeDebug.isolationProbeDebug ? adjustmentVolumeCount : 0);
+
+						var offsetBuffer = debug.offsetBuffers[i];
+						Graphics.DrawMeshInstanced(m_DebugOffsetMesh, 0, m_DebugOffsetMaterial, offsetBuffer, offsetBuffer.Length, props, ShadowCastingMode.Off, false, 0, camera, LightProbeUsage.Off, null);
+					}
+				}
+			}
+		}
+
+		internal void ResetDebugViewToMaxSubdiv()
+		{
+			if (m_MaxSubdivVisualizedIsMaxAvailable)
+				probeVolumeDebug.maxSubdivToVisualize = GetMaxSubdivision() - 1;
+		}
+
+		private CellInstancedDebugProbes CreateInstanceProbes(Cell cell)
+		{
+			if (cell.debugProbes != null)
+				return cell.debugProbes;
+
+			if (HasActiveStreamingRequest(cell))
+				return null;
+
+			int maxSubdiv = GetMaxSubdivision() - 1;
+
+			if (!cell.data.bricks.IsCreated || cell.data.bricks.Length == 0 || !cell.data.probePositions.IsCreated || !cell.loaded)
+				return null;
+
+			List<Matrix4x4[]> probeBuffers = new List<Matrix4x4[]>();
+			List<Matrix4x4[]> offsetBuffers = new List<Matrix4x4[]>();
+			List<MaterialPropertyBlock> props = new List<MaterialPropertyBlock>();
+			var chunks = cell.poolInfo.chunkList;
+
+			Vector4[] texels = new Vector4[kProbesPerBatch];
+			float[] layer = new float[kProbesPerBatch];
+			float[] validity = new float[kProbesPerBatch];
+			float[] dilationThreshold = new float[kProbesPerBatch];
+			float[] relativeSize = new float[kProbesPerBatch];
+			float[] touchupUpVolumeAction = cell.data.touchupVolumeInteraction.Length > 0 ? new float[kProbesPerBatch] : null;
+			Vector4[] offsets = cell.data.offsetVectors.Length > 0 ? new Vector4[kProbesPerBatch] : null;
+
+			List<Matrix4x4> probeBuffer = new List<Matrix4x4>();
+			List<Matrix4x4> offsetBuffer = new List<Matrix4x4>();
+
+			var debugData = new CellInstancedDebugProbes();
+			debugData.probeBuffers = probeBuffers;
+			debugData.offsetBuffers = offsetBuffers;
+			debugData.props = props;
+
+			var chunkSizeInProbe = ProbeBrickPool.GetChunkSizeInProbe();
+			var loc = ProbeBrickPool.ProbeCountToDataLocSize(chunkSizeInProbe);
+
+			float baseThreshold = m_CurrentBakingSet.settings.dilationSettings.dilationValidityThreshold;
+			int idxInBatch = 0;
+			int globalIndex = 0;
+			int brickCount = cell.desc.probeCount / ProbeBrickPool.kBrickProbeCountTotal;
+			int bx = 0, by = 0, bz = 0;
+			for(int brickIndex = 0; brickIndex < brickCount; ++brickIndex)
+			{
+				Debug.Assert(bz < loc.z);
+
+				int brickSize = cell.data.bricks[brickIndex].subdivisionLevel;
+				int chunkIndex = brickIndex / ProbeBrickPool.GetChunkSizeInBrick();
+				var chunk = chunks[chunkIndex];
+				Vector3Int brickStart = new Vector3Int(chunk.x + bx, chunk.y + by, chunk.z + bz);
+
+				for(int z = 0; z < ProbeBrickPool.kBrickProbeCountPerDim; ++z)
+				{
+					for(int y = 0; y < ProbeBrickPool.kBrickProbeCountPerDim; ++y)
+					{
+						for(int x = 0; x < ProbeBrickPool.kBrickProbeCountPerDim; ++x)
+						{
+							Vector3Int texelLoc = new Vector3Int(brickStart.x + x, brickStart.y + y, brickStart.z + z);
+
+							int probeFlatIndex = chunkIndex * chunkSizeInProbe + (bx + x) + loc.x * ((by + y) + loc.y * (bz + z));
+							var position = cell.data.probePositions[probeFlatIndex] - ProbeOffset(); // Offset is applied in shader
+
+							probeBuffer.Add(Matrix4x4.TRS(position, Quaternion.identity, Vector3.one * (0.3f * (brickSize + 1))));
+							validity[idxInBatch] = cell.data.validity[probeFlatIndex];
+							dilationThreshold[idxInBatch] = baseThreshold;
+							texels[idxInBatch] = new Vector4(texelLoc.x, texelLoc.y, texelLoc.z, brickSize);
+							relativeSize[idxInBatch] = (float)brickSize / (float)maxSubdiv;
+
+							layer[idxInBatch] = Unity.Mathematics.math.asfloat(cell.data.layer.Length > 0 ? cell.data.layer[probeFlatIndex] : 0xFFFFFFFF);
+							
+							if(touchupUpVolumeAction != null)
+							{
+								touchupUpVolumeAction[idxInBatch] = cell.data.touchupVolumeInteraction[probeFlatIndex];
+								dilationThreshold[idxInBatch] = touchupUpVolumeAction[idxInBatch] > 1.0f ? touchupUpVolumeAction[idxInBatch] - 1.0f : baseThreshold;
+							}
+
+							if(offsets != null)
+							{
+								const float kOffsetThresholdSqr = 1e-6f;
+
+								var offset = cell.data.offsetVectors[probeFlatIndex];
+								offsets[idxInBatch] = offset;
+
+								if (offset.sqrMagnitude < kOffsetThresholdSqr)
+									offsetBuffer.Add(Matrix4x4.identity);
+								else
+								{
+									var orientation = Quaternion.LookRotation(-offset);
+									var scale = new Vector3(0.3f, 0.3f, offset.magnitude);
+									offsetBuffer.Add(Matrix4x4.TRS(position + offset, orientation, scale));
+								}
+							}
+
+							idxInBatch++;
+
+							if(probeBuffer.Count > kProbesPerBatch || globalIndex == cell.desc.probeCount - 1)
+							{
+								idxInBatch = 0;
+								MaterialPropertyBlock prop = new MaterialPropertyBlock();
+
+								prop.SetFloatArray("_Validity", validity);
+								prop.SetFloatArray("_RenderingLayer", layer);
+								prop.SetFloatArray("_DilationThreshold", dilationThreshold);
+								prop.SetFloatArray("_TouchupedByVolume", touchupUpVolumeAction);
+								prop.SetFloatArray("_RelativeSize", relativeSize);
+								prop.SetVectorArray("_IndexInAtlas", texels);
+								if (offsets != null)
+									prop.SetVectorArray("_Offset", offsets);
+
+								props.Add(prop);
+
+								probeBuffers.Add(probeBuffer.ToArray());
+								probeBuffer.Clear();
+
+								offsetBuffers.Add(offsetBuffer.ToArray());
+								offsetBuffer.Clear();
+							}
+
+							globalIndex++;
+						}
+					}
+				}
+
+				bx += ProbeBrickPool.kBrickProbeCountPerDim;
+				if(bx >= loc.x)
+				{
+					bx = 0;
+					by += ProbeBrickPool.kBrickProbeCountPerDim;
+					if(by >= loc.y)
+					{
+						by = 0;
+						bz += ProbeBrickPool.kBrickProbeCountPerDim;
+						if(bz >= loc.z)
+						{
+							bx = 0;
+							by = 0;
+							bz = 0;
+						}
+					}
+				}
+			}
+
+			cell.debugProbes = debugData;
+			return debugData;
+		}
 	}
 }

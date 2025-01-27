@@ -15,6 +15,13 @@ float3 GetCurrentViewPosition()
     return UNITY_MATRIX_I_V._14_24_34;
 }
 
+TEXTURE2D(_ExposureTexture);
+
+float GetCurrentExposureMultiplier()
+{
+    return LOAD_TEXTURE2D(_ExposureTexture, int2(0, 0)).x;
+}
+
 #include "../DecodeSH.hlsl"
 #include "../ProbeVolume.hlsl"
 #include "Assets/Scripts/BXRenderPipeline/ProbeVolumes/ProbeReferenceVolume.Debug.cs.hlsl"

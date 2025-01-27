@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: BXRenderCommon Settings
   m_EditorClassIdentifier: 
   coreBlitPS: {fileID: 4800000, guid: bdc1d85bac1101d4aaffe5fdab67b8e8, type: 3}
-  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9, type: 3}
+  coreBlitColorAndDepthPS: {fileID: 4800000, guid: 8bb09228a8cc8bd4b9a9729c35b575a9,
+    type: 3}
   clusterLightCompute: {fileID: 7200000, guid: 600204642eed34254966b742580d1a7e, type: 3}
   hizCompute: {fileID: 7200000, guid: e19639bdb5fe64b1bb75db41e7513670, type: 3}
   hizPixelMat: {fileID: 2100000, guid: cf9148e57aff34531a362f08fdad8924, type: 2}
@@ -46,9 +47,12 @@ MonoBehaviour:
   postProcessMaterial: {fileID: 2100000, guid: 1b0810ca95c784d9f8b779b7b083e65f, type: 2}
   enablBloom: 1
   deferredMaterial: {fileID: 2100000, guid: c6894ffc7d3f42b4d984004f87fee8c8, type: 2}
-  deferredOtherLightMaterial: {fileID: 2100000, guid: d0648e237c3534d47912763c4469c199, type: 2}
-  pointLightMesh: {fileID: 289301614986012343, guid: 38fe681fa13f84164a017b74cf46f119, type: 3}
-  spotLightMesh: {fileID: 3613567641014311022, guid: f3b0802e9b54b42c289ffa8b29891659, type: 3}
+  deferredOtherLightMaterial: {fileID: 2100000, guid: d0648e237c3534d47912763c4469c199,
+    type: 2}
+  pointLightMesh: {fileID: 289301614986012343, guid: 38fe681fa13f84164a017b74cf46f119,
+    type: 3}
+  spotLightMesh: {fileID: 3613567641014311022, guid: f3b0802e9b54b42c289ffa8b29891659,
+    type: 3}
   gpuDrive: 0
   terrShadow: 0
   terrGrass: 0
@@ -58,6 +62,35 @@ MonoBehaviour:
   textureLOD: 0
   mipmapsMemoryBudge: 512
   lodBias: 1
+  probeVolumeRuntimeResources:
+    probeVolumeBlendStateCS: {fileID: 7200000, guid: a8df1624cd9cbed4692ef4a16d9e6e35,
+      type: 3}
+    probeVolumeUploadDataCS: {fileID: 7200000, guid: db7e1cbf68f7343b9a3a0da59c2f5096,
+      type: 3}
+    probeVolumeUploadDataL2CS: {fileID: 7200000, guid: 8e5d3c3f450004dbe8c1ccaeee887efe,
+      type: 3}
+  probeVolumeDebugResources:
+    probeVolumeDebugShader: {fileID: 4800000, guid: ae0230b59f95c460d9ccbc0639ba2f82,
+      type: 3}
+    probeVolumeFragmentationDebugShader: {fileID: 4800000, guid: f930cd4063fb94662826731dea662088,
+      type: 3}
+    probeVolumeSamplingDebugShader: {fileID: 4800000, guid: b0e0d58e18333440bbb180da11f026b0,
+      type: 3}
+    probeVolumeOffsetDebugShader: {fileID: 4800000, guid: 670b3aa01fe324890838e1cbe07a09c4,
+      type: 3}
+    probeSamplingDebugMesh: {fileID: -3555484719484374845, guid: f335132bc806d44a68d438ac1de375be,
+      type: 3}
+    numbersDisplayTex: {fileID: 2800000, guid: 40021fa67b7fb624ca0402fff8ae64a8, type: 3}
+  probeVolumeBakingResources:
+    dilationShader: {fileID: 0}
+    subdivideSceneCS: {fileID: 0}
+    voxelizeSceneShader: {fileID: 0}
+    traceVirtualOffsetCS: {fileID: 0}
+    traceVirtualOffsetRT: {fileID: 0}
+    skyOcclusionCS: {fileID: 0}
+    skyOcclusionRT: {fileID: 0}
+    renderingLayerCS: {fileID: 0}
+    renderingLayerRT: {fileID: 0}
   quality: 0
   supportComputeShader: 1
   fewMemory: 0

@@ -36,7 +36,7 @@ namespace BXRenderPipeline
 		public Shader probeVolumeOffsetDebugShader;
 		[ResourcePath("Assets/Scripts/BXRenderPipeline/ProbeVolumes/Debug/ProbeSamplingDebugMesh.fbx")]
 		public Mesh probeSamplingDebugMesh;
-		[ResourcePath("Assets/Scripts/BXRenderPipeline/ProbeVolumes/Debug/ProbeVolumeNumbersDisplayTex.fbx")]
+		[ResourcePath("Assets/Scripts/BXRenderPipeline/ProbeVolumes/Debug/ProbeVolumeNumbersDisplayTex.png")]
 		public Texture2D numbersDisplayTex;
 	}
 

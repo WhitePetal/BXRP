@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Debug = UnityEngine.Debug;
 
 namespace BXRenderPipeline
 {
@@ -96,5 +97,45 @@ namespace BXRenderPipeline
 		internal const int kBrickProbeCountPerDim = kBrickCellCount + 1;
 		internal const int kBrickProbeCountTotal = kBrickProbeCountPerDim * kBrickProbeCountPerDim * kBrickProbeCountPerDim;
 		internal const int kChunkProbeCountPerDim = kChunkSizeInBricks * kBrickProbeCountPerDim;
+
+		private const int kMaxPoolWidth = 1 << 11; // 2048 texels is a d3d11 limit for tex3d in all dimensions
+
+		internal static int GetChunkSizeInBrick()
+		{
+			return kChunkSizeInBricks;
+		}
+
+		internal static int GetChunkSizeInProbe()
+		{
+			return kChunkSizeInBricks * kBrickProbeCountTotal;
+		}
+
+		internal static Vector3Int ProbeCountToDataLocSize(int numProbes)
+		{
+			Debug.Assert(numProbes != 0);
+			Debug.Assert(numProbes % kBrickProbeCountTotal == 0);
+
+			int numBricks = numProbes / kBrickProbeCountTotal;
+			int poolWidth = kMaxPoolWidth / kBrickProbeCountPerDim;
+
+			int width, height, depth;
+			depth = (numBricks + poolWidth * poolWidth - 1) / (poolWidth * poolWidth);
+			if (depth > 1)
+				width = height = poolWidth;
+			else
+			{
+				height = (numBricks + poolWidth - 1) / poolWidth;
+				if (height > 1)
+					width = poolWidth;
+				else
+					width = numBricks;
+			}
+
+			width *= kBrickProbeCountPerDim;
+			height *= kBrickProbeCountPerDim;
+			depth *= kBrickProbeCountPerDim;
+
+			return new Vector3Int(width, height, depth);
+		}
 	}
 }
