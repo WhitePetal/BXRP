@@ -26,9 +26,12 @@ Brick
 
 Cell
 {
-    4 * 4 Probes
-    Bricks - Subdivision
+    Chunk
     {
-        4 * 4 Probes
+        // 4 * 4 Probes
+        Bricks - Subdivision
+        {
+            4 * 4 Probes
+        }
     }
 }

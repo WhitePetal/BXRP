@@ -413,5 +413,21 @@ namespace BXRenderPipeline
         {
             throw new NotImplementedException();
         }
-    }
+
+		internal int GetChunkGPUMemory(ProbeVolumeSHBands shBands)
+		{
+			// One L0 Chunk, Two L1 Chunks, 1 shared chunk which may contain sky occlusion
+			int size = L0ChunkSize + 2 * L1ChunkSize + sharedDataChunkSize;
+
+			// 4 Optional L2 Chunks
+			if (shBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
+				size += 4 * L2TextureChunkSize;
+
+			// Optional probe occlusion
+			if (bakedProbeOcclusion)
+				size += ProbeOcclusionChunkSize;
+
+			return size;
+		}
+	}
 }
