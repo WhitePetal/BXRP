@@ -395,11 +395,7 @@ namespace BXRenderPipeline
 		public bool skyOcclusion;
 		public bool skyOcclusionShadingDirection;
 
-		private ProbeBrickPool.DataLocation m_TemporaryDataLocation;
-
 		private List<Chunk> m_TmpSrcChunks = new List<Chunk>();
-
-		private ProbeBrickPool m_Pool;
 
 		private void InitStreaming()
 		{
@@ -425,184 +421,51 @@ namespace BXRenderPipeline
 			// Streaming of both scenario is over, we can update the index and start blending.
 			if (request.cell.streamingInfo.blendingRequest0 == null && request.cell.streamingInfo.blendingRequest1 == null
 				&& !request.cell.indexInfo.indexUpdated)
-				UpdateCellIndex(request.cell.indexInfo);
+				UpdateCellIndex(request.cell);
 		}
 
-		private void UpdatePoolAndIndex(Cell cell, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex, CommandBuffer cmd)
+		private void PushDiskStreamingRequest(Cell cell, string scenario, int poolIndex, CellStreamingRequest.OnStreamingCompeleteDelegate onStreamingCompelete)
 		{
-			if (diskStreamingEnabled)
+			var streamingRequest = m_StreamingRequestsPool.Get();
+			streamingRequest.cell = cell;
+			streamingRequest.state = CellStreamingRequest.State.Pending;
+			streamingRequest.scenarioData = m_CurrentBakingSet.scenarios[scenario];
+			streamingRequest.poolIndex = poolIndex;
+			streamingRequest.onStreamingCompelete = onStreamingCompelete;
+
+			// Only stream shared data for a regular streaming request (index -1 : no streaming)
+			// or the first scenario of the two blending scenarios (index 0)
+			if (poolIndex == -1 || poolIndex == 0)
+				streamingRequest.streamSharedData = true;
+
+			if (probeVolumeDebug.verboseStreamingLog)
 			{
-				if (m_DiskStreamingUseCompute)
-				{
-					Debug.Assert(dataBuffer.buffer != null);
-					UpdatePool(cmd, cell.poolInfo.chunkList, dataBuffer, layout, poolIndex);
-				}
+				if (poolIndex == -1)
+					LogStreaming($"Push streaming request for cell {cell.desc.index}.");
 				else
-				{
-					int chunkCount = cell.poolInfo.chunkList.Count;
-					int offsetAdjustment = -2 * (chunkCount * 4 * sizeof(uint)); // NOTE: account for offsets adding "2 * (chunkCount * 4 * sizeof(uint))" in the calculations from ProbeVolumeScratchBufferPool::GetOrCreateScratchBufferLayout()
-
-					CellData.PerScenarioData data = default;
-					data.shL0L1RxData = dataBuffer.stagingBuffer.GetSubArray(layout._L0L1rxOffset + offsetAdjustment, chunkCount * layout._L0Size).Reinterpret<ushort>(sizeof(byte));
-					data.shL1GL1RyData = dataBuffer.stagingBuffer.GetSubArray(layout._L1GryOffset + offsetAdjustment, chunkCount * layout._L1Size);
-					data.shL1BL1RzData = dataBuffer.stagingBuffer.GetSubArray(layout._L1BrzOffset + offsetAdjustment, chunkCount * layout._L1Size);
-
-					NativeArray<byte> validityNeighMaskData = dataBuffer.stagingBuffer.GetSubArray(layout._ValidityOffset + offsetAdjustment, chunkCount * layout._ValiditySize);
-
-					if(m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
-					{
-						data.shL2Data_0 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_0Offset + offsetAdjustment, chunkCount * layout._L2Size);
-						data.shL2Data_1 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_1Offset + offsetAdjustment, chunkCount * layout._L2Size);
-						data.shL2Data_2 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_2Offset + offsetAdjustment, chunkCount * layout._L2Size);
-						data.shL2Data_3 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_3Offset + offsetAdjustment, chunkCount * layout._L2Size);
-					}
-
-					if(probeOcclusion && layout._ProbeOcclusionSize > 0)
-					{
-						data.probeOcclusion = dataBuffer.stagingBuffer.GetSubArray(layout._ProbeOcclusionOffset + offsetAdjustment, chunkCount * layout._ProbeOcclusionSize);
-					}
-
-					NativeArray<ushort> skyOcclusionData = default;
-					if (skyOcclusion && layout._SkyOcclusionSize > 0)
-					{
-						skyOcclusionData = dataBuffer.stagingBuffer.GetSubArray(layout._SkyOcclusionOffset + offsetAdjustment, chunkCount * layout._SkyOcclusionSize).Reinterpret<ushort>(sizeof(byte));
-					}
-
-					NativeArray<byte> skyOcclusionDirectionData = default;
-					if (skyOcclusion && skyOcclusionShadingDirection && layout._SkyShadingDirectionSize > 0)
-					{
-						skyOcclusionDirectionData = dataBuffer.stagingBuffer.GetSubArray(layout._SkyShadingDirectionOffset + offsetAdjustment, chunkCount * layout._SkyShadingDirectionSize);
-					}
-
-					for (int chunkIndex = 0; chunkIndex < chunkCount; ++chunkIndex)
-					{
-						UpdatePool(cell.poolInfo.chunkList, data, validityNeighMaskData, skyOcclusionData, skyOcclusionDirectionData, chunkIndex, poolIndex);
-					}
-				}
+					LogStreaming($"Push streaming request for blending cell {cell.desc.index}.");
 			}
-			else
+
+			switch (poolIndex)
 			{
-				// In order not to pre-allocate for the worse case, we update the texture by smaller chunks with a preallocated DataLoc
-				for(int chunkIndex = 0; chunkIndex < cell.poolInfo.chunkList.Count; ++chunkIndex)
-				{
-					UpdatePool(cell.poolInfo.chunkList, cell.scenario0, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex, poolIndex);
-				}
+				case -1:
+					cell.streamingInfo.request = streamingRequest;
+					break;
+				case 0:
+					cell.streamingInfo.blendingRequest0 = streamingRequest;
+					break;
+				case 1:
+					cell.streamingInfo.blendingRequest1 = streamingRequest;
+					break;
 			}
 
-			// Index may already be updated when simply switching scenarios.
-			if (!cell.indexInfo.indexUpdated)
-			{
-				UpdateCellIndex(cell);
-			}
+			// Enqueue request.
+			m_StreamingQueue.Enqueue(streamingRequest);
 		}
 
-		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
-			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
-			int chunkIndex, int poolIndex)
+		private void CancelStreamingRequest(Cell cell)
 		{
-			var chunkSizeInProbes = ProbeBrickPool.GetChunkSizeInProbe();
-
-			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL0_L1rx, data.shL0L1RxData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL1_G_ry, data.shL1GL1RyData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL1_B_rz, data.shL1BL1RzData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-		
-			if(m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2 && data.shL2Data_0.Length > 0)
-			{
-				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_0, data.shL2Data_0.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_1, data.shL2Data_1.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_2, data.shL2Data_2.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_3, data.shL2Data_3.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-			}
-
-			if(probeOcclusion && data.probeOcclusion.Length > 0)
-			{
-				UpdateDataLocationTexture(m_TemporaryDataLocation.TexProbeOcclusion, data.probeOcclusion.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-			}
-
-			if(poolIndex == -1) // shared data that don't need to be updated per scenario
-			{
-				if(validityNeighMaskData.Length > 0)
-				{
-					if (m_CurrentBakingSet.bakedMaskCount == 1)
-						UpdateDataLocationTextureMask(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
-					else
-						UpdateDataLocationTexture(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.Reinterpret<uint>(1).GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
-				}
-
-				if(skyOcclusion && skyOcclusionDataL0L1.Length > 0)
-				{
-					UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyOcclusion, skyOcclusionDataL0L1.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
-				}
-
-				if(skyOcclusionShadingDirection && skyShadingDirectionIndices.Length > 0)
-				{
-					UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyShadingDirectionIndices, skyShadingDirectionIndices.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
-				}
-			}
-
-			// New data format only uploads one chunk at a time (we need predictable chunk size)
-			var srcChunk = GetSourceLocations(1, ProbeBrickPool.GetChunkSizeInBrick(), m_TemporaryDataLocation);
-
-			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
-			if(poolIndex == -1)
-				m_Pool.upda
-		}
-
-		private void UpdateDataLocationTexture<T>(Texture output, NativeArray<T> input) where T : struct
-		{
-			var outputNativeArray = (output as Texture3D).GetPixelData<T>(0);
-			Debug.Assert(outputNativeArray.Length >= input.Length);
-			outputNativeArray.GetSubArray(0, input.Length).CopyFrom(input);
-			(output as Texture3D).Apply();
-		}
-
-		private void UpdateDataLocationTextureMask(Texture output, NativeArray<byte> input)
-		{
-			// On some platforms, single channel unorm format isn't supported, so validity uses 4 channel unorm format.
-			// Then we can't directly copy the data, but need to account for the 3 unused channels.
-			uint numComponents = GraphicsFormatUtility.GetComponentCount(output.graphicsFormat);
-			if(numComponents == 1)
-			{
-				UpdateDataLocationTexture(output, input);
-			}
-			else
-			{
-				Debug.Assert(output.graphicsFormat == GraphicsFormat.R8G8B8A8_UNorm);
-				var outputNativeData = (output as Texture3D).GetPixelData<(byte, byte, byte, byte)>(0);
-				Debug.Assert(outputNativeData.Length >= input.Length);
-				for(int i = 0; i < input.Length; ++i)
-				{
-					outputNativeData[i] = (input[i], input[i], input[i], input[i]);
-				}
-				(output as Texture3D).Apply();
-			}
-		}
-
-		// Currently only used for 1 chunk at a time but kept in case we need more in the future.
-		private List<Chunk> GetSourceLocations(int count, int chunkSize, ProbeBrickPool.DataLocation dataLoc)
-		{
-			var c = new Chunk();
-			m_TmpSrcChunks.Clear();
-			m_TmpSrcChunks.Add(c);
-
-			// currently this code assumes that the texture width is a multiple of the allocation chunk size
-			for(int j = 1; j < count; ++j)
-			{
-				c.x += chunkSize * ProbeBrickPool.kBrickProbeCountPerDim;
-				if(c.x >= dataLoc.width)
-				{
-					c.x = 0;
-					c.y += ProbeBrickPool.kBrickProbeCountPerDim;
-					if(c.z >= dataLoc.height)
-					{
-						c.y = 0;
-						c.z += ProbeBrickPool.kBrickProbeCountPerDim;
-					}
-				}
-				m_TmpSrcChunks.Add(c);
-			}
-
-			return m_TmpSrcChunks;
+			m_Index.RemoveBricks(cell.indexInfo);
 		}
 
 		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
@@ -611,6 +474,13 @@ namespace BXRenderPipeline
 		private bool HasActiveStreamingRequest(Cell cell)
 		{
 			return diskStreamingEnabled && m_ActiveStreamingRequests.Exists(x => x.cell == cell);
+		}
+
+		[Conditional("UNITY_EDITOR")]
+		[Conditional("DEVELOPMENT_BUILD")]
+		private void LogStreaming(string log)
+		{
+			Debug.Log(log);
 		}
 	}
 }

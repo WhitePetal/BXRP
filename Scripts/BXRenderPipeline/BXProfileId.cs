@@ -7,6 +7,7 @@ namespace BXRenderPipeline
     internal enum BXProfileId
     {
         LightCookies,
-        UpdateReflectionProbeAtlas
-    }
+        UpdateReflectionProbeAtlas,
+		APVDiskStreamingUpdatePool
+	}
 }

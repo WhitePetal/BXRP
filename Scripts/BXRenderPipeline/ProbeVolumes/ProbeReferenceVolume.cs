@@ -15,6 +15,9 @@ using UnityEditor;
 using Brick = BXRenderPipeline.ProbeBrickIndex.Brick;
 using Chunk = BXRenderPipeline.ProbeBrickPool.BrickChunkAlloc;
 using System.Diagnostics;
+using UnityEngine.Rendering;
+using Debug = UnityEngine.Debug;
+using UnityEngine.Experimental.Rendering;
 
 namespace BXRenderPipeline
 {
@@ -702,5 +705,211 @@ namespace BXRenderPipeline
 		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
 
 		private ProbeVolumeSHBands m_SHBands;
+
+		private ProbeBrickPool m_Pool;
+		private ProbeBrickBlendingPool m_BlendingPool;
+		private ProbeGlobalIndirection m_CellIndices;
+
+		private ProbeBrickPool.DataLocation m_TemporaryDataLocation;
+
+		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
+			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
+			int chunkIndex, int poolIndex)
+		{
+			var chunkSizeInProbes = ProbeBrickPool.GetChunkSizeInProbe();
+
+			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL0_L1rx, data.shL0L1RxData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL1_G_ry, data.shL1GL1RyData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL1_B_rz, data.shL1BL1RzData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+
+			if (m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2 && data.shL2Data_0.Length > 0)
+			{
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_0, data.shL2Data_0.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_1, data.shL2Data_1.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_2, data.shL2Data_2.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexL2_3, data.shL2Data_3.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+			}
+
+			if (probeOcclusion && data.probeOcclusion.Length > 0)
+			{
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexProbeOcclusion, data.probeOcclusion.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+			}
+
+			if (poolIndex == -1) // shared data that don't need to be updated per scenario
+			{
+				if (validityNeighMaskData.Length > 0)
+				{
+					if (m_CurrentBakingSet.bakedMaskCount == 1)
+						UpdateDataLocationTextureMask(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+					else
+						UpdateDataLocationTexture(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.Reinterpret<uint>(1).GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+				}
+
+				if (skyOcclusion && skyOcclusionDataL0L1.Length > 0)
+				{
+					UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyOcclusion, skyOcclusionDataL0L1.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+				}
+
+				if (skyOcclusionShadingDirection && skyShadingDirectionIndices.Length > 0)
+				{
+					UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyShadingDirectionIndices, skyShadingDirectionIndices.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+				}
+			}
+
+			// New data format only uploads one chunk at a time (we need predictable chunk size)
+			var srcChunks = GetSourceLocations(1, ProbeBrickPool.GetChunkSizeInBrick(), m_TemporaryDataLocation);
+
+			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
+			if (poolIndex == -1)
+				m_Pool.Update(m_TemporaryDataLocation, srcChunks, chunkList, chunkIndex, m_SHBands);
+		}
+
+		private void UpdateDataLocationTexture<T>(Texture output, NativeArray<T> input) where T : struct
+		{
+			var outputNativeArray = (output as Texture3D).GetPixelData<T>(0);
+			Debug.Assert(outputNativeArray.Length >= input.Length);
+			outputNativeArray.GetSubArray(0, input.Length).CopyFrom(input);
+			(output as Texture3D).Apply();
+		}
+
+		private void UpdateDataLocationTextureMask(Texture output, NativeArray<byte> input)
+		{
+			// On some platforms, single channel unorm format isn't supported, so validity uses 4 channel unorm format.
+			// Then we can't directly copy the data, but need to account for the 3 unused channels.
+			uint numComponents = GraphicsFormatUtility.GetComponentCount(output.graphicsFormat);
+			if (numComponents == 1)
+			{
+				UpdateDataLocationTexture(output, input);
+			}
+			else
+			{
+				Debug.Assert(output.graphicsFormat == GraphicsFormat.R8G8B8A8_UNorm);
+				var outputNativeData = (output as Texture3D).GetPixelData<(byte, byte, byte, byte)>(0);
+				Debug.Assert(outputNativeData.Length >= input.Length);
+				for (int i = 0; i < input.Length; ++i)
+				{
+					outputNativeData[i] = (input[i], input[i], input[i], input[i]);
+				}
+				(output as Texture3D).Apply();
+			}
+		}
+
+		private void UpdatePoolAndIndex(Cell cell, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex, CommandBuffer cmd)
+		{
+			if (diskStreamingEnabled)
+			{
+				if (m_DiskStreamingUseCompute)
+				{
+					Debug.Assert(dataBuffer.buffer != null);
+					UpdatePool(cmd, cell.poolInfo.chunkList, dataBuffer, layout, poolIndex);
+				}
+				else
+				{
+					int chunkCount = cell.poolInfo.chunkList.Count;
+					int offsetAdjustment = -2 * (chunkCount * 4 * sizeof(uint)); // NOTE: account for offsets adding "2 * (chunkCount * 4 * sizeof(uint))" in the calculations from ProbeVolumeScratchBufferPool::GetOrCreateScratchBufferLayout()
+
+					CellData.PerScenarioData data = default;
+					data.shL0L1RxData = dataBuffer.stagingBuffer.GetSubArray(layout._L0L1rxOffset + offsetAdjustment, chunkCount * layout._L0Size).Reinterpret<ushort>(sizeof(byte));
+					data.shL1GL1RyData = dataBuffer.stagingBuffer.GetSubArray(layout._L1GryOffset + offsetAdjustment, chunkCount * layout._L1Size);
+					data.shL1BL1RzData = dataBuffer.stagingBuffer.GetSubArray(layout._L1BrzOffset + offsetAdjustment, chunkCount * layout._L1Size);
+
+					NativeArray<byte> validityNeighMaskData = dataBuffer.stagingBuffer.GetSubArray(layout._ValidityOffset + offsetAdjustment, chunkCount * layout._ValiditySize);
+
+					if (m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
+					{
+						data.shL2Data_0 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_0Offset + offsetAdjustment, chunkCount * layout._L2Size);
+						data.shL2Data_1 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_1Offset + offsetAdjustment, chunkCount * layout._L2Size);
+						data.shL2Data_2 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_2Offset + offsetAdjustment, chunkCount * layout._L2Size);
+						data.shL2Data_3 = dataBuffer.stagingBuffer.GetSubArray(layout._L2_3Offset + offsetAdjustment, chunkCount * layout._L2Size);
+					}
+
+					if (probeOcclusion && layout._ProbeOcclusionSize > 0)
+					{
+						data.probeOcclusion = dataBuffer.stagingBuffer.GetSubArray(layout._ProbeOcclusionOffset + offsetAdjustment, chunkCount * layout._ProbeOcclusionSize);
+					}
+
+					NativeArray<ushort> skyOcclusionData = default;
+					if (skyOcclusion && layout._SkyOcclusionSize > 0)
+					{
+						skyOcclusionData = dataBuffer.stagingBuffer.GetSubArray(layout._SkyOcclusionOffset + offsetAdjustment, chunkCount * layout._SkyOcclusionSize).Reinterpret<ushort>(sizeof(byte));
+					}
+
+					NativeArray<byte> skyOcclusionDirectionData = default;
+					if (skyOcclusion && skyOcclusionShadingDirection && layout._SkyShadingDirectionSize > 0)
+					{
+						skyOcclusionDirectionData = dataBuffer.stagingBuffer.GetSubArray(layout._SkyShadingDirectionOffset + offsetAdjustment, chunkCount * layout._SkyShadingDirectionSize);
+					}
+
+					for (int chunkIndex = 0; chunkIndex < chunkCount; ++chunkIndex)
+					{
+						UpdatePool(cell.poolInfo.chunkList, data, validityNeighMaskData, skyOcclusionData, skyOcclusionDirectionData, chunkIndex, poolIndex);
+					}
+				}
+			}
+			else
+			{
+				// In order not to pre-allocate for the worse case, we update the texture by smaller chunks with a preallocated DataLoc
+				for (int chunkIndex = 0; chunkIndex < cell.poolInfo.chunkList.Count; ++chunkIndex)
+				{
+					UpdatePool(cell.poolInfo.chunkList, cell.scenario0, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex, poolIndex);
+				}
+			}
+
+			// Index may already be updated when simply switching scenarios.
+			if (!cell.indexInfo.indexUpdated)
+			{
+				UpdateCellIndex(cell);
+			}
+		}
+
+		private void UpdatePool(CommandBuffer cmd, List<Chunk> chunkList, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex)
+		{
+			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
+			if (poolIndex == -1)
+				m_Pool.Update(cmd, dataBuffer, layout, chunkList, true, m_Pool.GetValidityTexture(), m_SHBands,
+					skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
+			else
+				m_BlendingPool.Update(cmd, dataBuffer, layout, chunkList, m_SHBands, poolIndex,
+					m_Pool.GetValidityTexture(), skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
+		}
+
+		private void UpdateCellIndex(Cell cell)
+		{
+			cell.indexInfo.indexUpdated = true;
+
+			// Build Index
+			var bricks = cell.data.bricks;
+			m_Index.AddBricks(cell.indexInfo, bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrick(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
+
+			// Update indirection buffer
+			m_CellIndices.UpdateCell(cell.indexInfo);
+		}
+
+		// Currently only used for 1 chunk at a time but kept in case we need more in the future.
+		private List<Chunk> GetSourceLocations(int count, int chunkSize, ProbeBrickPool.DataLocation dataLoc)
+		{
+			var c = new Chunk();
+			m_TmpSrcChunks.Clear();
+			m_TmpSrcChunks.Add(c);
+
+			// currently this code assumes that the texture width is a multiple of the allocation chunk size
+			for (int j = 1; j < count; ++j)
+			{
+				c.x += chunkSize * ProbeBrickPool.kBrickProbeCountPerDim;
+				if (c.x >= dataLoc.width)
+				{
+					c.x = 0;
+					c.y += ProbeBrickPool.kBrickProbeCountPerDim;
+					if (c.z >= dataLoc.height)
+					{
+						c.y = 0;
+						c.z += ProbeBrickPool.kBrickProbeCountPerDim;
+					}
+				}
+				m_TmpSrcChunks.Add(c);
+			}
+
+			return m_TmpSrcChunks;
+		}
 	}
 }
