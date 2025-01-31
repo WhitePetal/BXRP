@@ -671,13 +671,17 @@ namespace BXRenderPipeline
 		internal float MaxBrickSize() => m_MaxBrickSize;
 		internal Vector3 ProbeOffset() => m_ProbeOffset;
 
+		internal int GetEntrySubdivLevel() => Mathf.Min(ProbeGlobalIndirection.kEntryMaxSubdivLevel, m_MaxSubdivision - 1);
+
 		private bool m_IsInitialized;
 		private bool m_EnabledBySRP;
+		private bool m_SupportLightingScenarios;
 		private bool m_SupportScenarioBlending;
 		private bool m_SupportGPUStreaming;
 		private bool m_SupportDiskStreaming;
 		private bool m_ForceNoDiskStreaming;
 
+		internal bool supportLightingScenarios => m_SupportLightingScenarios;
 		internal bool supportScenarioBlending => m_SupportScenarioBlending;
 		internal bool gpuStreamingEnabled => m_SupportGPUStreaming;
 		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
@@ -702,15 +706,33 @@ namespace BXRenderPipeline
 
 		internal static string GetSceneGUID(Scene scene) => scene.GetGUID();
 
+		internal static string defaultLightingScenario = "Default";
+
 		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
 
 		private ProbeVolumeSHBands m_SHBands;
+
+		/// <summary>The active lighting scenario.</summary>
+		public string lightingScenario
+		{
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.lightingScenario : null;
+			set
+			{
+				SetActiveScenario(value);
+			}
+		}
 
 		private ProbeBrickPool m_Pool;
 		private ProbeBrickBlendingPool m_BlendingPool;
 		private ProbeGlobalIndirection m_CellIndices;
 
 		private ProbeBrickPool.DataLocation m_TemporaryDataLocation;
+
+		internal void SetActiveScenario(string scenario, bool verbose = true)
+		{
+			if (m_CurrentBakingSet != null)
+				m_CurrentBakingSet.SetActiveScenario(scenario, verbose);
+		}
 
 		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
 			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
@@ -910,6 +932,29 @@ namespace BXRenderPipeline
 			}
 
 			return m_TmpSrcChunks;
+		}
+
+		internal void UnloadAllCells()
+		{
+
+		}
+
+		// This one is internal for baking purpose only.
+		// Calling this from "outside" will not properly update Loaded/ToBeLoadedCells arrays and thus will break the state of streaming.
+		internal bool LoadCell(Cell cell, bool ignoreErrorLog = false)
+		{
+			// First try to allocate pool memory. This is what is most likely to fail.
+			return false;
+		}
+
+		internal void UnloadBlendingCell(Cell cell)
+		{
+
+		}
+
+		internal bool AddBlendingBricks(Cell cell)
+		{
+			return false;
 		}
 	}
 }

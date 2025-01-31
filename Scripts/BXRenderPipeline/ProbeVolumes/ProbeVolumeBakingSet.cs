@@ -211,9 +211,7 @@ namespace BXRenderPipeline
 		}
 
 		[SerializeField]
-		// TODO:NEED IMPLEMENT
-		//internal string lightingScenario = ProbeReferenceVolume.defaultLightingScenario;
-		internal string lightingScenario = "";
+		internal string lightingScenario = ProbeReferenceVolume.defaultLightingScenario;
 		private string m_OtherScenario = null;
 		private float m_ScenarioBlendingFactor = 0f;
 
@@ -371,7 +369,7 @@ namespace BXRenderPipeline
 				if(version < Version.RemoveProbeVolumeSceneData)
                 {
 #if UNITY_EDITOR
-					//TODO: NEED IMPLEMENT
+					// TODO: NEED IMPLEMENT
 					//var sceneData = ProbeReferenceVolume.instance.sceeneData;
 					//if (sceneData == null)
 					//	return;
@@ -394,10 +392,95 @@ namespace BXRenderPipeline
 			return cellSharedDataAsset != null && cellSharedDataAsset.FileExists() && cellBricksDataAsset.FileExists();
         }
 
+		internal bool HasValidSharedData()
+		{
+#if UNITY_EDITOR
+			return ComputeHasValidSharedData();
+#else
+			return m_SharedDataIsValid;
+#endif
+		}
+
+		// Return true if baking settings are incompatible with already baked data
+		internal bool CheckCompatibleCellLayout()
+		{
+			return simplificationLevels == bakedSimplificationLevels &&
+				minDistanceBetweenProbes == bakedMinDistanceBetweenProbes &&
+				skyOcclusion == bakedSkyOcclusion &&
+				skyOcclusionShadingDirection == bakedSkyShadingDirection &&
+				settings.virtualOffsetSettings.useVritualOffset == (supportOffsetsChunkSize != 0) &&
+				useRenderingLayers == (bakedMaskCount != 1);
+		}
+
 		private bool ComputeHasSupportData()
         {
 			return cellSupportDataAsset != null && cellSupportDataAsset.IsValid() && cellSupportDataAsset.FileExists();
         }
+
+		internal bool HasSupportData()
+		{
+#if UNITY_EDITOR
+			return ComputeHasSupportData();
+#else
+			return m_HasSupportData;
+#endif
+		}
+
+		/// <summary>
+		/// Tests if the baking set data has already been baked.
+		/// </summary>
+		/// <param name="scenario">The name of the scenario to test. If null or if scenarios are disabled, the function will test for the default scenario.</param>
+		/// <returns>True if the baking set data has been baked.</returns>
+		public bool HasBakedData(string scenario = null)
+		{
+			if (scenario == null)
+				return scenarios.ContainsKey(ProbeReferenceVolume.defaultLightingScenario);
+
+			if (!ProbeReferenceVolume.instance.supportLightingScenarios && scenario != ProbeReferenceVolume.defaultLightingScenario)
+				return false;
+
+			return scenario.Contains(scenario);
+		}
+
+		internal void SetActiveScenario(string scenario, bool verbose = true)
+		{
+			if (lightingScenario == scenario)
+				return;
+
+			if (!m_LightingScenarios.Contains(scenario))
+			{
+				if(verbose)
+					Debug.LogError($"Scenario '{scenario}' does not exist.");
+				return;
+			}
+
+			if (!scenarios.ContainsKey(scenario))
+			{
+				// We don't return here as it's still valid to enable a scenario that wasn't baked in the editor.
+				if (verbose)
+					Debug.LogError($"Scenario '{scenario}' has not been baked.");
+			}
+
+			lightingScenario = scenario;
+			m_ScenarioBlendingFactor = 0f;
+
+			if (ProbeReferenceVolume.instance.supportScenarioBlending)
+			{
+				// Trigger blending system to replace old cells with the one from the new active scenario.
+				// Although we technically don't need blending for that, it is better than unloading all cells
+				// because it will replace them progressively. There is no real performance cost to using blending
+				// rather than regular load thanks to the bypassBlending branch in AddBlendingBricks.
+				ProbeReferenceVolume.instance.ScenarioBlendingChanged(true);
+			}
+			else
+			{
+				ProbeReferenceVolume.instance.UnloadAllCells();
+			}
+
+#if UNITY_EDITOR
+			UnityEditor.EditorUtility.SetDirty(this);
+#endif
+		}
 
 		internal void BlendLightingScenario(string otherScenario, float blendingFactor)
 		{

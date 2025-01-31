@@ -429,8 +429,57 @@ namespace BXRenderPipeline
 			// This can still be improved but is not the bottleneck currently
 
 			// Compute some stuff
-			// TODO:NEED IMPLEMENT
-			//var prv = ProbeReferenceVolume.instance;
+			var prv = ProbeReferenceVolume.instance;
+			int entrySubdivLevel = prv.GetEntrySubdivLevel();
+
+			// Iterate over all bricks, while tracking allocated coords in the pool
+			int brick_idx = 0;
+			for(int i = 0; i < allocations.Count; ++i)
+			{
+				Chunk alloc = allocations[i];
+				int last_brick = brick_idx + Mathf.Min(allocationSize, bricks.Length - brick_idx);
+				while(brick_idx != last_brick)
+				{
+					// Fetch brick and increment counters
+					Brick brick = bricks[brick_idx++];
+					int idx = MergeIndex(alloc.flattenIndex(poolWidth, poolHeight), brick.subdivisionLevel);
+					alloc.x += ProbeBrickPool.kBrickProbeCountPerDim;
+
+					// Brick bounds
+					int brickSize = ProbeReferenceVolume.CellSize(brick.subdivisionLevel);
+					Vector3Int brickMin = brick.position;
+					Vector3Int brickMax = brick.position + new Vector3Int(brickSize, brickSize, brickSize);
+
+					// Find all entries that this brick touch (usually only one, but several in case of bigger bricks)
+					foreach(var entry in cellInfo.updateInfo.entriesInfo)
+					{
+						// We might have the brick completely out of the entry. In those case, we must skip.
+						var minEntryPosition = entry.entryPositionInBricksAtMaxRes + entry.minValidBrickIndexForCellAtMaxRes;
+						var maxEntryPosition = entry.entryPositionInBricksAtMaxRes + entry.maxValidBrickIndexForCellAtMaxResPlusOne - Vector3Int.one;
+						if (BrickOverlapEntry(brickMin, brickMax, minEntryPosition, maxEntryPosition))
+							MarkBrickInPhysicalBuffer(entry, brickMin, brickMax, brick.subdivisionLevel, entrySubdivLevel, idx);
+					}
+				}
+			}
+		}
+
+		public void RemoveBricks(CellIndexInfo cellInfo)
+		{
+			// Clear allocated chunks
+			for(int e = 0; e < cellInfo.updateInfo.entriesInfo.Length; ++e)
+			{
+				ref var entryInfo = ref cellInfo.updateInfo.entriesInfo[e];
+				if (entryInfo.firstChunkIndex < 0)
+					continue;
+
+				for(int i = entryInfo.firstChunkIndex; i < (entryInfo.firstChunkIndex + entryInfo.numberOfChunks); ++i)
+				{
+					m_IndexChunks[i] = false;
+				}
+
+				m_AvaliableChunkCount += entryInfo.numberOfChunks;
+				entryInfo.numberOfChunks = 0;
+			}
 		}
 	}
 }

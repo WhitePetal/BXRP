@@ -403,6 +403,289 @@ namespace BXRenderPipeline
 			m_OnBlendingStreamingComplete = OnBlendingStreamingComplete;
 		}
 
+		private void CleanupStreaming()
+		{
+			// Releases all active and pending canceled requests.
+			ProcessNewRequests();
+			UpdateActiveRequests(null);
+
+			Debug.Assert(m_StreamingQueue.Count == 0);
+			Debug.Assert(m_ActiveStreamingRequests.Count == 0);
+			Debug.Assert(m_StreamingRequestsPool.countAll == m_StreamingRequestsPool.countInactive); // Everything should have been released.
+
+			for(int i = 0; i < m_StreamingRequestsPool.countAll; ++i)
+			{
+				var request = m_StreamingRequestsPool.Get();
+				request.Dispose();
+			}
+
+			if (m_ScratchBufferPool != null)
+			{
+				m_ScratchBufferPool.Cleanup();
+				m_ScratchBufferPool = null;
+			}
+
+			m_StreamingRequestsPool = new ObjectPool<CellStreamingRequest>((val) => val.Clear(), null);
+			m_ActiveStreamingRequests.Clear();
+			m_StreamingQueue.Clear();
+
+			m_OnStreamingComplete = null;
+			m_OnBlendingStreamingComplete = null;
+		}
+
+		internal void ScenarioBlendingChanged(bool scenarioChanged)
+		{
+			if (scenarioChanged)
+			{
+				UnloadAllBlendingCells();
+				for(int i = 0; i < m_ToBeLoadedBlendingCells.size; ++i)
+				{
+					m_ToBeLoadedBlendingCells[i].blendingInfo.ForceReupload();
+				}
+			}
+		}
+
+		private static void ComputeCellStreamingScore(Cell cell, Vector3 cameraPosition, Vector3 cameraDirection)
+		{
+			var cellPosition = cell.desc.position;
+			var cameraToCell = (cellPosition - cameraPosition).normalized;
+			cell.streamingInfo.streamingScore = Vector3.Distance(cellPosition, cameraPosition);
+			// This should give more weight to cells in front of the camera.
+			cell.streamingInfo.streamingScore *= (2f - Vector3.Dot(cameraToCell, cameraDirection));
+		}
+
+		private void ComputeStreamingScore(Vector3 cameraPosition, Vector3 cameraDirection, DynamicArray<Cell> cells)
+		{
+			for (int i = 0; i < cells.size; ++i)
+				ComputeCellStreamingScore(cells[i], cameraPosition, cameraDirection);
+		}
+
+		private void ComputeBestToBeLoadedCells(Vector3 cameraPosition, Vector3 cameraDirection)
+		{
+			m_BestToBeLoadedCells.Clear();
+			m_BestToBeLoadedCells.Reserve(m_ToBeLoadedCells.size); // Pre-reserve to avoid Insert allocating every time.
+
+			foreach(var cell in m_ToBeLoadedCells)
+			{
+				ComputeCellStreamingScore(cell, cameraPosition, cameraDirection);
+
+				// We need to compute min/max streaming scores here since we don't have the full sorted list anymore (which is used in ComputeMinMaxStreamingScore)
+				minStreamingScore = Mathf.Min(minStreamingScore, cell.streamingInfo.streamingScore);
+				maxStreamingScore = Mathf.Max(maxStreamingScore, cell.streamingInfo.streamingScore);
+
+				int currentBestCellSize = System.Math.Min(m_BestToBeLoadedCells.size, numberOfCellsLoadedPerFrame);
+				int index;
+				for(index = 0; index < currentBestCellSize; ++index)
+				{
+					if (cell.streamingInfo.streamingScore < m_BestToBeLoadedCells[index].streamingInfo.streamingScore)
+						break;
+				}
+
+				if (index < numberOfCellsLoadedPerFrame)
+					m_BestToBeLoadedCells.Insert(index, cell);
+
+				// Avoids too many copies when Inserting new elements.
+				if (m_BestToBeLoadedCells.size > numberOfCellsLoadedPerFrame)
+					m_BestToBeLoadedCells.Resize(numberOfCellsLoadedPerFrame);
+			}
+		}
+
+		private void ComputeStreamingScoreAndWorseLoadedCells(Vector3 cameraPosition, Vector3 cameraDirection)
+		{
+			m_WorseLoadedCells.Clear();
+			m_WorseLoadedCells.Reserve(m_LoadedCells.size); // Pre-reserve to avoid Insert allocating every time.
+
+			int requiredSHChunks = 0;
+			int requiredIndexChunks = 0;
+			foreach(var cell in m_BestToBeLoadedCells)
+			{
+				requiredSHChunks += cell.desc.shChunkCount;
+				requiredIndexChunks += cell.desc.indexChunkCount;
+			}
+
+			foreach(var cell in m_LoadedCells)
+			{
+				ComputeCellStreamingScore(cell, cameraPosition, cameraDirection);
+
+				// We need to compute min/max streaming scores here since we don't have the full sorted list anymore (which is used in ComputeMinMaxStreamingScore)
+				minStreamingScore = Mathf.Min(minStreamingScore, cell.streamingInfo.streamingScore);
+				maxStreamingScore = Mathf.Max(maxStreamingScore, cell.streamingInfo.streamingScore);
+
+				int currentWorseSize = m_WorseLoadedCells.size;
+				int index;
+				for(index = 0; index < currentWorseSize; ++index)
+				{
+					if (cell.streamingInfo.streamingScore < m_WorseLoadedCells[index].streamingInfo.streamingScore)
+						break;
+				}
+
+				m_WorseLoadedCells.Insert(cell, index);
+
+				// Compute the chunk counts of the current worse cells.
+				int currentSHChunks = 0;
+				int currentIndexChunks = 0;
+				int newSize = 0;
+				for(int i = 0; i < m_WorseLoadedCells.size; ++i)
+				{
+					var worseCell = m_WorseLoadedCells[i];
+					currentSHChunks += worseCell.desc.shChunkCount;
+					currentIndexChunks += worseCell.desc.indexChunkCount;
+
+					if(currentSHChunks >= requiredSHChunks && currentIndexChunks >= requiredIndexChunks)
+					{
+						newSize = i + 1;
+						break;
+					}
+				}
+
+				// Now we resize to keep just enough worse cells that represent enough room to load the required cell.
+				// This allows insertions to be cheaper.
+				if (newSize != 0)
+					m_WorseLoadedCells.Resize(newSize);
+			}
+		}
+
+		private void ComputeBlendingScore(DynamicArray<Cell> cells, float worstScore)
+		{
+			float factor = scenarioBlendingFactor;
+			for(int i = 0; i < cells.size; ++i)
+			{
+				var cell = cells[i];
+				var blendingInfo = cell.blendingInfo;
+				if(factor != blendingInfo.blendingFactor)
+				{
+					blendingInfo.blendingScore = cell.streamingInfo.streamingScore;
+					if (blendingInfo.ShouldPrioritize())
+						blendingInfo.blendingScore -= worstScore;
+				}
+			}
+		}
+
+		private bool TryLoadCell(Cell cell, ref int shBudget, ref int indexBudget, DynamicArray<Cell> loadedCells)
+		{
+			// Are we within budget?
+			if(cell.poolInfo.shChunkCount <= shBudget && cell.indexInfo.indexChunkCount <= indexBudget)
+			{
+				// This can still fail because of fragmentation.
+				if(LoadCell(cell, ignoreErrorLog: true))
+				{
+					loadedCells.Add(cell);
+
+					shBudget -= cell.poolInfo.shChunkCount;
+					indexBudget -= cell.indexInfo.indexChunkCount;
+
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private void UnloadBlendingCell(Cell cell, DynamicArray<Cell> unloadedCells)
+		{
+			UnloadBlendingCell(cell);
+			unloadedCells.Add(cell);
+		}
+
+		private bool TryLoadBlendingCell(Cell cell, DynamicArray<Cell> loadedCells)
+		{
+			if (!cell.UpdateCellScenarioData(lightingScenario, m_CurrentBakingSet.otherScenario))
+				return false;
+
+			if (!AddBlendingBricks(cell))
+				return false;
+
+			loadedCells.Add(cell);
+
+			return true;
+		}
+
+		private void ComputeMinMaxStreamingScore()
+		{
+			minStreamingScore = float.MaxValue;
+			maxStreamingScore = float.MinValue;
+
+			if(m_ToBeLoadedCells.size != 0)
+			{
+				minStreamingScore = Mathf.Min(minStreamingScore, m_ToBeLoadedCells[0].streamingInfo.streamingScore);
+				maxStreamingScore = Mathf.Max(maxStreamingScore, m_ToBeLoadedCells[m_ToBeLoadedCells.size - 1].streamingInfo.streamingScore);
+			}
+
+			if(m_LoadedCells.size != 0)
+			{
+				minStreamingScore = Mathf.Min(minStreamingScore, m_LoadedCells[0].streamingInfo.streamingScore);
+				maxStreamingScore = Mathf.Max(maxStreamingScore, m_LoadedCells[m_LoadedCells.size - 1].streamingInfo.streamingScore);
+			}
+		}
+
+		/// <summary>
+		/// Updates the cell streaming for a <see cref="Camera"/>
+		/// </summary>
+		/// <param name="cmd">The <see cref="CommandBuffer"/></param>
+		/// <param name="camera">The <see cref="Camera"/></param>
+		public void UpdateCellStreaming(CommandBuffer cmd, Camera camera)
+		{
+			UpdateCellStreaming(cmd, camera, null);
+		}
+
+		/// <summary>
+		/// Updates the cell streaming for a <see cref="Camera"/>
+		/// </summary>
+		/// <param name="cmd">The <see cref="CommandBuffer"/></param>
+		/// <param name="camera">The <see cref="Camera"/></param>
+		/// <param name="options">Options coming from the volume stack</param>
+		public void UpdateCellStreaming(CommandBuffer cmd, Camera camera, ProbeVolumesOptions options)
+		{
+			if (!isInitialized || m_CurrentBakingSet == null)
+				return;
+
+			using(new ProfilingScope(null, ProfilingSampler.Get(BXProfileId.APVCellStreamingUpdate)))
+			{
+				var cameraPosition = camera.transform.position;
+				if (!probeVolumeDebug.freezeStreaming)
+				{
+					m_FrozenCameraPosition = cameraPosition;
+					m_FrozenCameraDirection = camera.transform.forward;
+				}
+
+				// Cell position in cell space is the top left corner. So we need to shift the camera position by half a cell to make things comparable.
+				var offset = ProbeOffset() + (options != null ? options.worldOffset : Vector3.zero);
+				var cameraPositionCellSpace = (m_FrozenCameraPosition - offset) / MaxBrickSize() - Vector3.one * 0.5f;
+
+				DynamicArray<Cell> bestUnloadedCells;
+				DynamicArray<Cell> worseLoadedCells;
+
+				// When in this mode, we just sort through all loaded/ToBeLoaded cells in order to figure out worse/best cells to process.
+				// This is slow so only recommended in the editor.
+				if (m_LoadMaxCellsPerFrame)
+				{
+					ComputeStreamingScore(cameraPositionCellSpace, m_FrozenCameraDirection, m_ToBeLoadedCells);
+					m_ToBeLoadedCells.QuickSort();
+					bestUnloadedCells = m_ToBeLoadedCells;
+				}
+				// Otherwise, when we only process a handful of cells per frame, we'll linearly go through the lists to determine two things:
+				// - The list of best cells to load.
+				// - The list of worse cells to load. This list can be bigger than the previous one since cells have different sizes so we may need to evict more to make room.
+				// This allows us to not sort through all the cells every frame which is very slow. Instead we just output very small lists that we then process.
+				else
+				{
+					minStreamingScore = float.MaxValue;
+					maxStreamingScore = float.MinValue;
+
+					ComputeBestToBeLoadedCells(cameraPositionCellSpace, m_FrozenCameraDirection);
+					bestUnloadedCells = m_BestToBeLoadedCells;
+				}
+
+				// This is only a rough budget estimate at first.
+				// It doesn't account for fragmentation.
+				int indexChunkBudget = m_Index.GetRemainingChunkCount();
+				int shChunkBudget = m_Pool.GetRemainingChunkCount();
+				int cellCountToLoad = Mathf.Min(numberOfCellsLoadedPerFrame, bestUnloadedCells.size);
+
+
+			}
+		}
+
 		private void OnStreamingComplete(CellStreamingRequest request, CommandBuffer cmd)
 		{
 			request.cell.streamingInfo.request = null;
@@ -466,7 +749,205 @@ namespace BXRenderPipeline
 		private void CancelStreamingRequest(Cell cell)
 		{
 			m_Index.RemoveBricks(cell.indexInfo);
+			m_Pool.Deallocate(cell.poolInfo.chunkList);
+
+			if (cell.streamingInfo.request != null)
+				cell.streamingInfo.request.Cancel();
 		}
+
+		private void CancelBlendingStreamingRequest(Cell cell)
+		{
+			if (cell.streamingInfo.blendingRequest0 != null)
+				cell.streamingInfo.blendingRequest0.Cancel();
+
+			if (cell.streamingInfo.blendingRequest1 != null)
+				cell.streamingInfo.blendingRequest1.Cancel();
+		}
+
+		private unsafe bool ProcessDiskStreamingRequest(CellStreamingRequest request)
+		{
+			var cellIndex = request.cell.desc.index;
+			var cell = cells[cellIndex];
+			var cellDesc = cell.desc;
+			var cellData = cell.data;
+
+			if (!m_ScratchBufferPool.AllocateScratchBuffer(cellDesc.shChunkCount, out var cellStreamingScratchBuffer, out var layout, m_DiskStreamingUseCompute))
+				return false;
+
+			if (!m_CurrentBakingSet.HasValidSharedData())
+			{
+				Debug.LogError($"One or more data file missing for baking set {m_CurrentBakingSet.name}. Cannot load shared data.");
+				return false;
+			}
+
+			if (!request.scenarioData.HasValidData(m_SHBands))
+			{
+				Debug.LogError($"One or more data file missing for baking set {m_CurrentBakingSet.name} scenario {lightingScenario}. Cannot load scenario data.");
+				return false;
+			}
+
+			if (probeVolumeDebug.verboseStreamingLog)
+			{
+				if(request.poolIndex == -1)
+					LogStreaming($"Running disk streaming request for cell {cellDesc.index} ({cellDesc.shChunkCount} chunks)");
+				else
+					LogStreaming($"Running disk streaming request for cell {cellDesc.index} ({cellDesc.shChunkCount} chunks) for scenario {request.poolIndex}");
+			}
+
+			// Note: We allocate new NativeArrays here.
+			// This will not generate GCAlloc since NativeArrays are value types but it will allocate on the native side.
+			// This is probably ok as the frequency should be pretty low but we need to keep an eye on this.
+
+			// GPU Data
+			request.scratchBuffer = cellStreamingScratchBuffer;
+			request.scratchBufferLayout = layout;
+			request.bytesWritten = 0;
+
+			var mappedBuffer = request.scratchBuffer.stagingBuffer;
+
+			var mappedBufferBaseAddr = (byte*)mappedBuffer.GetUnsafePtr();
+			var mappedBufferAddr = mappedBufferBaseAddr;
+
+			// Write destination chunk coordinates for SH data
+			var destChunkAddr = (uint*)mappedBufferAddr;
+			// Pool -1 is regular pool and 0/1 are blending pools.
+			var destChunks = request.poolIndex == -1 ? request.cell.poolInfo.chunkList : request.cell.blendingInfo.chunkList;
+			var destChunkCount = destChunks.Count;
+			for(int i = 0; i < destChunkCount; ++i)
+			{
+				var destChunk = destChunks[i];
+				destChunkAddr[i * 4] = (uint)destChunk.x;
+				destChunkAddr[i * 4 + 1] = (uint)destChunk.y;
+				destChunkAddr[i * 4 + 2] = (uint)destChunk.z;
+				destChunkAddr[i * 4 + 3] = 0;
+			}
+			mappedBufferAddr += (destChunkCount * sizeof(uint) * 4);
+
+			// Write destination chunk coordinates for Shared data (always in main pool)
+			destChunkAddr = (uint*)mappedBufferAddr;
+			destChunks = request.cell.poolInfo.chunkList;
+			Debug.Assert(destChunks.Count == destChunkCount);
+			for(int i = 0; i < destChunkCount; ++i)
+			{
+				var destChunk = destChunks[i];
+				destChunkAddr[i * 4] = (uint)destChunk.x;
+				destChunkAddr[i * 4 + 1] = (uint)destChunk.y;
+				destChunkAddr[i * 4 + 2] = (uint)destChunk.z;
+				destChunkAddr[i * 4 + 3] = 0;
+			}
+			mappedBufferAddr += (destChunkCount * sizeof(uint) * 4);
+
+			var shL0L1DataAsset = request.scenarioData.cellDataAsset;
+			var cellStreamingDesc = shL0L1DataAsset.streamableCellDescs[cellIndex];
+			var chunkCount = cellDesc.shChunkCount;
+			var L0L1Size = m_CurrentBakingSet.L0ChunkSize * chunkCount;
+			var L1Size = m_CurrentBakingSet.L1ChunkSize * chunkCount;
+
+			var L0L1ReadSize = L0L1Size + L1Size * 2;
+
+			request.cellDataStreamingRequest.AddReadCommand(cellStreamingDesc.offset, L0L1ReadSize, mappedBufferAddr);
+			mappedBufferAddr += L0L1ReadSize;
+			request.bytesWritten += request.cellDataStreamingRequest.RunCommands(shL0L1DataAsset.OpenFile());
+
+			if (request.streamSharedData)
+			{
+				var sharedDataAsset = m_CurrentBakingSet.cellSharedDataAsset;
+				cellStreamingDesc = sharedDataAsset.streamableCellDescs[cellIndex];
+				var sharedDataReadSize = m_CurrentBakingSet.sharedDataChunkSize * chunkCount;
+
+				request.cellSharedDataStreamingRequest.AddReadCommand(cellStreamingDesc.offset, sharedDataReadSize, mappedBufferAddr);
+				mappedBufferAddr += sharedDataReadSize;
+				request.bytesWritten += request.cellSharedDataStreamingRequest.RunCommands(sharedDataAsset.OpenFile());
+			}
+
+			if(m_SHBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
+			{
+				var optionalDataAsset = request.scenarioData.cellOptionalDataAsset;
+				cellStreamingDesc = optionalDataAsset.streamableCellDescs[cellIndex];
+				var L2ReadSize = m_CurrentBakingSet.L2TextureChunkSize * chunkCount * 4; // 4 Textures
+				request.cellOptionalDataStreamingRequest.AddReadCommand(cellStreamingDesc.offset, L2ReadSize, mappedBufferAddr);
+				mappedBufferAddr += L2ReadSize;
+				request.bytesWritten += request.cellOptionalDataStreamingRequest.RunCommands(optionalDataAsset.OpenFile());
+			}
+
+			if (m_CurrentBakingSet.bakedProbeOcclusion)
+			{
+				var probeOcclusionDataAsset = request.scenarioData.cellProbeOcclusionDataAsset;
+				cellStreamingDesc = probeOcclusionDataAsset.streamableCellDescs[cellIndex];
+				var probeOcclusionReadSize = m_CurrentBakingSet.ProbeOcclusionChunkSize * chunkCount;
+				request.cellProbeOcclusionDataStreamingRequest.AddReadCommand(cellStreamingDesc.offset, probeOcclusionReadSize, mappedBufferAddr);
+				mappedBufferAddr += probeOcclusionReadSize;
+				request.bytesWritten += request.cellProbeOcclusionDataStreamingRequest.RunCommands(probeOcclusionDataAsset.OpenFile());
+			}
+
+			// Bricks Data
+			cellData.bricks = new NativeArray<ProbeBrickIndex.Brick>(cellDesc.bricksCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+			var brickDataAsset = m_CurrentBakingSet.cellBricksDataAsset;
+			cellStreamingDesc = brickDataAsset.streamableCellDescs[cellIndex];
+			request.brickStreamingRequest.AddReadCommand(cellStreamingDesc.offset, brickDataAsset.elementSize * Mathf.Min(cellStreamingDesc.elementCount, cellDesc.bricksCount), (byte*)cellData.bricks.GetUnsafePtr());
+			request.brickStreamingRequest.RunCommands(brickDataAsset.OpenFile());
+
+			// Support Data
+			if (m_CurrentBakingSet.HasSupportData())
+			{
+				var supportDataAsset = m_CurrentBakingSet.cellSupportDataAsset;
+				cellStreamingDesc = supportDataAsset.streamableCellDescs[cellIndex];
+
+				var supportOffset = cellStreamingDesc.offset;
+				var positionSize = cellStreamingDesc.elementCount * m_CurrentBakingSet.supportPositionChunkSize;
+				var touchupSize = cellStreamingDesc.elementCount * m_CurrentBakingSet.supportTouchupChunkSize;
+				var offsetsSize = cellStreamingDesc.elementCount * m_CurrentBakingSet.supportOffsetsChunkSize;
+				var layerSize = cellStreamingDesc.elementCount * m_CurrentBakingSet.supportLayerMaskChunkSize;
+				var validitySize = cellStreamingDesc.elementCount * m_CurrentBakingSet.supportValidityChunkSize;
+
+				cellData.probePositions = (new NativeArray<byte>(positionSize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory)).Reinterpret<Vector3>(1);
+				cellData.validity = (new NativeArray<byte>(validitySize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory)).Reinterpret<float>(1);
+				cellData.layer = (new NativeArray<byte>(layerSize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory)).Reinterpret<byte>(1);
+				cellData.touchupVolumeInteraction = (new NativeArray<byte>(touchupSize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory)).Reinterpret<float>(1);
+				cellData.offsetVectors = (new NativeArray<byte>(offsetsSize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory)).Reinterpret<Vector3>(1);
+
+				request.supportStreamingRequest.AddReadCommand(supportOffset, positionSize, (byte*)cellData.probePositions.GetUnsafePtr());
+				supportOffset += positionSize;
+				request.supportStreamingRequest.AddReadCommand(supportOffset, validitySize, (byte*)cellData.validity.GetUnsafePtr());
+				supportOffset += validitySize;
+				request.supportStreamingRequest.AddReadCommand(supportOffset, touchupSize, (byte*)cellData.touchupVolumeInteraction.GetUnsafePtr());
+				supportOffset += touchupSize;
+				request.supportStreamingRequest.AddReadCommand(supportOffset, layerSize, (byte*)cellData.layer.GetUnsafePtr());
+				supportOffset += layerSize;
+				request.supportStreamingRequest.AddReadCommand(supportOffset, offsetsSize, (byte*)cellData.offsetVectors.GetUnsafePtr());
+				request.supportStreamingRequest.RunCommands(supportDataAsset.OpenFile());
+			}
+
+			request.state = CellStreamingRequest.State.Active;
+			m_ActiveStreamingRequests.Add(request);
+
+			return true;
+		}
+
+		private void AllocateScratchBufferPoolIfNeeded()
+		{
+			if (m_SupportDiskStreaming)
+			{
+				int shChunkSize = m_CurrentBakingSet.GetChunkGPUMemory(m_SHBands);
+				int maxSHChunkCount = m_CurrentBakingSet.maxSHChunkCount;
+
+				Debug.Assert(shChunkSize % 4 == 0);
+
+				// Recreate if chunk size or max count is different.
+				if(m_ScratchBufferPool == null || m_ScratchBufferPool.chunkSize != shChunkSize || m_ScratchBufferPool.maxChunkCount != maxSHChunkCount)
+				{
+					if (probeVolumeDebug.verboseStreamingLog)
+						LogStreaming($"Allocating new Scratch Buffer Pool. Chunk size: {shChunkSize}, max SH Chunks: {maxSHChunkCount}");
+
+					if (m_ScratchBufferPool != null)
+						m_ScratchBufferPool.Cleanup();
+
+					m_ScratchBufferPool = new ProbeVolumeScratchBufferPool(m_CurrentBakingSet, m_SHBands);
+				}
+			}
+		}
+
 
 		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
 

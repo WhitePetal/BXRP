@@ -8,6 +8,7 @@ namespace BXRenderPipeline
     {
         LightCookies,
         UpdateReflectionProbeAtlas,
-		APVDiskStreamingUpdatePool
+		APVDiskStreamingUpdatePool,
+		APVCellStreamingUpdate
 	}
 }
