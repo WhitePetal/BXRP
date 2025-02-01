@@ -682,7 +682,53 @@ namespace BXRenderPipeline
 				int shChunkBudget = m_Pool.GetRemainingChunkCount();
 				int cellCountToLoad = Mathf.Min(numberOfCellsLoadedPerFrame, bestUnloadedCells.size);
 
+				bool didRecomputeScoresForLoadedCells = false;
+                if (m_SupportGPUStreaming)
+                {
+                    if (m_IndexDefragmentationInProgress)
+                    {
+						UpdateIndexDefragmentation();
+                    }
+                    else
+                    {
+						bool needComputeFragmentation = false;
 
+						while(m_TempCellToLoadList.size < cellCountToLoad)
+                        {
+							// Enough memory, we can safely load the cell.
+							var cellInfo = bestUnloadedCells[m_TempCellToLoadList.size];
+							if (!TryLoadCell(cellInfo, ref shChunkBudget, ref indexChunkBudget, m_TempCellToLoadList))
+								break;
+						}
+
+						// Budget reached. We need to figure out if we can safely unload other cells to make room.
+						// If defrag was triggered by TryLoadCell we should not try to load further cells either.
+						if(m_TempCellToLoadList.size != cellCountToLoad && !m_IndexDefragmentationInProgress)
+                        {
+                            // We need to unload cells so we have to compute the worse loaded cells now (not earlier as it would be useless)
+                            if (m_LoadMaxCellsPerFrame)
+                            {
+								ComputeStreamingScore(cameraPositionCellSpace, m_FrozenCameraDirection, m_LoadedCells);
+								m_LoadedCells.QuickSort();
+								worseLoadedCells = m_LoadedCells;
+                            }
+                            else
+                            {
+								ComputeStreamingScoreAndWorseLoadedCells(cameraPositionCellSpace, m_FrozenCameraDirection);
+								worseLoadedCells = m_WorseLoadedCells;
+                            }
+							didRecomputeScoresForLoadedCells = true;
+
+							int pendingUnloadCount = 0;
+							while(m_TempCellToLoadList.size < cellCountToLoad)
+                            {
+								// No more cells to unload.
+								if (worseLoadedCells.size - pendingUnloadCount == 0)
+									break;
+							}
+						}
+					}
+				}
 			}
 		}
 
