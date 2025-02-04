@@ -334,7 +334,7 @@ namespace BXRenderPipeline
 		/// <summary>
 		/// Maximum number of cells that are blended per frame
 		/// </summary>
-		public int numberOfCellsBlendedPerFram
+		public int numberOfCellsBlendedPerFrame
 		{
 			get => m_NumberOfCellsBlendedPerFrame;
 			set => m_NumberOfCellsBlendedPerFrame = Mathf.Max(1, value);
@@ -725,12 +725,339 @@ namespace BXRenderPipeline
 								// No more cells to unload.
 								if (worseLoadedCells.size - pendingUnloadCount == 0)
 									break;
+
+								// List are stored in reverse order depending on the mode.
+								// TODO make the full List be sorted the same way as partial list.
+								int worseCellIndex = m_LoadMaxCellsPerFrame ? worseLoadedCells.size - pendingUnloadCount - 1 : pendingUnloadCount;
+								var worseLoadedCell = worseLoadedCells[worseCellIndex];
+								var bestUnloadedCell = bestUnloadedCells[m_TempCellToLoadList.size];
+
+								// We are in a "stable" state, all the closest cells are loaded within the budget.
+								if (worseLoadedCell.streamingInfo.streamingScore <= bestUnloadedCell.streamingInfo.streamingScore)
+									break;
+
+								// The worse loaded cell is further than the best unloaded cell, we can unload it.
+								while(pendingUnloadCount < worseLoadedCells.size && worseLoadedCell.streamingInfo.streamingScore > bestUnloadedCell.streamingInfo.streamingScore
+									&& (shChunkBudget < bestUnloadedCell.desc.shChunkCount || indexChunkBudget < bestUnloadedCell.desc.indexChunkCount))
+								{
+									if (probeVolumeDebug.verboseStreamingLog)
+										LogStreaming($"Unloading cell {worseLoadedCell.desc.index}");
+
+									pendingUnloadCount++;
+									UnloadCell(worseLoadedCell);
+									shChunkBudget += worseLoadedCell.desc.shChunkCount;
+									indexChunkBudget += worseLoadedCell.desc.indexChunkCount;
+
+									m_TempCellToUnloadList.Add(worseLoadedCell);
+
+									worseCellIndex = m_LoadMaxCellsPerFrame ? worseLoadedCells.size - pendingUnloadCount - 1 : pendingUnloadCount;
+									if (pendingUnloadCount < worseLoadedCells.size)
+										worseLoadedCell = worseLoadedCells[worseCellIndex];
+								}
+
+								// We unloaded enough space (not taking fragmentation into account)
+								if(shChunkBudget >= bestUnloadedCell.desc.shChunkCount && indexChunkBudget >= bestUnloadedCell.desc.indexChunkCount)
+								{
+									if(!TryLoadCell(bestUnloadedCell, ref shChunkBudget, ref indexChunkBudget, m_TempCellToLoadList))
+									{
+										needComputeFragmentation = true;
+										break; // Alloc failed because of fragmentation, stop trying to load cells.
+									}
+								}
 							}
+						}
+
+						if (needComputeFragmentation)
+							m_Index.ComputeFragmentationRate();
+
+						if (m_Index.fragmentationRate >= kIndexFragmentationThreshold)
+							StartIndexDefragmentation();
+					}
+				}
+				else
+				{
+					for(int i = 0; i < cellCountToLoad; ++i)
+					{
+						var cellInfo = m_ToBeLoadedCells[m_TempCellToLoadList.size]; // m_TempCellToLoadList.size get incremented in TryLoadCell
+						if(!TryLoadCell(cellInfo, ref shChunkBudget, ref indexChunkBudget, m_TempCellToLoadList))
+						{
+							if (i > 0) // Only warn once
+							{
+								Debug.LogWarning("Max Memory Budget for Adaptive Probe Volumes has been reached, but there is still more data to load. Consider either increasing the Memory Budget, enabling GPU Streaming, or reducing the probe count.");
+							}
+							break;
 						}
 					}
 				}
+
+				// If we intend to blend scenarios, compute the streaming scores for the already loaded cells.
+				// These will be used to determine which of the loaded cells to perform blending on first.
+				// We only need to do this if we didn't already do it above.
+				if(!didRecomputeScoresForLoadedCells && supportScenarioBlending)
+				{
+					ComputeStreamingScore(cameraPositionCellSpace, m_FrozenCameraDirection, m_LoadedCells);
+				}
+
+				if (m_LoadMaxCellsPerFrame)
+					ComputeMinMaxStreamingScore();
+
+				// Update internal load/toBeLoaded lists.
+
+				// Move the successfully loaded cells to the "loaded cells" list.
+				foreach (var cell in m_TempCellToLoadList)
+					m_ToBeLoadedCells.Remove(cell);
+				m_LoadedCells.AddRange(m_TempCellToLoadList);
+				// Move the unloaded cells to the list of cells to be loaded.
+				if (m_TempCellToUnloadList.size > 0)
+				{
+					foreach (var cell in m_TempCellToUnloadList)
+						m_LoadedCells.Remove(cell);
+					ComputeCellGlobaleInfo();
+				}
+				m_ToBeLoadedCells.AddRange(m_TempCellToUnloadList);
+
+				// Clear temp lists.
+				m_TempCellToLoadList.Clear();
+				m_TempCellToUnloadList.Clear();
+
+				UpdateDiskStreaming(cmd);
+			}
+
+			// Handle cell streaming for blending
+			if (supportScenarioBlending)
+			{
+				using (new ProfilingScope(cmd, ProfilingSampler.Get(BXProfileId.APVScenarioBlendingUpdate)))
+					UpdateBlendingCellStreaming(cmd);
 			}
 		}
+
+		private int FindWorstBlendingCellToBeLoaded()
+		{
+			int idx = -1;
+			float worstBlending = -1;
+			float factor = scenarioBlendingFactor;
+			for(int i = m_TempBlendingCellToLoadList.size; i < m_ToBeLoadedBlendingCells.size; ++i)
+			{
+				float score = Mathf.Abs(m_ToBeLoadedBlendingCells[i].blendingInfo.blendingFactor - factor);
+				if(score > worstBlending)
+				{
+					idx = i;
+					if (m_ToBeLoadedBlendingCells[i].blendingInfo.ShouldReupload()) // We are not gonna find worse than that
+						break;
+					worstBlending = score;
+				}
+			}
+
+			return idx;
+		}
+
+		private static int BlendingComparer(Cell a, Cell b)
+		{
+			if (a.blendingInfo.blendingFactor < b.blendingInfo.blendingFactor)
+				return -1;
+			else if (a.blendingInfo.blendingFactor > b.blendingInfo.blendingFactor)
+				return 1;
+			else
+				return 0;
+		}
+
+		private static DynamicArray<Cell>.SortComparer s_BlendingComparer = BlendingComparer;
+
+		private void UpdateBlendingCellStreaming(CommandBuffer cmd)
+		{
+			// Compute the worst score to offset score of cells to prioritize
+			float worstLoaded = m_LoadedCells.size != 0 ? m_LoadedCells[m_LoadedCells.size - 1].streamingInfo.streamingScore : 0.0f;
+			float worstToBeLoaded = m_ToBeLoadedCells.size != 0 ? m_ToBeLoadedCells[m_ToBeLoadedCells.size - 1].streamingInfo.streamingScore : 0.0f;
+			float worstScore = Mathf.Max(worstLoaded, worstToBeLoaded);
+
+			ComputeBlendingScore(m_ToBeLoadedBlendingCells, worstScore);
+			ComputeBlendingScore(m_LoadedBlendingCells, worstScore);
+
+			m_ToBeLoadedBlendingCells.QuickSort(s_BlendingComparer);
+			m_LoadedBlendingCells.QuickSort(s_BlendingComparer);
+
+			int cellCountToLoad = Mathf.Min(numberOfCellsLoadedPerFrame, m_ToBeLoadedBlendingCells.size);
+			while(m_TempBlendingCellToLoadList.size < cellCountToLoad)
+			{
+				var blendingCell = m_ToBeLoadedBlendingCells[m_TempBlendingCellToLoadList.size];
+				if (!TryLoadBlendingCell(blendingCell, m_TempBlendingCellToLoadList))
+					break;
+			}
+
+			// Budget reached
+			if(m_TempBlendingCellToLoadList.size != cellCountToLoad)
+			{
+				// Turnover allows a percentage of the pool to be replaced by cells with a lower streaming score
+				// once the system is in a stable state. This ensures all cells get updated regularly.
+				int turnoverOffset = -1;
+				int idx = (int)(m_LoadedBlendingCells.size * (1f - turnoverRate));
+				var worstNoTurnover = idx < m_LoadedBlendingCells.size ? m_LoadedBlendingCells[idx] : null;
+
+				while(m_TempBlendingCellToLoadList.size < cellCountToLoad)
+				{
+					if (m_LoadedBlendingCells.size - m_TempBlendingCellToUnloadList.size == 0) // We unloaded everything
+						break;
+
+					var worstCellLoaded = m_LoadedBlendingCells[m_LoadedBlendingCells.size - m_TempBlendingCellToUnloadList.size - 1];
+					var bestCellToBeLoaded = m_ToBeLoadedBlendingCells[m_TempBlendingCellToLoadList.size];
+
+					// The best cell to be loaded has WORSE score than the worst cell already loaded.
+					// This means all cells waiting to be loaded are worse than the ones we already have - we are in a "stable" state.
+					if(bestCellToBeLoaded.blendingInfo.blendingScore >= (worstNoTurnover ?? worstCellLoaded).blendingInfo.blendingScore)
+					{
+						if (worstNoTurnover == null) // Disable turnover
+							break;
+
+						// Find worst cell and assume contiguous cells have roughly the same blending factor
+						// (contiguous cells are spatially close by, so it's good anyway to update them together)
+						if (turnoverOffset == -1)
+							turnoverOffset = FindWorstBlendingCellToBeLoaded();
+
+						bestCellToBeLoaded = m_ToBeLoadedBlendingCells[turnoverOffset];
+						if (bestCellToBeLoaded.blendingInfo.IsUpToDate()) // Every single cell is blended :)
+							break;
+					}
+
+					// If we encounter a cell that is still being streamed in (and thus hasn't had a chance to be blended yet), bail
+					// we don't want to keep unloading cells before they get blended, or we will never get any work done.
+					// This branch is only ever true when disk streaming is being used.
+					if (worstCellLoaded.streamingInfo.IsBlendingStreaming())
+						break;
+
+					UnloadBlendingCell(worstCellLoaded, m_TempBlendingCellToUnloadList);
+
+					if (probeVolumeDebug.verboseStreamingLog)
+						LogStreaming($"Unloading blending cell {worstCellLoaded.desc.index}");
+
+					bool loadOk = TryLoadBlendingCell(bestCellToBeLoaded, m_TempBlendingCellToLoadList);
+
+					// Handle turnover. Loading can still fail cause all cells don't have the same chunk count.
+					if(loadOk && turnoverOffset != -1)
+					{
+						// swap to ensure loaded cells are at the start of m_ToBeLoadedBlendingCells
+						m_ToBeLoadedBlendingCells[turnoverOffset] = m_ToBeLoadedBlendingCells[m_TempBlendingCellToLoadList.size - 1];
+						m_ToBeLoadedBlendingCells[m_TempBlendingCellToLoadList.size - 1] = bestCellToBeLoaded;
+						if (++turnoverOffset >= m_ToBeLoadedBlendingCells.size)
+							turnoverOffset = m_TempBlendingCellToLoadList.size;
+					}
+				}
+
+				m_LoadedBlendingCells.RemoveRange(m_LoadedBlendingCells.size - m_TempBlendingCellToUnloadList.size, m_TempBlendingCellToUnloadList.size);
+			}
+
+			m_ToBeLoadedBlendingCells.RemoveRange(0, m_TempBlendingCellToLoadList.size);
+			m_LoadedBlendingCells.AddRange(m_TempBlendingCellToLoadList);
+			m_TempBlendingCellToLoadList.Clear();
+			m_ToBeLoadedBlendingCells.AddRange(m_TempBlendingCellToUnloadList);
+			m_TempBlendingCellToUnloadList.Clear();
+
+			// Kick off blending.
+			if(m_LoadedBlendingCells.size > 0)
+			{
+				float factor = scenarioBlendingFactor;
+
+				int loadedBlendingCellIndex = 0;
+				int blendedCellCount = 0;
+				while (blendedCellCount < numberOfCellsBlendedPerFrame && loadedBlendingCellIndex < m_LoadedBlendingCells.size)
+				{
+					var blendingCell = m_LoadedBlendingCells[loadedBlendingCellIndex++];
+					if (!blendingCell.streamingInfo.IsBlendingStreaming() && !blendingCell.blendingInfo.IsUpToDate())
+					{
+						if (probeVolumeDebug.verboseStreamingLog)
+							LogStreaming($"Blending cell {blendingCell.desc.index} ({factor})");
+
+						blendingCell.blendingInfo.blendingFactor = factor;
+						blendingCell.blendingInfo.MarkUpToDate();
+						m_BlendingPool.BlendChunks(blendingCell, m_Pool);
+						blendedCellCount++;
+					}
+				}
+
+				m_BlendingPool.PerformBlending(cmd, factor, m_Pool);
+			}
+		}
+		private static int DefragComparer(Cell a, Cell b)
+		{
+			if (a.indexInfo.updateInfo.GetNumberOfChunks() > b.indexInfo.updateInfo.GetNumberOfChunks())
+				return 1;
+			else if (a.indexInfo.updateInfo.GetNumberOfChunks() < b.indexInfo.updateInfo.GetNumberOfChunks())
+				return -1;
+			else return 0;
+		}
+
+		private static DynamicArray<Cell>.SortComparer s_DefragComparer = DefragComparer;
+
+		private void StartIndexDefragmentation()
+		{
+			// We can end up here during baking (dilation) when trying to load all cells even without supporting GPU streaming.
+			if (!m_SupportGPUStreaming)
+				return;
+
+			m_IndexDefragmentationInProgress = true;
+
+			// Prepare the list of cells.
+			// We want to relocate cells with more indices first.
+			m_IndexDefragCells.Clear();
+			m_IndexDefragCells.AddRange(m_LoadedCells);
+			m_IndexDefragCells.QuickSort(s_DefragComparer);
+
+			m_DefragIndex.Clear();
+		}
+
+		private void UpdateIndexDefragmentation()
+		{
+			using(new ProfilingScope(null, ProfilingSampler.Get(BXProfileId.APVIndexDefragUpdate)))
+			{
+				m_TempIndexDefragCells.Clear();
+
+				int numberOfCellsToProcess = Mathf.Min(m_IndexDefragCells.size, numberOfCellsLoadedPerFrame);
+				int i = 0;
+				int processedCells = 0;
+				while(i < m_IndexDefragCells.size && processedCells < numberOfCellsToProcess)
+				{
+					var cell = m_IndexDefragCells[m_IndexDefragCells.size - i - 1];
+
+					m_DefragIndex.FindSlotsForEntries(ref cell.indexInfo.updateInfo.entriesInfo);
+					m_DefragIndex.ReserveChunks(cell.indexInfo.updateInfo.entriesInfo, false);
+
+					// Index of cells being streamed is not up to date yet so we can't defrag this cell.
+					if (!(cell.streamingInfo.IsStreaming() || cell.streamingInfo.IsBlendingStreaming()))
+					{
+						// Update index and indirection
+						m_DefragIndex.AddBricks(cell.indexInfo, cell.data.bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrick(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
+						m_DefragCellIndices.UpdateCell(cell.indexInfo);
+						processedCells++;
+					}
+					else
+					{
+						m_TempIndexDefragCells.Add(cell);
+					}
+
+					++i;
+				}
+
+				// Remove processed cells from the list.
+				// For faster removal, just resize by removing all processed cells and add back those that were streaming.
+				m_IndexDefragCells.Resize(m_IndexDefragCells.size - i);
+				m_IndexDefragCells.AddRange(m_TempIndexDefragCells);
+
+				if (m_IndexDefragCells.size == 0)
+                {
+                    // Swap index buffers
+                    var oldDefragIndex = m_DefragIndex;
+                    m_DefragIndex = m_Index;
+                    m_Index = oldDefragIndex;
+
+                    var oldDefragCellIndices = m_DefragCellIndices;
+                    m_DefragCellIndices = m_CellIndices;
+                    m_CellIndices = oldDefragCellIndices;
+
+                    // Resume streaming
+                    m_IndexDefragmentationInProgress = false;
+                }
+			}
+		}
+
 
 		private void OnStreamingComplete(CellStreamingRequest request, CommandBuffer cmd)
 		{
