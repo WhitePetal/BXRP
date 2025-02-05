@@ -330,6 +330,8 @@ namespace BXRenderPipeline
 			set => m_LoadMaxCellsPerFrame = value;
 		}
 
+		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
+
 		private int m_NumberOfCellsBlendedPerFrame = 10000;
 		/// <summary>
 		/// Maximum number of cells that are blended per frame
@@ -1321,8 +1323,165 @@ namespace BXRenderPipeline
 			}
 		}
 
+		private void UpdateActiveRequests(CommandBuffer cmd)
+        {
+			if(m_ActiveStreamingRequests.Count > 0)
+            {
+				for(int i = m_ActiveStreamingRequests.Count - 1; i >= 0; --i)
+                {
+					var request = m_ActiveStreamingRequests[i];
+					// Can't String.Format in an assert message without generating garbage :/
+					//Debug.Assert(request.state != CellStreamingRequest.State.Pending, $"Wrong status for request {request.cell.desc.index}: {request.state}");
+					Debug.Assert(request.state != CellStreamingRequest.State.Pending, "Wrong status for request");
 
-		private int numberOfCellsLoadedPerFrame => m_LoadMaxCellsPerFrame ? cells.Count : m_NumberOfCellsLoadedPerFrame;
+					bool releaseRequest = false;
+
+					if(request.state == CellStreamingRequest.State.Canceled)
+                    {
+						if (probeVolumeDebug.verboseStreamingLog)
+							LogStreaming($"Discarding active request for cell {request.cell.desc.index}");
+
+						m_ScratchBufferPool.ReleaseScratchBuffer(request.scratchBuffer);
+						releaseRequest = true;
+                    }
+                    else
+                    {
+						request.UpdateState();
+
+						if(request.state == CellStreamingRequest.State.Complete)
+                        {
+							Debug.Assert(cmd != null); // We should not get here during cleanup.
+
+                            if (probeVolumeDebug.verboseStreamingLog)
+                            {
+								if(request.poolIndex == -1)
+									LogStreaming($"Completed disk streaming request for cell {request.cell.desc.index}");
+								else
+									LogStreaming($"Completed disk streaming request for blending cell {request.cell.desc.index} for scenario {request.poolIndex}");
+							}
+
+							// Because of limitation of low level device implementation of Lock/Unlock on Graphics Buffers
+							// (the fact that locking over multiple frames isn't really supported)
+							// We need to go through a temporary buffer and copy into the GraphicsBuffer when streaming is done.
+							// This can be a first step to later on, use compressed data on disk to lighten the I/O load and decompress
+							// directly in the graphics buffer.
+							if(request.scratchBuffer.buffer != null)
+                            {
+								var mappedBuffer = request.scratchBuffer.buffer.LockBufferForWrite<byte>(0, request.scratchBuffer.stagingBuffer.Length);
+								mappedBuffer.CopyFrom(request.scratchBuffer.stagingBuffer);
+								request.scratchBuffer.buffer.UnlockBufferAfterWrite<byte>(request.scratchBuffer.stagingBuffer.Length);
+                            }
+							request.onStreamingCompelete(request, cmd);
+
+							// We can release here because the GraphicsBuffer inside the scratchBuffer is double buffered.
+							// So a new request on next frame won't overlap.
+							m_ScratchBufferPool.ReleaseScratchBuffer(request.scratchBuffer);
+							releaseRequest = true;
+						}
+						else if(request.state == CellStreamingRequest.State.Invalid)
+                        {
+							if(probeVolumeDebug.verboseStreamingLog)
+								LogStreaming($"Reseting invalid request for cell {request.cell.desc.index}");
+
+							// If invalid, try to run it again.
+							m_ScratchBufferPool.ReleaseScratchBuffer(request.scratchBuffer);
+							request.Reset();
+							m_ActiveStreamingRequests.RemoveAt(i);
+							m_StreamingQueue.Enqueue(request);
+						}
+					}
+
+                    if (releaseRequest)
+                    {
+						m_ActiveStreamingRequests.RemoveAt(i);
+						m_StreamingRequestsPool.Release(request);
+                    }
+				}
+            }
+        }
+
+		private unsafe void ProcessNewRequests()
+        {
+			while(m_StreamingQueue.TryPeek(out var request))
+            {
+				if(request.state == CellStreamingRequest.State.Canceled)
+                {
+                    if (probeVolumeDebug.verboseStreamingLog)
+                    {
+						if(request.poolIndex == -1)
+							LogStreaming($"Discarding request for cell {request.cell.desc.index}");
+						else
+							LogStreaming($"Discarding request for blending cell {request.cell.desc.index} for scenario {request.poolIndex}");
+					}
+
+					Debug.Assert(request.scratchBuffer == null);
+					m_StreamingRequestsPool.Release(request);
+					m_StreamingQueue.Dequeue(); //  Discard request.
+				}
+                else
+                {
+					Debug.Assert(request.state == CellStreamingRequest.State.Pending);
+					Debug.Assert(request.cell.data != null); // Need data for bricks and support data.
+
+                    if (ProcessDiskStreamingRequest(request))
+                    {
+						m_StreamingQueue.Dequeue();
+                    }
+                    else
+                    {
+						// No available scratch buffer for this request.
+						// Since we want to conserve order in the queue, we don't process any more requests this frame.
+						break;
+					}
+				}
+            }
+        }
+
+		private void UpdateDiskStreaming(CommandBuffer cmd)
+        {
+			if (!diskStreamingEnabled)
+				return;
+
+			using(new ProfilingScope(null, ProfilingSampler.Get(BXProfileId.APVDiskStreamingUpdate)))
+            {
+				AllocateScratchBufferPoolIfNeeded();
+				ProcessNewRequests();
+				UpdateActiveRequests(cmd);
+
+				// Close file handles if not needed anymore.
+				// Checking cellBricksDataAsset here just to know if any of the files is open. If one if open, all of them should be.
+				if(m_ActiveStreamingRequests.Count == 0 && m_StreamingQueue.Count == 0 && m_CurrentBakingSet.cellBricksDataAsset != null && m_CurrentBakingSet.cellBricksDataAsset.IsOpen())
+                {
+					if(probeVolumeDebug.verboseStreamingLog)
+						LogStreaming("Closing files open for APV disk streaming.");
+
+					m_CurrentBakingSet.cellBricksDataAsset.CloseFile();
+					m_CurrentBakingSet.cellSupportDataAsset.CloseFile();
+					m_CurrentBakingSet.cellSharedDataAsset.CloseFile();
+
+					if(m_CurrentBakingSet.scenarios.TryGetValue(lightingScenario, out var scenarioData))
+                    {
+						scenarioData.cellDataAsset.CloseFile();
+						scenarioData.cellOptionalDataAsset.CloseFile();
+						scenarioData.cellProbeOcclusionDataAsset.CloseFile();
+                    }
+
+					if(!string.IsNullOrEmpty(otherScenario) && m_CurrentBakingSet.scenarios.TryGetValue(lightingScenario, out var otherScenarioData))
+					{
+						otherScenarioData.cellDataAsset.CloseFile();
+						otherScenarioData.cellOptionalDataAsset.CloseFile();
+						otherScenarioData.cellProbeOcclusionDataAsset.CloseFile();
+                    }
+				}
+			}
+
+			// Debug flag to force unload/reload of cells to be able to debug streaming shader code.
+			if(probeVolumeDebug.debugStreaming)
+            {
+				if (m_ToBeLoadedCells.size == 0 && m_ActiveStreamingRequests.Count == 0)
+					UnloadAllCells();
+            }
+		}
 
 
 		private bool HasActiveStreamingRequest(Cell cell)

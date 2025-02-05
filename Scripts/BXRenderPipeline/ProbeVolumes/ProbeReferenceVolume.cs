@@ -722,6 +722,12 @@ namespace BXRenderPipeline
 			}
 		}
 
+		/// <summary>The lighting scenario APV is blending toward.</summary>
+		public string otherScenario
+        {
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.otherScenario : null;
+        }
+
 		private ProbeBrickPool m_Pool;
 		private ProbeBrickBlendingPool m_BlendingPool;
 		private ProbeGlobalIndirection m_CellIndices;

@@ -11,6 +11,7 @@ namespace BXRenderPipeline
 		APVDiskStreamingUpdatePool,
 		APVCellStreamingUpdate,
 		APVScenarioBlendingUpdate,
-		APVIndexDefragUpdate
+		APVIndexDefragUpdate,
+		APVDiskStreamingUpdate
 	}
 }
