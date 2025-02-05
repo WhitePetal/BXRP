@@ -393,12 +393,6 @@ namespace BXRenderPipeline
 		private CellStreamingRequest.OnStreamingCompeleteDelegate m_OnStreamingComplete;
 		private CellStreamingRequest.OnStreamingCompeleteDelegate m_OnBlendingStreamingComplete;
 
-		public bool probeOcclusion;
-		public bool skyOcclusion;
-		public bool skyOcclusionShadingDirection;
-
-		private List<Chunk> m_TmpSrcChunks = new List<Chunk>();
-
 		private void InitStreaming()
 		{
 			m_OnStreamingComplete = OnStreamingComplete;
@@ -1026,7 +1020,7 @@ namespace BXRenderPipeline
 					if (!(cell.streamingInfo.IsStreaming() || cell.streamingInfo.IsBlendingStreaming()))
 					{
 						// Update index and indirection
-						m_DefragIndex.AddBricks(cell.indexInfo, cell.data.bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrick(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
+						m_DefragIndex.AddBricks(cell.indexInfo, cell.data.bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrickCount(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
 						m_DefragCellIndices.UpdateCell(cell.indexInfo);
 						processedCells++;
 					}

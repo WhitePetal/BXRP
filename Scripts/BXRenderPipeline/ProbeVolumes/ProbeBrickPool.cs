@@ -410,12 +410,12 @@ namespace BXRenderPipeline
 			return allocatedBytes;
 		}
 
-		internal static int GetChunkSizeInBrick()
+		internal static int GetChunkSizeInBrickCount()
 		{
 			return kChunkSizeInBricks;
 		}
 
-		internal static int GetChunkSizeInProbe()
+		internal static int GetChunkSizeInProbeCount()
 		{
 			return kChunkSizeInBricks * kBrickProbeCountTotal;
 		}

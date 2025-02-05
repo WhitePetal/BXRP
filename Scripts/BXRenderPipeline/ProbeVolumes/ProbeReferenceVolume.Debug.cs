@@ -1274,7 +1274,7 @@ namespace BXRenderPipeline
 			debugData.offsetBuffers = offsetBuffers;
 			debugData.props = props;
 
-			var chunkSizeInProbe = ProbeBrickPool.GetChunkSizeInProbe();
+			var chunkSizeInProbe = ProbeBrickPool.GetChunkSizeInProbeCount();
 			var loc = ProbeBrickPool.ProbeCountToDataLocSize(chunkSizeInProbe);
 
 			float baseThreshold = m_CurrentBakingSet.settings.dilationSettings.dilationValidityThreshold;
@@ -1287,7 +1287,7 @@ namespace BXRenderPipeline
 				Debug.Assert(bz < loc.z);
 
 				int brickSize = cell.data.bricks[brickIndex].subdivisionLevel;
-				int chunkIndex = brickIndex / ProbeBrickPool.GetChunkSizeInBrick();
+				int chunkIndex = brickIndex / ProbeBrickPool.GetChunkSizeInBrickCount();
 				var chunk = chunks[chunkIndex];
 				Vector3Int brickStart = new Vector3Int(chunk.x + bx, chunk.y + by, chunk.z + bz);
 

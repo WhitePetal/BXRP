@@ -223,7 +223,7 @@ namespace BXRenderPipeline
 		}
 
 		[Serializable]
-		internal struct CellDesc
+		internal class CellDesc
 		{
 			public Vector3Int position;
 			public int index;
@@ -434,6 +434,20 @@ namespace BXRenderPipeline
 			{
 				return request != null && request.IsStreaming();
 			}
+
+			public bool IsBlendingStreaming()
+            {
+				return blendingRequest0 != null && blendingRequest0.IsStreaming()
+					|| blendingRequest1 != null && blendingRequest1.IsStreaming();
+            }
+
+			public void Clear()
+            {
+				request = null;
+				blendingRequest0 = null;
+				blendingRequest1 = null;
+				streamingScore = 0;
+            }
 		}
 
 		[DebuggerDisplay("Index = {desc.index} Loaded = {loaded}")]
@@ -466,6 +480,42 @@ namespace BXRenderPipeline
 				else
 					return 0;
             }
+
+			public bool UpdateCellScenarioData(string scenario0, string scenario1)
+            {
+				if(!data.scenarios.TryGetValue(scenario0, out this.scenario0))
+                {
+					return false;
+                }
+
+				hasTwoScenarios = false;
+
+                if (!string.IsNullOrEmpty(scenario1))
+                {
+					if (data.scenarios.TryGetValue(scenario1, out this.scenario1))
+						hasTwoScenarios = true;
+                }
+
+				return true;
+            }
+
+			public void Clear()
+            {
+				desc = null;
+				data = null;
+				poolInfo.Clear();
+				indexInfo.Clear();
+				blendingInfo.Clear();
+				streamingInfo.Clear();
+
+				referenceCount = 0;
+				loaded = false;
+				scenario0 = default;
+				scenario1 = default;
+				hasTwoScenarios = false;
+
+				debugProbes = null;
+			}
         }
 
 		internal struct Volume : IEquatable<Volume>
@@ -572,6 +622,13 @@ namespace BXRenderPipeline
 			}
 		}
 
+		internal struct RefVolTransform
+        {
+			public Vector3 posWS;
+			public Quaternion rot;
+			public float scale;
+        }
+
 		/// <summary>
 		/// The resources that are bound to the runtime shaders for sampling Adaptive Probe Volume data.
 		/// </summary>
@@ -646,40 +703,94 @@ namespace BXRenderPipeline
 			public ComputeBuffer QualityLeakReductionData;
 		}
 
-		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+		private bool m_IsInitialized = false;
+		private bool m_SupportScenarios = false;
+		private bool m_SupportScenarioBlending = false;
+		private bool m_ForceNoDiskStreaming = false;
+		private bool m_SupportDiskStreaming = false;
+		private bool m_SupportGPUStreaming = false;
+		private bool m_UseStreamingAssets = true;
 
-		private static ProbeReferenceVolume _instance = new ProbeReferenceVolume();
-
-		/// <summary>
-		/// Get the instance of the probe reference volume (singleton)
-		/// </summary>
-		public static ProbeReferenceVolume instance => _instance;
-
-		private ProbeBrickIndex m_Index;
-
-		private bool m_ProbeReferenceVolumeInit;
-
-		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
-
-		private int m_MaxSubdivision;
 		private float m_MinBrickSize;
-		private float m_MaxBrickSize;
+		private int m_MaxSubdivision;
+
 		private Vector3 m_ProbeOffset;
 
-		internal int GetMaxSubdivision() => m_MaxSubdivision;
-		internal float MinBrickSize() => m_MinBrickSize;
-		internal float MaxBrickSize() => m_MaxBrickSize;
-		internal Vector3 ProbeOffset() => m_ProbeOffset;
+		private ProbeBrickPool m_Pool;
+		private ProbeBrickIndex m_Index;
+		private ProbeGlobalIndirection m_CellIndices;
+		private ProbeBrickBlendingPool m_BlendingPool;
 
-		internal int GetEntrySubdivLevel() => Mathf.Min(ProbeGlobalIndirection.kEntryMaxSubdivLevel, m_MaxSubdivision - 1);
+		private List<Chunk> m_TmpSrcChunks = new List<Chunk>();
+		private float[] m_PositionOffsets = new float[ProbeBrickPool.kBrickProbeCountPerDim];
+		private Bounds m_CurrGlobalBounds = new Bounds();
 
-		private bool m_IsInitialized;
+		internal Bounds globalBounds
+        {
+            get
+            {
+				return m_CurrGlobalBounds;
+            }
+            set
+            {
+				m_CurrGlobalBounds = value;
+            }
+        }
+
+		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
+		private ObjectPool<Cell> m_CellPool = new ObjectPool<Cell>(x => x.Clear(), null, false);
+
+		private ProbeBrickPool.DataLocation m_TemporaryDataLocation;
+		private int m_TemporaryDataLocationMemCoast;
+
+#pragma warning disable 618
+		[Obsolete("This field is only kept for migration purpose.")]
+		internal ProbeVolumeSceneData sceneData; // Kept for migration
+#pragma warning restore 618
+
+		// We need to keep track the area, in cells, that is currently loaded. The index buffer will cover even unloaded areas, but we want to avoid sampling outside those areas.
+		private Vector3Int minLoadedCellPos = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
+		private Vector3Int maxLoadedCellPos = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
+
+		/// <summary>
+		/// The input to the retrieveExtraDataAction action.
+		/// </summary>
+		public struct ExtraDataActionInput
+        {
+			// Empty, but defined to make this future proof without having to change public API
+		}
+
+		/// <summary>
+        /// An action that is used by the SRP to retrieve extra data that was baked together with the bake
+        /// </summary>
+		public Action<ExtraDataActionInput> retrieveExtraDataAction;
+
+		/// <summary>
+		/// An action that is used by the SRP to perform checks every frame during baking.
+		/// </summary>
+		public Action checksDuringBakeAction = null;
+
+		// Information of the probe volume scenes that is being loaded (if one is pending)
+		private Dictionary<string, (ProbeVolumeBakingSet, List<int>)> m_PendingScenesToBeLoaded = new Dictionary<string, (ProbeVolumeBakingSet, List<int>)>();
+
+		// Information on probes we need to remove.
+		private Dictionary<string, List<int>> m_PendingScenesToBeUnloaded = new Dictionary<string, List<int>>();
+		// Information of the probe volume scenes that is being loaded (if one is pending)
+		private List<string> m_ActiveScenes = new List<string>();
+
+		private ProbeVolumeBakingSet m_CurrentBakingSet = null;
+
+		private bool m_NeedLoadAsset = false;
+		private bool m_ProbeReferenceVolumeInit = false;
 		private bool m_EnabledBySRP;
-		private bool m_SupportLightingScenarios;
-		private bool m_SupportScenarioBlending;
-		private bool m_SupportGPUStreaming;
-		private bool m_SupportDiskStreaming;
-		private bool m_ForceNoDiskStreaming;
+		private bool m_VertexSampling = false;
+
+		/// <summary>Is Probe Volume initialized.</summary>
+		public bool isInitialized => m_IsInitialized;
+		internal bool enabledBySRP => m_EnabledBySRP;
+		internal bool vertexSampling => m_VertexSampling;
+
+		internal bool hasUnloadedCells => m_ToBeLoadedCells.size != 0;
 
 		internal bool supportLightingScenarios => m_SupportLightingScenarios;
 		internal bool supportScenarioBlending => m_SupportScenarioBlending;
@@ -687,30 +798,51 @@ namespace BXRenderPipeline
 		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
 
 		/// <summary>
-		/// This Probe Volume is initialized
+		/// Whether APV stores occlusion for mixed lights.
 		/// </summary>
-		public bool isInitialized => m_IsInitialized;
-		internal bool enabledBySRP => m_EnabledBySRP;
+		public bool probeOcclusion
+        {
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.bakedProbeOcclusion : false;
+        }
 
-		private ProbeVolumeBakingSet m_CurrentBakingSet = null;
-
-		public float scenarioBlendingFactor
+		/// <summary>
+		/// Whether APV handles sky dynamically (with baked sky occlusion) or fully statically.
+		/// </summary>
+		public bool skyOcclusion
 		{
-			get => m_CurrentBakingSet ? m_CurrentBakingSet.scenarioBlendingFactor : 0.0f;
-			set
-			{
-				if (m_CurrentBakingSet != null)
-					m_CurrentBakingSet.BlendLightingScenario(m_CurrentBakingSet.otherScenario, value);
-			}
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.bakedSkyOcclusion : false;
 		}
 
-		internal static string GetSceneGUID(Scene scene) => scene.GetGUID();
+		/// <summary>
+		/// Bake sky shading direction.
+		/// </summary>
+		public bool skyOcclusionShadingDirection
+		{
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.bakedSkyShadingDirection : false;
+		}
 
-		internal static string defaultLightingScenario = "Default";
+		private bool useRenderingLayers => m_CurrentBakingSet.bakedMaskCount != 1;
 
-		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
+		private bool m_NeedsIndexRebuild = false;
+		private bool m_HasChangeIndex = false;
 
+		private int m_CBShaderID = Shader.PropertyToID("ShaderVariablesProbeVolumes");
+
+		private ProbeVolumeTextureMemoryBudget m_MemoryBudget;
+		private ProbeVolumeBlendingTextureMemoryBudget m_BlendingMemoryBudget;
 		private ProbeVolumeSHBands m_SHBands;
+
+		/// <summary>
+		/// The <see cref="ProbeVolumeSHBands"/>
+		/// </summary>
+		public ProbeVolumeSHBands shBands => m_SHBands;
+
+		internal bool clearAssetsOnVolumeClear = false;
+
+		/// <summary>
+		/// The active baking set.
+		/// </summary>
+		public ProbeVolumeBakingSet currentBakingSet => m_CurrentBakingSet;
 
 		/// <summary>The active lighting scenario.</summary>
 		public string lightingScenario
@@ -724,15 +856,22 @@ namespace BXRenderPipeline
 
 		/// <summary>The lighting scenario APV is blending toward.</summary>
 		public string otherScenario
-        {
+		{
 			get => m_CurrentBakingSet ? m_CurrentBakingSet.otherScenario : null;
-        }
+		}
 
-		private ProbeBrickPool m_Pool;
-		private ProbeBrickBlendingPool m_BlendingPool;
-		private ProbeGlobalIndirection m_CellIndices;
+		/// <summary>The blending factor currently used to blend probe data. A value of 0 means blending is not active.</summary>
+		public float scenarioBlendingFactor
+		{
+			get => m_CurrentBakingSet ? m_CurrentBakingSet.scenarioBlendingFactor : 0.0f;
+			set
+			{
+				if (m_CurrentBakingSet != null)
+					m_CurrentBakingSet.BlendLightingScenario(m_CurrentBakingSet.otherScenario, value);
+			}
+		}
 
-		private ProbeBrickPool.DataLocation m_TemporaryDataLocation;
+		internal static string GetSceneGUID(Scene scene) => scene.GetGUID();
 
 		internal void SetActiveScenario(string scenario, bool verbose = true)
 		{
@@ -740,11 +879,120 @@ namespace BXRenderPipeline
 				m_CurrentBakingSet.SetActiveScenario(scenario, verbose);
 		}
 
+		/// <summary>
+		/// Allows smooth transitions between two lighting scenarios. This only affects the runtime data used for lighting.
+		/// </summary>
+		/// <param name="otherScenario"></param>
+		/// <param name="blendingFactor"></param>
+		public void BlendLightingScenario(string otherScenario, float blendingFactor)
+        {
+			if (m_CurrentBakingSet != null)
+				m_CurrentBakingSet.BlendLightingScenario(otherScenario, blendingFactor);
+        }
+
+		internal static string defaultLightingScenario = "Default";
+
+		/// <summary>
+		/// Get the memory budget for the Probe Volume system.
+		/// </summary>
+		public ProbeVolumeTextureMemoryBudget memoryBudget => m_MemoryBudget;
+
+		private static ProbeReferenceVolume _instance = new ProbeReferenceVolume();
+
+		internal List<ProbeVolumePerSceneData> perSceneDataList
+		{
+			get;
+			private set;
+		} = new List<ProbeVolumePerSceneData>();
+
+		internal void RegisterPerSceneData(ProbeVolumePerSceneData data)
+        {
+            if (!perSceneDataList.Contains(data))
+            {
+				perSceneDataList.Add(data);
+
+				// Registration can happen before APV (or even the current pipeline) is initialized, so in this case we need to delay the init.
+				if (m_IsInitialized)
+					data.Initialize();
+            }
+        }
+
+		public void SetActiveScene(Scene scene)
+        {
+			if (TryGetPerSceneData(GetSceneGUID(scene), out var perSceneData))
+				SetActiveBakingSet(perSceneData.serializedBakingSet);
+        }
+
+		public void SetActiveBakingSet(ProbeVolumeBakingSet bakingSet)
+        {
+			if (m_CurrentBakingSet == bakingSet)
+				return;
+
+			foreach (var data in perSceneDataList)
+				data.QueueSceneRemoval();
+
+			UnloadBakingSet();
+			SetBakingSetAsCurrent(bakingSet);
+
+			if(m_CurrentBakingSet != null)
+            {
+				foreach (var data in perSceneDataList)
+					data.QueueSceneLoading();
+            }
+        }
+
+		internal bool TryGetPerSceneData(string sceneGUID, out ProbeVolumePerSceneData perSceneData)
+        {
+			foreach(var data in perSceneDataList)
+            {
+				if(GetSceneGUID(data.gameObject.scene) == sceneGUID)
+                {
+					perSceneData = data;
+					return true;
+                }
+            }
+
+			perSceneData = null;
+			return false;
+        }
+
+		private bool m_SupportLightingScenarios;
+
+
+		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+
+
+		/// <summary>
+		/// Get the instance of the probe reference volume (singleton)
+		/// </summary>
+		public static ProbeReferenceVolume instance => _instance;
+
+		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
+
+
+		internal int GetMaxSubdivision() => m_MaxSubdivision;
+		internal float MinBrickSize() => m_MinBrickSize;
+		internal float MaxBrickSize() => m_MaxBrickSize;
+		internal Vector3 ProbeOffset() => m_ProbeOffset;
+
+		internal int GetEntrySubdivLevel() => Mathf.Min(ProbeGlobalIndirection.kEntryMaxSubdivLevel, m_MaxSubdivision - 1);
+
+
+
+
+
+
+
+
+
+
+
+
 		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
 			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
 			int chunkIndex, int poolIndex)
 		{
-			var chunkSizeInProbes = ProbeBrickPool.GetChunkSizeInProbe();
+			var chunkSizeInProbes = ProbeBrickPool.GetChunkSizeInProbeCount();
 
 			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL0_L1rx, data.shL0L1RxData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
 			UpdateDataLocationTexture(m_TemporaryDataLocation.TexL1_G_ry, data.shL1GL1RyData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
@@ -785,7 +1033,7 @@ namespace BXRenderPipeline
 			}
 
 			// New data format only uploads one chunk at a time (we need predictable chunk size)
-			var srcChunks = GetSourceLocations(1, ProbeBrickPool.GetChunkSizeInBrick(), m_TemporaryDataLocation);
+			var srcChunks = GetSourceLocations(1, ProbeBrickPool.GetChunkSizeInBrickCount(), m_TemporaryDataLocation);
 
 			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
 			if (poolIndex == -1)
@@ -907,7 +1155,7 @@ namespace BXRenderPipeline
 
 			// Build Index
 			var bricks = cell.data.bricks;
-			m_Index.AddBricks(cell.indexInfo, bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrick(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
+			m_Index.AddBricks(cell.indexInfo, bricks, cell.poolInfo.chunkList, ProbeBrickPool.GetChunkSizeInBrickCount(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight());
 
 			// Update indirection buffer
 			m_CellIndices.UpdateCell(cell.indexInfo);
