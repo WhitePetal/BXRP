@@ -289,6 +289,12 @@ namespace BXRenderPipeline
 		public bool skyOcclusion = false;
 
 		/// <summary>
+        /// Controls the number of samples per probe for dynamic sky baking
+        /// </summary>
+		[Logarithmic(1, k_MaxSkyOcclusionBakingSamples)]
+		public int skyOcclusionBakingSamples = 2048;
+
+		/// <summary>
 		/// Controls the number of bounces per light path for dynamic sky baking.
 		/// </summary>
 		[Range(0, 5)]
