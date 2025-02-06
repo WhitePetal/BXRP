@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor;
 using UnityEngine.SceneManagement;
+using System.IO;
+using Unity.Mathematics;
 
 namespace BXRenderPipeline
 {
@@ -245,13 +247,157 @@ namespace BXRenderPipeline
                 perSceneCellLists.Add(sceneGUID, new List<int>());
         }
 
+        /// <summary>
+        /// Renames a given scenario
+        /// </summary>
+        /// <param name="scenario">The original scenario name.</param>
+        /// <param name="newName">The requested new scenario name.</param>
+        /// <returns>The new scenario name. The is different than the requested name in case a scenario with the same name already exists.</returns>
         public string RenameScenario(string scenario, string newName)
         {
-            return "";
+            if (!m_LightingScenarios.Contains(scenario))
+                return newName;
+
+            m_LightingScenarios.Remove(scenario);
+            newName = CreateScenario(newName);
+
+            // If the scenario was not baked at least once, this does not exist.
+            if(scenarios.TryGetValue(scenario, out var data))
+            {
+                scenarios.Remove(scenario);
+                scenarios.Add(newName, data);
+
+                foreach(var cellData in cellDataMap.Values)
+                {
+                    if(cellData.scenarios.TryGetValue(scenario, out var cellScenarioData))
+                    {
+                        cellData.scenarios.Add(newName, cellScenarioData);
+                        cellData.scenarios.Remove(scenario);
+                    }
+                }
+
+                GetCellDataFileNames(name, newName, out string cellDataFileName, out string cellOptionalDataFileName, out string cellProbeOcclusionDataFileName);
+                data.cellDataAsset.RenameAsset(cellDataFileName);
+                data.cellOptionalDataAsset.RenameAsset(cellOptionalDataFileName);
+                data.cellProbeOcclusionDataAsset.RenameAsset(cellProbeOcclusionDataFileName);
+            }
+
+            return newName;
+        }
+
+        internal static void SyncBakingSets()
+        {
+            sceneToBakingSet = new Dictionary<string, ProbeVolumeBakingSet>();
+
+            var setGUIDs = AssetDatabase.FindAssets("t:" + typeof(ProbeVolumeBakingSet).Name);
+
+            foreach(var setGUID in setGUIDs)
+            {
+                var set = AssetDatabase.LoadAssetAtPath<ProbeVolumeBakingSet>(AssetDatabase.GUIDToAssetPath(setGUID));
+                if(set != null)
+                {
+                    // We need to call Migrate here because of Version.RemoveProbeVolumeSceneData step.
+                    // This step needs the obsolete ProbeVolumeSceneData to be initialized first which can happen out of order. Here we now it's ok.
+                    set.Migrate();
+
+                    foreach (var guid in set.sceneGUIDs)
+                        sceneToBakingSet[guid] = set;
+                }
+            }
         }
 
         internal static ProbeVolumeBakingSet GetBakingSetForScene(string sceneGUID) => sceneToBakingSet.GetValueOrDefault(sceneGUID, null);
         internal static ProbeVolumeBakingSet GetBakingSetForScene(Scene scenne) => GetBakingSetForScene(scenne.GetGUID());
+
+        internal void SetDefaults()
+        {
+            settings.SetDefaults();
+            m_LightingScenarios = new List<string> { ProbeReferenceVolume.defaultLightingScenario };
+
+            // We have to initialize that to not trigger a warning on new baking sets
+            chunkSizeInBricks = ProbeBrickPool.GetChunkSizeInBrickCount();
+        }
+
+        private string GetOrCreateFileName(ProbeVolumeStreamableAsset asset, string filePath)
+        {
+            string res = string.Empty;
+            if (asset != null && asset.IsValid())
+                res = asset.GetAssetPath();
+            if (string.IsNullOrEmpty(res))
+                res = filePath;
+            return res;
+        }
+
+        internal void EnsureScenarioAssetNameConsistencyForUndo()
+        {
+            foreach(var scenario in scenarios)
+            {
+                var scenarioName = scenario.Key;
+                var scenarioData = scenario.Value;
+
+                GetCellDataFileNames(name, scenarioName, out string cellDataFileName, out string cellOptionalDataFileName, out string cellProbeOcclusionDataFileName);
+
+                if (!scenarioData.cellDataAsset.GetAssetPath().Contains(cellDataFileName))
+                {
+                    scenarioData.cellDataAsset.RenameAsset(cellDataFileName);
+                    scenarioData.cellOptionalDataAsset.RenameAsset(cellOptionalDataFileName);
+                    scenarioData.cellProbeOcclusionDataAsset.RenameAsset(cellProbeOcclusionDataFileName);
+                }
+            }
+        }
+
+        internal void GetCellDataFileNames(string basePath, string scenario, out string cellDataFileName, out string cellOptionalDataFileName, out string cellProbeOcclusionDataFileName)
+        {
+            cellDataFileName = $"{basePath}-{scenario}.CellData.bytes";
+            cellOptionalDataFileName = $"{basePath}-{scenario}.CellOptionalData.bytes";
+            cellProbeOcclusionDataFileName = $"{basePath}-{scenario}.CellProbeOcclusionData.bytes";
+        }
+
+        internal void GetBlobFileNames(string scenario, out string cellDataFilename, out string cellBricksDataFilename, out string cellOptionalDataFilename, out string cellProbeOcclusionDataFilename, out string cellSharedDataFilename, out string cellSupportDataFilename)
+        {
+            string baseDir = Path.GetDirectoryName(AssetDatabase.GetAssetPath(this));
+
+            string basePath = Path.Combine(baseDir, name);
+
+            GetCellDataFileNames(basePath, scenario, out string dataFile, out string optionalDataFile, out string probeOcclusionDataFile);
+
+            cellDataFilename = GetOrCreateFileName(scenarios[scenario].cellDataAsset, dataFile);
+            cellOptionalDataFilename = GetOrCreateFileName(scenarios[scenario].cellOptionalDataAsset, optionalDataFile);
+            cellProbeOcclusionDataFilename = GetOrCreateFileName(scenarios[scenario].cellProbeOcclusionDataAsset, probeOcclusionDataFile);
+            cellBricksDataFilename = GetOrCreateFileName(cellBricksDataAsset, basePath + ".CellBricksData.bytes");
+            cellSharedDataFilename = GetOrCreateFileName(cellSharedDataAsset, basePath + ".CellSharedData.bytes");
+            cellSupportDataFilename = GetOrCreateFileName(cellSupportDataAsset, basePath + ".CellSupportData.bytes");
+        }
+
+        // Returns the file size in bytes
+        private long GetFileSize(string path) => File.Exists(path) ? new FileInfo(path).Length : 0;
+
+        internal long GetDiskSizeOfSharedData()
+        {
+            if (cellSharedDataAsset == null || !cellSharedDataAsset.IsValid())
+                return 0;
+
+            return GetFileSize(cellBricksDataAsset.GetAssetPath()) + GetFileSize(cellSharedDataAsset.GetAssetPath()) + GetFileSize(cellSupportDataAsset.GetAssetPath());
+        }
+
+        internal long GetDiskSizeOfScenarioData(string scenario)
+        {
+            if (scenario == null || !scenarios.TryGetValue(scenario, out var data) || !data.IsValid())
+                return 0;
+
+            return GetFileSize(data.cellDataAsset.GetAssetPath()) + GetFileSize(data.cellOptionalDataAsset.GetAssetPath()) + GetFileSize(data.cellProbeOcclusionDataAsset.GetAssetPath());
+        }
+
+        internal void SanitizeScenes()
+        {
+            // Remove entries in the list pointing to deleted scenes
+            for(int i = m_SceneGUIDs.Count - 1; i >= 0; i--)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(m_SceneGUIDs[i]);
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+                    RemoveScene(m_SceneGUIDs[i]);
+            }
+        }
 
         private void DeleteAsset(string assetPath)
         {
@@ -259,6 +405,178 @@ namespace BXRenderPipeline
                 return;
 
             AssetDatabase.DeleteAsset(assetPath);
+        }
+
+        internal bool HasBeenBaked()
+        {
+            return cellSharedDataAsset.IsValid();
+        }
+
+        internal static string GetDirectory(string scenePath, string sceneName)
+        {
+            string sceneDir = Path.GetDirectoryName(scenePath);
+            string assetPath = Path.Combine(sceneDir, sceneName);
+            if (!AssetDatabase.IsValidFolder(assetPath))
+                AssetDatabase.CreateFolder(sceneDir, sceneName);
+
+            return assetPath;
+        }
+
+        internal static void OnSceneSaving(Scene scene, string path = null)
+        {
+            // If we are called from the scene callback, we want to update all global volumes that are potentially affected
+            bool onSceneSave = path != null;
+
+            string sceneGUID = ProbeReferenceVolume.GetSceneGUID(scene);
+            var bakingSet = GetBakingSetForScene(sceneGUID);
+
+            if(bakingSet != null)
+            {
+                bakingSet.UpdateSceneBounds(scene, sceneGUID, onSceneSave);
+                bakingSet.EnsurePerSceneData(scene, sceneGUID);
+            }
+        }
+
+        internal static int MaxSubdivLevelInProbeVolume(Vector3 volumeSize, int maxSubdiv)
+        {
+            float maxSizeDim = Mathf.Max(volumeSize.x, Mathf.Max(volumeSize.y, volumeSize.z));
+            float maxSideInBricks = maxSizeDim / ProbeReferenceVolume.instance.MinDistanceBetweenProbes();
+            int subdiv = Mathf.FloorToInt(Mathf.Log(maxSideInBricks, 3)) - 1;
+
+            return Mathf.Max(subdiv, maxSubdiv);
+        }
+
+        private static void InflateBound(ref Bounds bounds, ProbeVolume pv)
+        {
+            Bounds originalBounds = bounds;
+            // Round the probe volume bounds to cell size
+            float cellSize = ProbeReferenceVolume.instance.MaxBrickSize();
+            Vector3 cellOffset = ProbeReferenceVolume.instance.ProbeOffset();
+
+            // Expand the probe volume bounds to snap on the cell size grid
+            bounds.Encapsulate((Vector3)math.floor((bounds.min - cellOffset) / cellSize) * cellSize + cellOffset);
+            bounds.Encapsulate((Vector3)math.ceil((bounds.max - cellOffset) / cellSize) * cellSize + cellOffset);
+
+            // calculate how much padding we need to remove according to the brick generation in ProbePlacement.cs:
+            var cellSizeVector = new Vector3(cellSize, cellSize, cellSize);
+            var minPadding = (bounds.min - originalBounds.min);
+            var maxPadding = (bounds.max - originalBounds.max);
+            minPadding = cellSizeVector - new Vector3(Mathf.Abs(minPadding.x), Mathf.Abs(minPadding.y), Mathf.Abs(minPadding.z));
+            maxPadding = cellSizeVector - new Vector3(Mathf.Abs(maxPadding.x), Mathf.Abs(maxPadding.y), Mathf.Abs(maxPadding.z));
+
+            // Find the size of the brick we can put for every axis given the padding size
+            int maxSubdiv = ProbeReferenceVolume.instance.GetMaxSubdivision() - 1;
+            if (pv.overridesSubdivLevels) maxSubdiv = Mathf.Min(pv.highestSubdivLevelOverride, maxSubdiv);
+
+            float rightPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(maxPadding.x, originalBounds.size.y, originalBounds.size.z), maxSubdiv));
+            float leftPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(minPadding.x, originalBounds.size.y, originalBounds.size.z), maxSubdiv));
+            float topPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(originalBounds.size.x, maxPadding.y, originalBounds.size.z), maxSubdiv));
+            float bottomPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(originalBounds.size.x, minPadding.y, originalBounds.size.z), maxSubdiv));
+            float forwardPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(originalBounds.size.x, originalBounds.size.y, maxPadding.z), maxSubdiv));
+            float backPaddingSubdivLevel = ProbeReferenceVolume.instance.BrickSize(MaxSubdivLevelInProbeVolume(new Vector3(originalBounds.size.x, originalBounds.size.y, minPadding.z), maxSubdiv));
+
+            // Remove the extra padding caused by cell rounding
+            bounds.min = bounds.min + new Vector3(
+                leftPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.min.x - originalBounds.min.x) / (float)leftPaddingSubdivLevel),
+                bottomPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.min.y - originalBounds.min.y) / (float)bottomPaddingSubdivLevel),
+                backPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.min.z - originalBounds.min.z) / (float)backPaddingSubdivLevel));
+            bounds.max = bounds.max - new Vector3(
+                rightPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.max.x - originalBounds.max.x) / (float)rightPaddingSubdivLevel),
+                topPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.max.y - originalBounds.max.y) / (float)topPaddingSubdivLevel),
+                forwardPaddingSubdivLevel * Mathf.Floor(Mathf.Abs(bounds.max.z - originalBounds.max.z) / (float)forwardPaddingSubdivLevel)
+            );
+        }
+
+        internal void UpdateSceneBounds(Scene scene, string sceneGUID, bool onSceneSave)
+        {
+            var volumes = FindObjectsByType<ProbeVolume>(FindObjectsSortMode.None);
+            float prevBrickSize = ProbeReferenceVolume.instance.MinBrickSize();
+            int prevMaxSubdiv = ProbeReferenceVolume.instance.GetMaxSubdivision();
+            Vector3 prevOffset = ProbeReferenceVolume.instance.ProbeOffset();
+
+            if (onSceneSave) // Use baked valuse
+                ProbeReferenceVolume.instance.SetSubdivisionDimensions(minBrickSize, maxSubdivision, bakedProbeOffset);
+            else // Use displayed values
+                ProbeReferenceVolume.instance.SetSubdivisionDimensions(GetMinBrickSize(minDistanceBetweenProbes), GetMaxSubdivision(simplificationLevels), probeOffset);
+
+            bool boundFound = false;
+            Bounds newBound = new Bounds();
+            foreach(var volume in volumes)
+            {
+                bool forceUpdate = onSceneSave && volume.mode == ProbeVolume.Mode.Global;
+                if (!forceUpdate && volume.gameObject.scene != scene)
+                    continue;
+
+                if (volume.mode != ProbeVolume.Mode.Local)
+                    volume.UpdateGlobalVolume(volume.mode == ProbeVolume.Mode.Global ? GIContributor.ContributorFilter.All : GIContributor.ContributorFilter.Scene);
+
+                var obb = new ProbeReferenceVolume.Volume(volume.GetVolume(), 0, 0);
+                Bounds localBounds = obb.CalculateAABB();
+
+                InflateBound(ref localBounds, volume);
+
+                if(!boundFound)
+                {
+                    newBound = localBounds;
+                    boundFound = true;
+                }
+                else
+                {
+                    newBound.Encapsulate(localBounds);
+                }
+            }
+
+            bool bakeDataExist = m_SceneBakeData.TryGetValue(sceneGUID, out var bakeData);
+            Debug.Assert(bakeDataExist, "Scene should have been added to the baking set with default bake data instance.");
+            if (boundFound)
+                bakeData.bounds = newBound;
+
+            ProbeReferenceVolume.instance.SetSubdivisionDimensions(prevBrickSize, prevMaxSubdiv, prevOffset);
+            EditorUtility.SetDirty(this);
+        }
+
+        // It is important this is called after UpdateSceneBounds is called otherwise SceneHasProbeVolumes might be out of data
+        internal void EnsurePerSceneData(Scene scene, string sceneGUID)
+        {
+            bool bakeDataExist = m_SceneBakeData.TryGetValue(sceneGUID, out var bakedData);
+            Debug.Assert(bakeDataExist, "Scene should have been added to the baking set with default bake data instance.");
+
+            if (bakedData.hasProbeVolume)
+            {
+                if(!ProbeReferenceVolume.instance.TryGetPerSceneData(sceneGUID, out var data))
+                {
+                    GameObject go = new GameObject("ProbeVolumePerSceneData");
+                    go.hideFlags |= HideFlags.HideInHierarchy;
+                    var perSceneData = go.AddComponent<ProbeVolumePerSceneData>();
+                    SceneManager.MoveGameObjectToScene(go, scene);
+                }
+            }
+        }
+
+        internal SceneBakeData GetSceneBakeData(string sceneGUID)
+        {
+            if(!m_SceneBakeData.TryGetValue(sceneGUID, out var bakeData))
+            {
+                if (m_SceneGUIDs.Contains(sceneGUID))
+                    m_SceneBakeData[sceneGUID] = bakeData = new SceneBakeData();
+            }
+            return bakeData;
+        }
+
+        internal static bool SceneHasProbeVolumes(string sceneGUID)
+        {
+            var bakingSet = GetBakingSetForScene(sceneGUID);
+            return bakingSet?.GetSceneBakeData(sceneGUID)?.hasProbeVolume ?? false;
+        }
+
+        internal bool DialogNoProbeVolumeInSetShown()
+        {
+            return dialogNoProbeVolumeInSetShown;
+        }
+
+        internal void SetDialogNoProbeVolumeInSetShown(bool value)
+        {
+            dialogNoProbeVolumeInSetShown = value;
         }
     }
 }

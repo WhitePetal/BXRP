@@ -958,8 +958,22 @@ namespace BXRenderPipeline
 
 		private bool m_SupportLightingScenarios;
 
+		internal void SetMaxSubdivision(int maxSubdivision)
+        {
+			int newValue = Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
+			if(newValue != m_MaxSubdivision)
+            {
+				m_MaxSubdivision = newValue;
+				InitializeGlobalIndirection();
+            }
+        }
+
 
 		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+
+		internal float BrickSize(int subdivisionLevel) => m_MinBrickSize * CellSize(subdivisionLevel);
+		internal float GetDistanceBetweenProbes(int subdivisionLevel) => BrickSize(subdivisionLevel) / 3.0f;
+		internal float MinDistanceBetweenProbes() => GetDistanceBetweenProbes(0);
 
 
 		/// <summary>
@@ -1186,6 +1200,29 @@ namespace BXRenderPipeline
 			}
 
 			return m_TmpSrcChunks;
+		}
+
+		internal void SetSubdivisionDimensions(float minBrickSize, int maxSubdiv, Vector3 offset)
+        {
+			m_MinBrickSize = minBrickSize;
+			SetMaxSubdivision(maxSubdiv);
+			m_ProbeOffset = offset;
+        }
+
+		internal void InitializeGlobalIndirection()
+        {
+			// Current baking set can be null at init and we still need the buffers to valid.
+			var minCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.minCellPosition : Vector3Int.zero;
+			var maxCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.maxCellPosition : Vector3Int.zero;
+			if (m_CellIndices != null)
+				m_CellIndices.Cleanup();
+			m_CellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
+            if (m_SupportGPUStreaming)
+            {
+				if (m_DefragCellIndices != null)
+					m_DefragCellIndices.Cleanup();
+				m_DefragCellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
+            }
 		}
 
 		internal void UnloadAllCells()
