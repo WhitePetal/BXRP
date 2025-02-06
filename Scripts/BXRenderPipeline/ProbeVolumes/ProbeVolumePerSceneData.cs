@@ -93,5 +93,74 @@ namespace BXRenderPipeline
             var refVol = ProbeReferenceVolume.instance;
             refVol.AddPendingSceneLoading(sceneGUID, serializedBakingSet);
         }
+
+        internal void QueueSceneRemoval()
+        {
+            if (serializedBakingSet != null)
+                ProbeReferenceVolume.instance.AddPendingSceneRemoval(sceneGUID);
+        }
+
+        private void OnEnable()
+        {
+#if UNITY_EDITOR
+            // In the editor, always refresh the GUID as it may become out of date is scene is duplicated or other weird things
+            // This field is serialized, so it will be available in standalones, where it can't change anymore
+            var newGUID = gameObject.scene.GetGUID();
+            if(newGUID != sceneGUID)
+            {
+                sceneGUID = newGUID;
+                EditorUtility.SetDirty(this);
+            }
+#endif
+
+            ProbeReferenceVolume.instance.RegisterPerSceneData(this);
+        }
+
+        private void OnDisable()
+        {
+            QueueSceneRemoval();
+            ProbeReferenceVolume.instance.UnregisterPerSceneData(this);
+        }
+
+        private void OnValidate()
+        {
+#if UNITY_EDITOR
+            // Cleanup old obsolete data
+            if(obsoleteAsset != null)
+            {
+                DeleteAsset(obsoleteAsset);
+                DeleteAsset(obsoleteCellSharedDataAsset);
+                DeleteAsset(obsoleteCellSupportDataAsset);
+                foreach(var scenario in obsoleteSerializedScenarios)
+                {
+                    DeleteAsset(scenario.data.cellDataAsset);
+                    DeleteAsset(scenario.data.cellOptionalDataAsset);
+                }
+
+                obsoleteAsset = null;
+                obsoleteCellSharedDataAsset = null;
+                obsoleteCellSupportDataAsset = null;
+                obsoleteSerializedScenarios = null;
+
+                EditorUtility.SetDirty(this);
+            }
+#endif
+        }
+
+        internal void Initialize()
+        {
+            ProbeReferenceVolume.instance.RegisterBakingSet(this);
+
+            QueueSceneRemoval();
+            QueueSceneLoading();
+        }
+
+        internal bool ResolveCellData()
+        {
+            if (serializedBakingSet != null)
+                return serializedBakingSet.ResolveCellData(serializedBakingSet.GetSceneCellIndexList(sceneGUID));
+
+            return false;
+        }
     }
 }

@@ -1225,6 +1225,92 @@ namespace BXRenderPipeline
             }
 		}
 
+		internal void AddPendingSceneLoading(string sceneGUID, ProbeVolumeBakingSet bakingSet)
+        {
+            if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
+            {
+				m_PendingScenesToBeLoaded.Remove(sceneGUID);
+            }
+
+			// User might have loaded other scenes with probe volumes but not belonging to the "single scene" baking set.
+			if (bakingSet == null && m_CurrentBakingSet != null && m_CurrentBakingSet.singleSceneMode)
+				return;
+
+			if(bakingSet.chunkSizeInBricks != ProbeBrickPool.GetChunkSizeInBrickCount())
+            {
+				Debug.LogError($"Trying to load Adaptive Probe Volumes data ({bakingSet.name}) baked with an older incompatible version of APV. Please rebake your data.");
+				return;
+            }
+
+			if(m_CurrentBakingSet != null && bakingSet != m_CurrentBakingSet)
+            {
+				// Trying to load data for a scene from a different baking set than currently loaded ones.
+				// This should not throw an error, but it's not supported
+				return;
+			}
+
+			// If we don't have any loaded asset yet, we need to verify the other queued assets.
+			// Only need to check one entry here, they should all have the same baking set by construction.
+			if(m_PendingScenesToBeLoaded.Count != 0)
+            {
+				foreach(var toBeLoadedBakingSet in m_PendingScenesToBeLoaded.Values)
+                {
+					if(bakingSet != toBeLoadedBakingSet.Item1)
+                    {
+						Debug.LogError($"Trying to load Adaptive Probe Volumes data for a scene from a different baking set from other scenes that are being loaded." +
+							$"Please make sure all loaded scenes are in the same baking set.");
+						return;
+                    }
+
+					break;
+                }
+            }
+
+			m_PendingScenesToBeLoaded.Add(sceneGUID, (bakingSet, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID)));
+			m_NeedLoadAsset = true;
+		}
+
+		internal void AddPendingSceneRemoval(string sceneGUID)
+        {
+			if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
+				m_PendingScenesToBeLoaded.Remove(sceneGUID);
+			if (m_ActiveScenes.Contains(sceneGUID) && m_CurrentBakingSet != null)
+				m_PendingScenesToBeUnloaded.TryAdd(sceneGUID, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID));
+        }
+
+		internal void UnloadBakingSet()
+        {
+			// Need to make sure everything is unloaded before killing the baking set ref (we need it to unload cell CPU data).
+			
+		}
+
+		private void SetBakingSetAsCurrent(ProbeVolumeBakingSet bakingSet)
+        {
+			m_CurrentBakingSet = bakingSet;
+
+			// Can happen when you have only one scene loaded and you remove it from any baking set.
+			if(m_CurrentBakingSet != null)
+            {
+				// Delay first time init to after baking set is loaded to ensure we allocate what's needed
+				
+			}
+		}
+
+		internal void RegisterBakingSet(ProbeVolumePerSceneData data)
+        {
+			if(m_CurrentBakingSet == null)
+            {
+				SetBakingSetAsCurrent(data.serializedBakingSet);
+            }
+        }
+
+		internal void UnregisterPerSceneData(ProbeVolumePerSceneData data)
+        {
+			perSceneDataList.Remove(data);
+			if (perSceneDataList.Count == 0)
+				UnloadBakingSet();
+        }
+
 		internal void UnloadAllCells()
 		{
 
