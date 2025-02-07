@@ -792,7 +792,7 @@ namespace BXRenderPipeline
 
 		internal bool hasUnloadedCells => m_ToBeLoadedCells.size != 0;
 
-		internal bool supportLightingScenarios => m_SupportLightingScenarios;
+		internal bool supportLightingScenarios => m_SupportScenarios;
 		internal bool supportScenarioBlending => m_SupportScenarioBlending;
 		internal bool gpuStreamingEnabled => m_SupportGPUStreaming;
 		internal bool diskStreamingEnabled => m_SupportDiskStreaming && !m_ForceNoDiskStreaming;
@@ -923,6 +923,11 @@ namespace BXRenderPipeline
 				SetActiveBakingSet(perSceneData.serializedBakingSet);
         }
 
+		/// <summary>
+        /// Set the currently active baking set
+        /// Can be used when loading additively two scenes belonging to different baking sets to control which one is active
+        /// </summary>
+        /// <param name="bakingSet"></param>
 		public void SetActiveBakingSet(ProbeVolumeBakingSet bakingSet)
         {
 			if (m_CurrentBakingSet == bakingSet)
@@ -941,6 +946,58 @@ namespace BXRenderPipeline
             }
         }
 
+		private void SetBakingSetAsCurrent(ProbeVolumeBakingSet bakingSet)
+		{
+			m_CurrentBakingSet = bakingSet;
+
+			// Can happen when you have only one scene loaded and you remove it from any baking set.
+			if (m_CurrentBakingSet != null)
+			{
+				// Delay first time init to after baking set is loaded to ensure we allocate what's needed
+				InitProbeReferenceVolume();
+
+				m_CurrentBakingSet.Initialize(m_UseStreamingAssets);
+				m_CurrGlobalBounds = m_CurrentBakingSet.globalBounds;
+				SetSubdivisionDimensions(bakingSet.minBrickSize, bakingSet.maxSubdivision, bakingSet.bakedProbeOffset);
+
+				m_NeedsIndexRebuild = true;
+			}
+		}
+
+		internal void RegisterBakingSet(ProbeVolumePerSceneData data)
+		{
+			if (m_CurrentBakingSet == null)
+			{
+				SetBakingSetAsCurrent(data.serializedBakingSet);
+			}
+		}
+
+		internal void UnloadBakingSet()
+		{
+			// Need to make sure everything is unloaded before killing the baking set ref (we need it to unload cell CPU data).
+			PerformPendingOperations();
+
+			if (m_CurrentBakingSet != null)
+				m_CurrentBakingSet.Cleanup();
+			m_CurrentBakingSet = null;
+			m_CurrGlobalBounds = new Bounds();
+
+			// Restart pool from zero to avoid unnecessary memory consumption when going from a big to a small scene.
+			if(m_ScratchBufferPool != null)
+            {
+				m_ScratchBufferPool.Cleanup();
+				m_ScratchBufferPool = null;
+            }
+
+		}
+
+		internal void UnregisterPerSceneData(ProbeVolumePerSceneData data)
+		{
+			perSceneDataList.Remove(data);
+			if (perSceneDataList.Count == 0)
+				UnloadBakingSet();
+		}
+
 		internal bool TryGetPerSceneData(string sceneGUID, out ProbeVolumePerSceneData perSceneData)
         {
 			foreach(var data in perSceneDataList)
@@ -956,40 +1013,77 @@ namespace BXRenderPipeline
 			return false;
         }
 
-		private bool m_SupportLightingScenarios;
-
-		internal void SetMaxSubdivision(int maxSubdivision)
-        {
-			int newValue = Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
-			if(newValue != m_MaxSubdivision)
-            {
-				m_MaxSubdivision = newValue;
-				InitializeGlobalIndirection();
-            }
-        }
-
-
-		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
-
-		internal float BrickSize(int subdivisionLevel) => m_MinBrickSize * CellSize(subdivisionLevel);
-		internal float GetDistanceBetweenProbes(int subdivisionLevel) => BrickSize(subdivisionLevel) / 3.0f;
-		internal float MinDistanceBetweenProbes() => GetDistanceBetweenProbes(0);
-
+		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
 
 		/// <summary>
 		/// Get the instance of the probe reference volume (singleton)
 		/// </summary>
 		public static ProbeReferenceVolume instance => _instance;
 
-		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
+		/// <summary>
+		/// Initialize the Probe Volume system
+		/// </summary>
+		/// <param name="parameters">Initialization parameters.</param>
+		public void Initialize(in ProbeVolumeSystemParameters parameters)
+        {
+            if (m_IsInitialized)
+            {
+				Debug.LogError("Probe Volume System has already been initialized.");
+				return;
+            }
+
+			bool getSettings = BXRenderPipeline.TryGetRenderCommonSettings(out var settings);
+			var probeVolumeSettings = settings?.probeVolumeGlobalSettings;
+
+			m_MemoryBudget = parameters.memoryBudget;
+			m_BlendingMemoryBudget = parameters.blendingMemoryBudget;
+			m_SupportScenarios = parameters.supportScenarios;
+			m_SupportScenarioBlending = parameters.supportScenarios && parameters.supportScenarioBlending && SystemInfo.supportsComputeShaders && m_BlendingMemoryBudget != 0;
+			m_SHBands = parameters.shBands;
+			m_UseStreamingAssets = getSettings ? !probeVolumeSettings.probeVolumeDisableStreamingAssets : false;
+#if UNITY_EDITOR
+			// In editor we can always use Streaming Assets. This optimizes memory usage for editing.
+			m_UseStreamingAssets = true;
+#endif
+			m_SupportGPUStreaming = parameters.supportGPUStreaming;
+			// GPU Streaming is required for Dikst Streaming
+			var streamingUploadCS = settings?.probeVolumeRuntimeResources.probeVolumeUploadDataCS;
+			var streamingUploadL2CS = settings?.probeVolumeRuntimeResources.probeVolumeUploadDataL2CS;
+			// For now this condition is redundant with m_SupportDiskStreaming but we plan to support disk streaming without compute int the furture
+			// So we need to split the conditions to plan for that
+			m_DiskStreamingUseCompute = SystemInfo.supportsComputeShaders && streamingUploadCS != null && streamingUploadL2CS != null;
+			InitializeDebug();
+			ProbeVolumeConstantRuntimeResources.Initialize();
+			ProbeBrickPool.Initialize();
+			ProbeBrickBlendingPool.Initialize();
+			InitStreaming();
+		}
 
 
-		internal int GetMaxSubdivision() => m_MaxSubdivision;
+
+
+		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+
+		internal float BrickSize(int subdivisionLevel) => m_MinBrickSize * CellSize(subdivisionLevel);
 		internal float MinBrickSize() => m_MinBrickSize;
-		internal float MaxBrickSize() => m_MaxBrickSize;
+		internal float MaxBrickSize() => BrickSize(m_MaxSubdivision - 1);
+		internal float GetDistanceBetweenProbes(int subdivisionLevel) => BrickSize(subdivisionLevel) / 3.0f;
+		internal float MinDistanceBetweenProbes() => GetDistanceBetweenProbes(0);
+		internal int GetMaxSubdivision() => m_MaxSubdivision;
+		internal int GetMaxSubdivision(float multiplier) => Mathf.CeilToInt(m_MaxSubdivision * multiplier);
 		internal Vector3 ProbeOffset() => m_ProbeOffset;
 
+		// IMPORTANT! IF THIS VALUE CHANGES DATA NEEDS TO BE REBAKED
+		internal int GetGlobalIndirectionEntryMaxSubdiv() => ProbeGlobalIndirection.kEntryMaxSubdivLevel;
+
 		internal int GetEntrySubdivLevel() => Mathf.Min(ProbeGlobalIndirection.kEntryMaxSubdivLevel, m_MaxSubdivision - 1);
+		internal float GetEntrySize() => BrickSize(GetEntrySubdivLevel());
+
+		/// <summary>
+        /// Returns whether any brick data has been loaded.
+        /// </summary>
+        /// <returns>True if brick data is present, otherwise false.</returns>
+		public bool DataHasBeenLoaded() => m_LoadedCells.size != 0;
 
 
 
@@ -1001,6 +1095,15 @@ namespace BXRenderPipeline
 
 
 
+		internal void SetMaxSubdivision(int maxSubdivision)
+		{
+			int newValue = Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
+			if (newValue != m_MaxSubdivision)
+			{
+				m_MaxSubdivision = newValue;
+				InitializeGlobalIndirection();
+			}
+		}
 
 		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
 			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
@@ -1276,39 +1379,6 @@ namespace BXRenderPipeline
 				m_PendingScenesToBeLoaded.Remove(sceneGUID);
 			if (m_ActiveScenes.Contains(sceneGUID) && m_CurrentBakingSet != null)
 				m_PendingScenesToBeUnloaded.TryAdd(sceneGUID, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID));
-        }
-
-		internal void UnloadBakingSet()
-        {
-			// Need to make sure everything is unloaded before killing the baking set ref (we need it to unload cell CPU data).
-			
-		}
-
-		private void SetBakingSetAsCurrent(ProbeVolumeBakingSet bakingSet)
-        {
-			m_CurrentBakingSet = bakingSet;
-
-			// Can happen when you have only one scene loaded and you remove it from any baking set.
-			if(m_CurrentBakingSet != null)
-            {
-				// Delay first time init to after baking set is loaded to ensure we allocate what's needed
-				
-			}
-		}
-
-		internal void RegisterBakingSet(ProbeVolumePerSceneData data)
-        {
-			if(m_CurrentBakingSet == null)
-            {
-				SetBakingSetAsCurrent(data.serializedBakingSet);
-            }
-        }
-
-		internal void UnregisterPerSceneData(ProbeVolumePerSceneData data)
-        {
-			perSceneDataList.Remove(data);
-			if (perSceneDataList.Count == 0)
-				UnloadBakingSet();
         }
 
 		internal void UnloadAllCells()

@@ -130,6 +130,7 @@ namespace BXRenderPipeline
         public ProbeVolumeRuntimeResources probeVolumeRuntimeResources;
         public ProbeVolumeDebugResources probeVolumeDebugResources;
         public ProbeVolumeBakingResources probeVolumeBakingResources;
+        public ProbeVolumeGlobalSettings probeVolumeGlobalSettings;
 
 
 

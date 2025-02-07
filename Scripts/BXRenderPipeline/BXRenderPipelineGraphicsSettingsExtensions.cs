@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace UnityEngine.Rendering
+namespace BXRenderPipeline
 {
     public static class BXRenderPipelineGraphicsSettingsExtensions
     {
