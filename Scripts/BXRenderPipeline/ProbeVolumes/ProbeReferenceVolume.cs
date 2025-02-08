@@ -1119,8 +1119,376 @@ namespace BXRenderPipeline
 		public void Cleanup()
         {
 			CoreUtils.SafeRelease(m_EmptyIndexBuffer);
+			m_EmptyIndexBuffer = null;
 			ProbeVolumeConstantRuntimeResources.Cleanup();
+
+#if UNITY_EDITOR
+			UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= ProbeVolumeBakingSet.OnSceneSaving;
+#endif
+
+            if (!m_IsInitialized)
+            {
+				Debug.LogError("Adaptive Probe Volumes have not been initialized before calling Cleanup.");
+				return;
+            }
+
+			CleanupLoadedData();
+			CleanupDebug();
+			CleanupStreaming();
+			DeinitProbeReferenceVolume();
+			m_IsInitialized = false;
+		}
+
+		/// <summary>
+        /// Get approximate video memory impact, in bytes, of the system.
+        /// </summary>
+        /// <returns>An approximation of the video memory impact, in bytes, of the system</returns>
+		public int GetVideoMemoryCoast()
+        {
+			if (!m_ProbeReferenceVolumeInit)
+				return 0;
+
+			return m_Pool.estimatedVMemCost + m_Index.estimatedVMemCost + m_CellIndices.estimatedVMemCost + m_BlendingPool.estimatedVMemCoast + m_TemporaryDataLocationMemCoast;
         }
+
+		private void RemoveCell(int cellIndex)
+        {
+			if(cells.TryGetValue(cellIndex, out var cellInfo))
+            {
+				cellInfo.referenceCount--;
+				if(cellInfo.referenceCount <= 0)
+                {
+					cells.Remove(cellIndex);
+
+                    if (cellInfo.loaded)
+                    {
+						m_LoadedCells.Remove(cellInfo);
+						UnloadCell(cellInfo);
+                    }
+                    else
+                    {
+						m_ToBeLoadedCells.Remove(cellInfo);
+                    }
+
+					m_CurrentBakingSet.ReleaseCell(cellIndex);
+					m_CellPool.Release(cellInfo);
+                }
+            }
+        }
+
+		// This one is internal for baking purpose only.
+		// Calling this from "outside" will not properly update Loaded/ToBeLoadedCells arrays and thus will break the state of streaming.
+		internal void UnloadCell(Cell cell)
+        {
+            // Streaming might have never loaded the cell in the first place
+            if (cell.loaded)
+            {
+				if (cell.blendingInfo.blending)
+				{
+					m_LoadedBlendingCells.Remove(cell);
+					UnloadBlendingCell(cell);
+				}
+				else
+					m_ToBeLoadedBlendingCells.Remove(cell);
+
+				if (cell.indexInfo.flatIndicesInGlobalIndirection != null)
+					m_CellIndices.MarkEntriesAsUnloaded(cell.indexInfo.flatIndicesInGlobalIndirection);
+
+                if (diskStreamingEnabled)
+                {
+                    if (cell.streamingInfo.IsStreaming())
+                    {
+						CancelStreamingRequest(cell);
+                    }
+                    else
+                    {
+						ReleaseBricks(cell);
+						cell.data.Cleanup(!diskStreamingEnabled); // Release CPU data
+                    }
+                }
+                else
+                {
+					ReleaseBricks(cell);
+				}
+
+				cell.loaded = false;
+				cell.debugProbes = null;
+
+				ClearDebugData();
+            }
+        }
+
+		internal void UnloadBlendingCell(Cell cell)
+        {
+			if (diskStreamingEnabled && cell.streamingInfo.IsBlendingStreaming())
+				CancelBlendingStreamingRequest(cell);
+
+            if (cell.blendingInfo.blending)
+            {
+				m_BlendingPool.Deallocate(cell.blendingInfo.chunkList);
+				cell.blendingInfo.chunkList.Clear();
+				cell.blendingInfo.blending = false;
+            }
+        }
+
+		internal void UnloadAllCells()
+        {
+			for (int i = 0; i < m_LoadedCells.size; ++i)
+				UnloadCell(m_LoadedCells[i]);
+
+			m_ToBeLoadedCells.AddRange(m_LoadedCells);
+			m_ToBeLoadedCells.Clear();
+        }
+
+		internal void UnloadAllBlendingCells()
+        {
+			for (int i = 0; i < m_LoadedBlendingCells.size; ++i)
+				UnloadBlendingCell(m_LoadedBlendingCells[i]);
+
+			m_ToBeLoadedBlendingCells.AddRange(m_LoadedBlendingCells);
+			m_LoadedBlendingCells.Clear();
+        }
+
+		private void AddCell(int cellIndex)
+        {
+			// The same cell can exist int more than one scene
+			// Need to check existence because we don't want to add cells more than once to streaming structures
+			// TODO: Check perf if relevant
+			if(!cells.TryGetValue(cellIndex, out var cell))
+            {
+				var cellDesc = m_CurrentBakingSet.GetCellDesc(cellIndex);
+
+				// This can happen if a baking set was cleared and not all scene were loaded.
+				// This results in stray ProbeVolumeAssets for unloaded scenes that contains cell indices not present in the baking set if it was rebaked partially.
+				if(cellDesc != null)
+                {
+					cell = m_CellPool.Get();
+					cell.desc = cellDesc;
+					cell.data = m_CurrentBakingSet.GetCellData(cellIndex);
+					cell.poolInfo.shChunkCount = cell.desc.shChunkCount;
+					cell.indexInfo.flatIndicesInGlobalIndirection = m_CellIndices.GetFlatIndicesForCell(cellDesc.position);
+					cell.indexInfo.indexChunkCount = cell.desc.indexChunkCount;
+					cell.indexInfo.indirectionEntryInfo = cell.desc.indirectionEntryInfo;
+					cell.indexInfo.updateInfo.entriesInfo = new ProbeBrickIndex.IndirectionEntryUpdateInfo[cellDesc.indirectionEntryInfo.Length];
+					cell.referenceCount = 1;
+
+					cells[cellIndex] = cell;
+
+					m_ToBeLoadedCells.Add(cell);
+                }
+            }
+            else
+            {
+				cell.referenceCount++;
+            }
+        }
+
+		// This one is internal for baking purpose only.
+		// Calling this from "outside" will not properly update Loaded/ToBeloadedCells arrays and thus will break the state of streaming.
+		internal bool LoadCell(Cell cell, bool ignoreErrorLog = false)
+        {
+			// First try to allocate pool memory. This is what is most likely to fail.
+			if(ReservePoolChunks(cell.desc.bricksCount, cell.poolInfo.chunkList, ignoreErrorLog))
+            {
+				int indirectionBufferEntries = cell.indexInfo.indirectionEntryInfo.Length;
+
+				var indexInfo = cell.indexInfo;
+
+				for(int entry = 0; entry < indirectionBufferEntries; ++entry)
+                {
+                    // TODO: remove, this is for migration
+                    if (!cell.indexInfo.indirectionEntryInfo[entry].hasMinMax)
+                    {
+						if (cell.data.bricks.IsCreated)
+							ComputeEntryMinMax(ref cell.indexInfo.indirectionEntryInfo[entry], cell.data.bricks);
+                        else
+                        {
+							int entrySize = CellSize(GetEntrySubdivLevel());
+							cell.indexInfo.indirectionEntryInfo[entry].minBrickPos = Vector3Int.zero;
+                        }
+                    }
+
+					int brickCountAtResForEntry = GetNumberOfBricksAtSubdiv(cell.indexInfo.indirectionEntryInfo[entry]);
+					indexInfo.updateInfo.entriesInfo[entry].numberOfChunks = m_Index.GetNumberOfChunks(brickCountAtResForEntry);
+                }
+
+				bool canAllocatedCell = m_Index.FindSlotsForEntries(ref indexInfo.updateInfo.entriesInfo);
+                if (canAllocatedCell)
+                {
+					bool scenarioValid = cell.UpdateCellScenarioData(lightingScenario, otherScenario);
+
+					bool successfulReserve = m_Index.ReserveChunks(indexInfo.updateInfo.entriesInfo, ignoreErrorLog);
+					Debug.Assert(successfulReserve);
+
+					for(int entry = 0; entry < indirectionBufferEntries; ++entry)
+                    {
+						indexInfo.updateInfo.entriesInfo[entry].minValidBrickIndexForCellAtMaxRes = indexInfo.indirectionEntryInfo[entry].minBrickPos;
+						indexInfo.updateInfo.entriesInfo[entry].maxValidBrickIndexForCellAtMaxResPlusOne = indexInfo.indirectionEntryInfo[entry].maxBrickPosPlusOne;
+						indexInfo.updateInfo.entriesInfo[entry].entryPositionInBricksAtMaxRes = indexInfo.indirectionEntryInfo[entry].positionInBricks;
+						indexInfo.updateInfo.entriesInfo[entry].minSubdivInCell = indexInfo.indirectionEntryInfo[entry].minSubdiv;
+						indexInfo.updateInfo.entriesInfo[entry].hasOnlyBiggerBricks = indexInfo.indirectionEntryInfo[entry].hasOnlyBiggerBricks;
+                    }
+					cell.loaded = true;
+
+					// Copy proper data inside index buffers and pool textures or kick off streaming request.
+					if (scenarioValid)
+						AddBricks(cell);
+
+					minLoadedCellPos = Vector3Int.Min(minLoadedCellPos, cell.desc.position);
+					maxLoadedCellPos = Vector3Int.Max(maxLoadedCellPos, cell.desc.position);
+
+					ClearDebugData();
+					return true;
+                }
+                else
+                {
+					// Index allocation failed, we need to release the pool chunks.
+					ReleasePoolChunks(cell.poolInfo.chunkList);
+					// We know we should have the space (test done in TryLoadCell above) so it's because of fragmentation.
+					StartIndexDefragmentation();
+				}
+
+				return false;
+			}
+
+			return false;
+		}
+
+		// May not load all cells if there is not enough space given the current budget.
+		internal void LoadAllCells()
+        {
+			int loadedCellsCount = m_LoadedCells.size;
+			for(int i = 0; i < m_ToBeLoadedCells.size; ++i)
+            {
+				Cell cell = m_ToBeLoadedCells[i];
+				if (LoadCell(cell, true))
+					m_LoadedCells.Add(cell);
+            }
+
+			for(int i = loadedCellsCount; i < m_LoadedCells.size; ++i)
+            {
+				m_ToBeLoadedCells.Remove(m_LoadedCells[i]);
+            }
+        }
+
+		// This will compute the min/max position of loaded cells as well as the max number of SH chunk for a cell
+		private void ComputeCellGlobalInfo()
+        {
+			minLoadedCellPos = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
+			maxLoadedCellPos = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
+
+			foreach(var cell in cells.Values)
+            {
+                if (cell.loaded)
+                {
+					minLoadedCellPos = Vector3Int.Min(cell.desc.position, minLoadedCellPos);
+					maxLoadedCellPos = Vector3Int.Max(cell.desc.position, maxLoadedCellPos);
+                }
+            }
+        }
+
+		internal void AddPendingSceneLoading(string sceneGUID, ProbeVolumeBakingSet bakingSet)
+		{
+			if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
+			{
+				m_PendingScenesToBeLoaded.Remove(sceneGUID);
+			}
+
+			// User might have loaded other scenes with probe volumes but not belonging to the "single scene" baking set.
+			if (bakingSet == null && m_CurrentBakingSet != null && m_CurrentBakingSet.singleSceneMode)
+				return;
+
+			if (bakingSet.chunkSizeInBricks != ProbeBrickPool.GetChunkSizeInBrickCount())
+			{
+				Debug.LogError($"Trying to load Adaptive Probe Volumes data ({bakingSet.name}) baked with an older incompatible version of APV. Please rebake your data.");
+				return;
+			}
+
+			if (m_CurrentBakingSet != null && bakingSet != m_CurrentBakingSet)
+			{
+				// Trying to load data for a scene from a different baking set than currently loaded ones.
+				// This should not throw an error, but it's not supported
+				return;
+			}
+
+			// If we don't have any loaded asset yet, we need to verify the other queued assets.
+			// Only need to check one entry here, they should all have the same baking set by construction.
+			if (m_PendingScenesToBeLoaded.Count != 0)
+			{
+				foreach (var toBeLoadedBakingSet in m_PendingScenesToBeLoaded.Values)
+				{
+					if (bakingSet != toBeLoadedBakingSet.Item1)
+					{
+						Debug.LogError($"Trying to load Adaptive Probe Volumes data for a scene from a different baking set from other scenes that are being loaded." +
+							$"Please make sure all loaded scenes are in the same baking set.");
+						return;
+					}
+
+					break;
+				}
+			}
+
+			m_PendingScenesToBeLoaded.Add(sceneGUID, (bakingSet, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID)));
+			m_NeedLoadAsset = true;
+		}
+
+		internal void AddPendingSceneRemoval(string sceneGUID)
+		{
+			if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
+				m_PendingScenesToBeLoaded.Remove(sceneGUID);
+			if (m_ActiveScenes.Contains(sceneGUID) && m_CurrentBakingSet != null)
+				m_PendingScenesToBeUnloaded.TryAdd(sceneGUID, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID));
+		}
+
+		internal void RemovePendingScene(string sceneGUID, List<int> cellList)
+        {
+            if (m_ActiveScenes.Contains(sceneGUID))
+            {
+				m_ActiveScenes.Remove(sceneGUID);
+            }
+
+			// Remoe bricks and empty cells
+			foreach(var cellIndex in cellList)
+            {
+				RemoveCell(cellIndex);
+            }
+
+			ClearDebugData();
+			ComputeCellGlobalInfo();
+        }
+
+		private void PerformPendingIndexChangeAndInit()
+        {
+            if (m_NeedsIndexRebuild)
+            {
+				ClearnupLoadedData();
+				InitializeGlobalIndirection();
+				m_HasChangeIndex = true;
+				m_NeedsIndexRebuild = false;
+            }
+            else
+            {
+				m_HasChangeIndex = false;
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1391,76 +1759,7 @@ namespace BXRenderPipeline
             }
 		}
 
-		internal void AddPendingSceneLoading(string sceneGUID, ProbeVolumeBakingSet bakingSet)
-        {
-            if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
-            {
-				m_PendingScenesToBeLoaded.Remove(sceneGUID);
-            }
 
-			// User might have loaded other scenes with probe volumes but not belonging to the "single scene" baking set.
-			if (bakingSet == null && m_CurrentBakingSet != null && m_CurrentBakingSet.singleSceneMode)
-				return;
-
-			if(bakingSet.chunkSizeInBricks != ProbeBrickPool.GetChunkSizeInBrickCount())
-            {
-				Debug.LogError($"Trying to load Adaptive Probe Volumes data ({bakingSet.name}) baked with an older incompatible version of APV. Please rebake your data.");
-				return;
-            }
-
-			if(m_CurrentBakingSet != null && bakingSet != m_CurrentBakingSet)
-            {
-				// Trying to load data for a scene from a different baking set than currently loaded ones.
-				// This should not throw an error, but it's not supported
-				return;
-			}
-
-			// If we don't have any loaded asset yet, we need to verify the other queued assets.
-			// Only need to check one entry here, they should all have the same baking set by construction.
-			if(m_PendingScenesToBeLoaded.Count != 0)
-            {
-				foreach(var toBeLoadedBakingSet in m_PendingScenesToBeLoaded.Values)
-                {
-					if(bakingSet != toBeLoadedBakingSet.Item1)
-                    {
-						Debug.LogError($"Trying to load Adaptive Probe Volumes data for a scene from a different baking set from other scenes that are being loaded." +
-							$"Please make sure all loaded scenes are in the same baking set.");
-						return;
-                    }
-
-					break;
-                }
-            }
-
-			m_PendingScenesToBeLoaded.Add(sceneGUID, (bakingSet, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID)));
-			m_NeedLoadAsset = true;
-		}
-
-		internal void AddPendingSceneRemoval(string sceneGUID)
-        {
-			if (m_PendingScenesToBeLoaded.ContainsKey(sceneGUID))
-				m_PendingScenesToBeLoaded.Remove(sceneGUID);
-			if (m_ActiveScenes.Contains(sceneGUID) && m_CurrentBakingSet != null)
-				m_PendingScenesToBeUnloaded.TryAdd(sceneGUID, m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID));
-        }
-
-		internal void UnloadAllCells()
-		{
-
-		}
-
-		// This one is internal for baking purpose only.
-		// Calling this from "outside" will not properly update Loaded/ToBeLoadedCells arrays and thus will break the state of streaming.
-		internal bool LoadCell(Cell cell, bool ignoreErrorLog = false)
-		{
-			// First try to allocate pool memory. This is what is most likely to fail.
-			return false;
-		}
-
-		internal void UnloadBlendingCell(Cell cell)
-		{
-
-		}
 
 		internal bool AddBlendingBricks(Cell cell)
 		{
