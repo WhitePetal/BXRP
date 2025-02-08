@@ -144,7 +144,8 @@ namespace BXRenderPipeline
 		public int frameIndexForNoise;
 		public float reflNormalizationLowerClamp;
 		public float reflNormalizationUpperClamp;
-		public float skyOcclusionShadingDirection;
+		public float skyOcclusionIntensity;
+		public bool skyOcclusionShadingDirection;
 		public int regionCount;
 		public uint4 regionLayerMasks;
 		public Vector3 worldOffset;
@@ -1057,7 +1058,69 @@ namespace BXRenderPipeline
 			ProbeBrickPool.Initialize();
 			ProbeBrickBlendingPool.Initialize();
 			InitStreaming();
+
+			m_IsInitialized = true;
+			m_NeedsIndexRebuild = true;
+#pragma warning disable 618
+			sceneData = parameters.sceneData;
+#pragma warning restore 618
+
+#if UNITY_EDITOR
+			UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += ProbeVolumeBakingSet.OnSceneSaving;
+			ProbeVolumeBakingSet.SyncBakingSets();
+#endif
+			m_EnabledBySRP = true;
+
+			foreach (var data in perSceneDataList)
+				data.Initialize();
 		}
+
+		/// <summary>
+		/// Communicate to the Probe Volume system whether the SRP enables Probe Volume.
+		/// It is important to keep in mind that this is not used by the system for anything else but book-keeping,
+		/// the SRP is still responsible to disable anything Probe volume related on SRP side.
+		/// </summary>
+		/// <param name="srpEnablesPV">The value of the new enabled</param>
+		public void SetEnableStateFromSRP(bool srpEnablesPV)
+        {
+			m_EnabledBySRP = srpEnablesPV;
+        }
+
+		/// <summary>
+		/// Communicate to the Probe Volume system whether the SRP uses per vertex sampling
+		/// </summary>
+		/// <param name="value">True for vertex sampling, false for pixel sampling</param>
+		public void SetVertexSamplingEnable(bool value)
+        {
+			m_VertexSampling = value;
+        }
+
+		// This is used for steps such as dilation that require the maximum order allowed to be loaded at all times. Should really never be used as a general purpose function.
+		internal void ForceSHBand(ProbeVolumeSHBands shBands)
+        {
+			m_SHBands = shBands;
+
+			DeinitProbeReferenceVolume();
+
+			foreach (var data in perSceneDataList)
+				data.Initialize();
+
+			PerformPendingOperations();
+        }
+
+		internal void ForceNoDiskStreaming(bool state)
+        {
+			m_ForceNoDiskStreaming = state;
+        }
+
+		/// <summary>
+        /// Cleanup the Probe Volume system
+        /// </summary>
+		public void Cleanup()
+        {
+			CoreUtils.SafeRelease(m_EmptyIndexBuffer);
+			ProbeVolumeConstantRuntimeResources.Cleanup();
+        }
 
 
 

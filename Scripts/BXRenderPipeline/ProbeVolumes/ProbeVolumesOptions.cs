@@ -92,38 +92,47 @@ namespace BXRenderPipeline
 		/// <summary>
 		/// <see cref="viewBias"/>
 		/// </summary>
+		[HideInInspector]
 		public float viewBias_runtime;
 		/// <summary>
 		/// <see cref="scaleBiasWithMinProbeDistance"/>
 		/// </summary>
+		[HideInInspector]
 		public bool scaleBiasWithMinProbeDistance_runtime;
 		/// <summary>
 		/// <see cref="samplingNoise"/>
 		/// </summary>
+		[HideInInspector]
 		public float samplingNoise_runtime;
 		/// <summary>
 		/// <see cref="animateSamplingNoise"/>
 		/// </summary>
+		[HideInInspector]
 		public bool animateSamplingNoise_runtime;
 		/// <summary>
 		/// <see cref="leakReductionMode"/>
 		/// </summary>
+		[HideInInspector]
 		public APVLeakReductionMode leakReductionMode_runtime;
 		/// <summary>
 		/// <see cref="occlusionOnlyReflectionNormalization"/>
 		/// </summary>
+		[HideInInspector]
 		public bool occlusionOnlyReflectionNormalization_runtime;
 		/// <summary>
 		/// <see cref="intensityMultiplier"/>
 		/// </summary>
+		[HideInInspector]
 		public float intensityMultiplier_runtime;
 		/// <summary>
 		/// <see cref="skyOcclusionIntensityMultiplier"/>
 		/// </summary>
+		[HideInInspector]
 		public float skyOcclusionIntensityMultiplier_runtime;
 		/// <summary>
 		/// <see cref="worldOffset"/>
 		/// </summary>
+		[HideInInspector]
 		public Vector3 worldOffset_runtime;
 
 		// TODO:NEED IMPLEMENT
