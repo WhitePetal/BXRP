@@ -173,6 +173,23 @@ namespace BXRenderPipeline
 			Profiler.EndSample();
 		}
 
+		internal void GetRuntimeResources(ref ProbeReferenceVolume.RuntimeResources rr)
+        {
+			bool displayFrag = ProbeReferenceVolume.instance.probeVolumeDebug.displayIndexFragmentation;
+            // If we are pending an update of the actual compute buffer we do it here
+            if (m_NeedUpdateIndexComputeBuffer)
+            {
+				UploadIndexData();
+				if (displayFrag)
+					UpdateDebugData();
+            }
+
+			if (displayFrag && m_DebugFragmentationBuffer == null)
+				UpdateDebugData();
+
+			rr.index = m_PhysicalIndexBuffer;
+        }
+
 		internal void Cleanup()
 		{
 			m_PhysicalIndexBufferData.Dispose();

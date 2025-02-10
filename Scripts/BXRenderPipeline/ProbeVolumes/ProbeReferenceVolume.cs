@@ -18,6 +18,7 @@ using System.Diagnostics;
 using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Profiling;
 
 namespace BXRenderPipeline
 {
@@ -281,7 +282,7 @@ namespace BXRenderPipeline
 			public NativeArray<Vector3> offsetVectors { get; internal set; }
 			public NativeArray<float> validity { get; internal set; }
 			public NativeArray<byte> layer { get; internal set; } // Only used by a specific debug view
-			
+
 			public void CleanupPerScenarioData(in PerScenarioData data)
 			{
 				if (data.shL0L1RxData.IsCreated)
@@ -437,18 +438,18 @@ namespace BXRenderPipeline
 			}
 
 			public bool IsBlendingStreaming()
-            {
+			{
 				return blendingRequest0 != null && blendingRequest0.IsStreaming()
 					|| blendingRequest1 != null && blendingRequest1.IsStreaming();
-            }
+			}
 
 			public void Clear()
-            {
+			{
 				request = null;
 				blendingRequest0 = null;
 				blendingRequest1 = null;
 				streamingScore = 0;
-            }
+			}
 		}
 
 		[DebuggerDisplay("Index = {desc.index} Loaded = {loaded}")]
@@ -473,35 +474,35 @@ namespace BXRenderPipeline
 			public CellInstancedDebugProbes debugProbes;
 
 			public int CompareTo(Cell other)
-            {
+			{
 				if (streamingInfo.streamingScore < other.streamingInfo.streamingScore)
 					return -1;
 				else if (streamingInfo.streamingScore > other.streamingInfo.streamingScore)
 					return 1;
 				else
 					return 0;
-            }
+			}
 
 			public bool UpdateCellScenarioData(string scenario0, string scenario1)
-            {
-				if(!data.scenarios.TryGetValue(scenario0, out this.scenario0))
-                {
+			{
+				if (!data.scenarios.TryGetValue(scenario0, out this.scenario0))
+				{
 					return false;
-                }
+				}
 
 				hasTwoScenarios = false;
 
-                if (!string.IsNullOrEmpty(scenario1))
-                {
+				if (!string.IsNullOrEmpty(scenario1))
+				{
 					if (data.scenarios.TryGetValue(scenario1, out this.scenario1))
 						hasTwoScenarios = true;
-                }
+				}
 
 				return true;
-            }
+			}
 
 			public void Clear()
-            {
+			{
 				desc = null;
 				data = null;
 				poolInfo.Clear();
@@ -517,7 +518,7 @@ namespace BXRenderPipeline
 
 				debugProbes = null;
 			}
-        }
+		}
 
 		internal struct Volume : IEquatable<Volume>
 		{
@@ -576,11 +577,11 @@ namespace BXRenderPipeline
 				Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
 				Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
-				for(int x = 0; x < 2; ++x)
+				for (int x = 0; x < 2; ++x)
 				{
-					for(int y = 0; y < 2; ++y)
+					for (int y = 0; y < 2; ++y)
 					{
-						for(int z = 0; z < 2; ++z)
+						for (int z = 0; z < 2; ++z)
 						{
 							Vector3 dir = new Vector3(x, y, z);
 							Vector3 pt = corner + X * dir.x + Y * dir.y + Z * dir.z;
@@ -624,11 +625,11 @@ namespace BXRenderPipeline
 		}
 
 		internal struct RefVolTransform
-        {
+		{
 			public Vector3 posWS;
 			public Quaternion rot;
 			public float scale;
-        }
+		}
 
 		/// <summary>
 		/// The resources that are bound to the runtime shaders for sampling Adaptive Probe Volume data.
@@ -727,16 +728,16 @@ namespace BXRenderPipeline
 		private Bounds m_CurrGlobalBounds = new Bounds();
 
 		internal Bounds globalBounds
-        {
-            get
-            {
+		{
+			get
+			{
 				return m_CurrGlobalBounds;
-            }
-            set
-            {
+			}
+			set
+			{
 				m_CurrGlobalBounds = value;
-            }
-        }
+			}
+		}
 
 		internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
 		private ObjectPool<Cell> m_CellPool = new ObjectPool<Cell>(x => x.Clear(), null, false);
@@ -757,13 +758,13 @@ namespace BXRenderPipeline
 		/// The input to the retrieveExtraDataAction action.
 		/// </summary>
 		public struct ExtraDataActionInput
-        {
+		{
 			// Empty, but defined to make this future proof without having to change public API
 		}
 
 		/// <summary>
-        /// An action that is used by the SRP to retrieve extra data that was baked together with the bake
-        /// </summary>
+		/// An action that is used by the SRP to retrieve extra data that was baked together with the bake
+		/// </summary>
 		public Action<ExtraDataActionInput> retrieveExtraDataAction;
 
 		/// <summary>
@@ -802,9 +803,9 @@ namespace BXRenderPipeline
 		/// Whether APV stores occlusion for mixed lights.
 		/// </summary>
 		public bool probeOcclusion
-        {
+		{
 			get => m_CurrentBakingSet ? m_CurrentBakingSet.bakedProbeOcclusion : false;
-        }
+		}
 
 		/// <summary>
 		/// Whether APV handles sky dynamically (with baked sky occlusion) or fully statically.
@@ -886,10 +887,10 @@ namespace BXRenderPipeline
 		/// <param name="otherScenario"></param>
 		/// <param name="blendingFactor"></param>
 		public void BlendLightingScenario(string otherScenario, float blendingFactor)
-        {
+		{
 			if (m_CurrentBakingSet != null)
 				m_CurrentBakingSet.BlendLightingScenario(otherScenario, blendingFactor);
-        }
+		}
 
 		internal static string defaultLightingScenario = "Default";
 
@@ -907,30 +908,30 @@ namespace BXRenderPipeline
 		} = new List<ProbeVolumePerSceneData>();
 
 		internal void RegisterPerSceneData(ProbeVolumePerSceneData data)
-        {
-            if (!perSceneDataList.Contains(data))
-            {
+		{
+			if (!perSceneDataList.Contains(data))
+			{
 				perSceneDataList.Add(data);
 
 				// Registration can happen before APV (or even the current pipeline) is initialized, so in this case we need to delay the init.
 				if (m_IsInitialized)
 					data.Initialize();
-            }
-        }
+			}
+		}
 
 		public void SetActiveScene(Scene scene)
-        {
+		{
 			if (TryGetPerSceneData(GetSceneGUID(scene), out var perSceneData))
 				SetActiveBakingSet(perSceneData.serializedBakingSet);
-        }
+		}
 
 		/// <summary>
-        /// Set the currently active baking set
-        /// Can be used when loading additively two scenes belonging to different baking sets to control which one is active
-        /// </summary>
-        /// <param name="bakingSet"></param>
+		/// Set the currently active baking set
+		/// Can be used when loading additively two scenes belonging to different baking sets to control which one is active
+		/// </summary>
+		/// <param name="bakingSet"></param>
 		public void SetActiveBakingSet(ProbeVolumeBakingSet bakingSet)
-        {
+		{
 			if (m_CurrentBakingSet == bakingSet)
 				return;
 
@@ -940,12 +941,12 @@ namespace BXRenderPipeline
 			UnloadBakingSet();
 			SetBakingSetAsCurrent(bakingSet);
 
-			if(m_CurrentBakingSet != null)
-            {
+			if (m_CurrentBakingSet != null)
+			{
 				foreach (var data in perSceneDataList)
 					data.QueueSceneLoading();
-            }
-        }
+			}
+		}
 
 		private void SetBakingSetAsCurrent(ProbeVolumeBakingSet bakingSet)
 		{
@@ -984,11 +985,11 @@ namespace BXRenderPipeline
 			m_CurrGlobalBounds = new Bounds();
 
 			// Restart pool from zero to avoid unnecessary memory consumption when going from a big to a small scene.
-			if(m_ScratchBufferPool != null)
-            {
+			if (m_ScratchBufferPool != null)
+			{
 				m_ScratchBufferPool.Cleanup();
 				m_ScratchBufferPool = null;
-            }
+			}
 
 		}
 
@@ -1000,19 +1001,19 @@ namespace BXRenderPipeline
 		}
 
 		internal bool TryGetPerSceneData(string sceneGUID, out ProbeVolumePerSceneData perSceneData)
-        {
-			foreach(var data in perSceneDataList)
-            {
-				if(GetSceneGUID(data.gameObject.scene) == sceneGUID)
-                {
+		{
+			foreach (var data in perSceneDataList)
+			{
+				if (GetSceneGUID(data.gameObject.scene) == sceneGUID)
+				{
 					perSceneData = data;
 					return true;
-                }
-            }
+				}
+			}
 
 			perSceneData = null;
 			return false;
-        }
+		}
 
 		internal float indexFragmentationRate { get => m_ProbeReferenceVolumeInit ? m_Index.fragmentationRate : 0; }
 
@@ -1026,12 +1027,12 @@ namespace BXRenderPipeline
 		/// </summary>
 		/// <param name="parameters">Initialization parameters.</param>
 		public void Initialize(in ProbeVolumeSystemParameters parameters)
-        {
-            if (m_IsInitialized)
-            {
+		{
+			if (m_IsInitialized)
+			{
 				Debug.LogError("Probe Volume System has already been initialized.");
 				return;
-            }
+			}
 
 			bool getSettings = BXRenderPipeline.TryGetRenderCommonSettings(out var settings);
 			var probeVolumeSettings = settings?.probeVolumeGlobalSettings;
@@ -1082,22 +1083,22 @@ namespace BXRenderPipeline
 		/// </summary>
 		/// <param name="srpEnablesPV">The value of the new enabled</param>
 		public void SetEnableStateFromSRP(bool srpEnablesPV)
-        {
+		{
 			m_EnabledBySRP = srpEnablesPV;
-        }
+		}
 
 		/// <summary>
 		/// Communicate to the Probe Volume system whether the SRP uses per vertex sampling
 		/// </summary>
 		/// <param name="value">True for vertex sampling, false for pixel sampling</param>
 		public void SetVertexSamplingEnable(bool value)
-        {
+		{
 			m_VertexSampling = value;
-        }
+		}
 
 		// This is used for steps such as dilation that require the maximum order allowed to be loaded at all times. Should really never be used as a general purpose function.
 		internal void ForceSHBand(ProbeVolumeSHBands shBands)
-        {
+		{
 			m_SHBands = shBands;
 
 			DeinitProbeReferenceVolume();
@@ -1106,18 +1107,18 @@ namespace BXRenderPipeline
 				data.Initialize();
 
 			PerformPendingOperations();
-        }
+		}
 
 		internal void ForceNoDiskStreaming(bool state)
-        {
+		{
 			m_ForceNoDiskStreaming = state;
-        }
+		}
 
 		/// <summary>
-        /// Cleanup the Probe Volume system
-        /// </summary>
+		/// Cleanup the Probe Volume system
+		/// </summary>
 		public void Cleanup()
-        {
+		{
 			CoreUtils.SafeRelease(m_EmptyIndexBuffer);
 			m_EmptyIndexBuffer = null;
 			ProbeVolumeConstantRuntimeResources.Cleanup();
@@ -1126,11 +1127,11 @@ namespace BXRenderPipeline
 			UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= ProbeVolumeBakingSet.OnSceneSaving;
 #endif
 
-            if (!m_IsInitialized)
-            {
+			if (!m_IsInitialized)
+			{
 				Debug.LogError("Adaptive Probe Volumes have not been initialized before calling Cleanup.");
 				return;
-            }
+			}
 
 			CleanupLoadedData();
 			CleanupDebug();
@@ -1140,49 +1141,49 @@ namespace BXRenderPipeline
 		}
 
 		/// <summary>
-        /// Get approximate video memory impact, in bytes, of the system.
-        /// </summary>
-        /// <returns>An approximation of the video memory impact, in bytes, of the system</returns>
+		/// Get approximate video memory impact, in bytes, of the system.
+		/// </summary>
+		/// <returns>An approximation of the video memory impact, in bytes, of the system</returns>
 		public int GetVideoMemoryCoast()
-        {
+		{
 			if (!m_ProbeReferenceVolumeInit)
 				return 0;
 
 			return m_Pool.estimatedVMemCost + m_Index.estimatedVMemCost + m_CellIndices.estimatedVMemCost + m_BlendingPool.estimatedVMemCoast + m_TemporaryDataLocationMemCoast;
-        }
+		}
 
 		private void RemoveCell(int cellIndex)
-        {
-			if(cells.TryGetValue(cellIndex, out var cellInfo))
-            {
+		{
+			if (cells.TryGetValue(cellIndex, out var cellInfo))
+			{
 				cellInfo.referenceCount--;
-				if(cellInfo.referenceCount <= 0)
-                {
+				if (cellInfo.referenceCount <= 0)
+				{
 					cells.Remove(cellIndex);
 
-                    if (cellInfo.loaded)
-                    {
+					if (cellInfo.loaded)
+					{
 						m_LoadedCells.Remove(cellInfo);
 						UnloadCell(cellInfo);
-                    }
-                    else
-                    {
+					}
+					else
+					{
 						m_ToBeLoadedCells.Remove(cellInfo);
-                    }
+					}
 
 					m_CurrentBakingSet.ReleaseCell(cellIndex);
 					m_CellPool.Release(cellInfo);
-                }
-            }
-        }
+				}
+			}
+		}
 
 		// This one is internal for baking purpose only.
 		// Calling this from "outside" will not properly update Loaded/ToBeLoadedCells arrays and thus will break the state of streaming.
 		internal void UnloadCell(Cell cell)
-        {
-            // Streaming might have never loaded the cell in the first place
-            if (cell.loaded)
-            {
+		{
+			// Streaming might have never loaded the cell in the first place
+			if (cell.loaded)
+			{
 				if (cell.blendingInfo.blending)
 				{
 					m_LoadedBlendingCells.Remove(cell);
@@ -1194,20 +1195,20 @@ namespace BXRenderPipeline
 				if (cell.indexInfo.flatIndicesInGlobalIndirection != null)
 					m_CellIndices.MarkEntriesAsUnloaded(cell.indexInfo.flatIndicesInGlobalIndirection);
 
-                if (diskStreamingEnabled)
-                {
-                    if (cell.streamingInfo.IsStreaming())
-                    {
+				if (diskStreamingEnabled)
+				{
+					if (cell.streamingInfo.IsStreaming())
+					{
 						CancelStreamingRequest(cell);
-                    }
-                    else
-                    {
+					}
+					else
+					{
 						ReleaseBricks(cell);
 						cell.data.Cleanup(!diskStreamingEnabled); // Release CPU data
-                    }
-                }
-                else
-                {
+					}
+				}
+				else
+				{
 					ReleaseBricks(cell);
 				}
 
@@ -1215,53 +1216,53 @@ namespace BXRenderPipeline
 				cell.debugProbes = null;
 
 				ClearDebugData();
-            }
-        }
+			}
+		}
 
 		internal void UnloadBlendingCell(Cell cell)
-        {
+		{
 			if (diskStreamingEnabled && cell.streamingInfo.IsBlendingStreaming())
 				CancelBlendingStreamingRequest(cell);
 
-            if (cell.blendingInfo.blending)
-            {
+			if (cell.blendingInfo.blending)
+			{
 				m_BlendingPool.Deallocate(cell.blendingInfo.chunkList);
 				cell.blendingInfo.chunkList.Clear();
 				cell.blendingInfo.blending = false;
-            }
-        }
+			}
+		}
 
 		internal void UnloadAllCells()
-        {
+		{
 			for (int i = 0; i < m_LoadedCells.size; ++i)
 				UnloadCell(m_LoadedCells[i]);
 
 			m_ToBeLoadedCells.AddRange(m_LoadedCells);
 			m_ToBeLoadedCells.Clear();
-        }
+		}
 
 		internal void UnloadAllBlendingCells()
-        {
+		{
 			for (int i = 0; i < m_LoadedBlendingCells.size; ++i)
 				UnloadBlendingCell(m_LoadedBlendingCells[i]);
 
 			m_ToBeLoadedBlendingCells.AddRange(m_LoadedBlendingCells);
 			m_LoadedBlendingCells.Clear();
-        }
+		}
 
 		private void AddCell(int cellIndex)
-        {
+		{
 			// The same cell can exist int more than one scene
 			// Need to check existence because we don't want to add cells more than once to streaming structures
 			// TODO: Check perf if relevant
-			if(!cells.TryGetValue(cellIndex, out var cell))
-            {
+			if (!cells.TryGetValue(cellIndex, out var cell))
+			{
 				var cellDesc = m_CurrentBakingSet.GetCellDesc(cellIndex);
 
 				// This can happen if a baking set was cleared and not all scene were loaded.
 				// This results in stray ProbeVolumeAssets for unloaded scenes that contains cell indices not present in the baking set if it was rebaked partially.
-				if(cellDesc != null)
-                {
+				if (cellDesc != null)
+				{
 					cell = m_CellPool.Get();
 					cell.desc = cellDesc;
 					cell.data = m_CurrentBakingSet.GetCellData(cellIndex);
@@ -1275,59 +1276,59 @@ namespace BXRenderPipeline
 					cells[cellIndex] = cell;
 
 					m_ToBeLoadedCells.Add(cell);
-                }
-            }
-            else
-            {
+				}
+			}
+			else
+			{
 				cell.referenceCount++;
-            }
-        }
+			}
+		}
 
 		// This one is internal for baking purpose only.
 		// Calling this from "outside" will not properly update Loaded/ToBeloadedCells arrays and thus will break the state of streaming.
 		internal bool LoadCell(Cell cell, bool ignoreErrorLog = false)
-        {
+		{
 			// First try to allocate pool memory. This is what is most likely to fail.
-			if(ReservePoolChunks(cell.desc.bricksCount, cell.poolInfo.chunkList, ignoreErrorLog))
-            {
+			if (ReservePoolChunks(cell.desc.bricksCount, cell.poolInfo.chunkList, ignoreErrorLog))
+			{
 				int indirectionBufferEntries = cell.indexInfo.indirectionEntryInfo.Length;
 
 				var indexInfo = cell.indexInfo;
 
-				for(int entry = 0; entry < indirectionBufferEntries; ++entry)
-                {
-                    // TODO: remove, this is for migration
-                    if (!cell.indexInfo.indirectionEntryInfo[entry].hasMinMax)
-                    {
+				for (int entry = 0; entry < indirectionBufferEntries; ++entry)
+				{
+					// TODO: remove, this is for migration
+					if (!cell.indexInfo.indirectionEntryInfo[entry].hasMinMax)
+					{
 						if (cell.data.bricks.IsCreated)
 							ComputeEntryMinMax(ref cell.indexInfo.indirectionEntryInfo[entry], cell.data.bricks);
-                        else
-                        {
+						else
+						{
 							int entrySize = CellSize(GetEntrySubdivLevel());
 							cell.indexInfo.indirectionEntryInfo[entry].minBrickPos = Vector3Int.zero;
-                        }
-                    }
+						}
+					}
 
 					int brickCountAtResForEntry = GetNumberOfBricksAtSubdiv(cell.indexInfo.indirectionEntryInfo[entry]);
 					indexInfo.updateInfo.entriesInfo[entry].numberOfChunks = m_Index.GetNumberOfChunks(brickCountAtResForEntry);
-                }
+				}
 
 				bool canAllocatedCell = m_Index.FindSlotsForEntries(ref indexInfo.updateInfo.entriesInfo);
-                if (canAllocatedCell)
-                {
+				if (canAllocatedCell)
+				{
 					bool scenarioValid = cell.UpdateCellScenarioData(lightingScenario, otherScenario);
 
 					bool successfulReserve = m_Index.ReserveChunks(indexInfo.updateInfo.entriesInfo, ignoreErrorLog);
 					Debug.Assert(successfulReserve);
 
-					for(int entry = 0; entry < indirectionBufferEntries; ++entry)
-                    {
+					for (int entry = 0; entry < indirectionBufferEntries; ++entry)
+					{
 						indexInfo.updateInfo.entriesInfo[entry].minValidBrickIndexForCellAtMaxRes = indexInfo.indirectionEntryInfo[entry].minBrickPos;
 						indexInfo.updateInfo.entriesInfo[entry].maxValidBrickIndexForCellAtMaxResPlusOne = indexInfo.indirectionEntryInfo[entry].maxBrickPosPlusOne;
 						indexInfo.updateInfo.entriesInfo[entry].entryPositionInBricksAtMaxRes = indexInfo.indirectionEntryInfo[entry].positionInBricks;
 						indexInfo.updateInfo.entriesInfo[entry].minSubdivInCell = indexInfo.indirectionEntryInfo[entry].minSubdiv;
 						indexInfo.updateInfo.entriesInfo[entry].hasOnlyBiggerBricks = indexInfo.indirectionEntryInfo[entry].hasOnlyBiggerBricks;
-                    }
+					}
 					cell.loaded = true;
 
 					// Copy proper data inside index buffers and pool textures or kick off streaming request.
@@ -1339,9 +1340,9 @@ namespace BXRenderPipeline
 
 					ClearDebugData();
 					return true;
-                }
-                else
-                {
+				}
+				else
+				{
 					// Index allocation failed, we need to release the pool chunks.
 					ReleasePoolChunks(cell.poolInfo.chunkList);
 					// We know we should have the space (test done in TryLoadCell above) so it's because of fragmentation.
@@ -1356,36 +1357,36 @@ namespace BXRenderPipeline
 
 		// May not load all cells if there is not enough space given the current budget.
 		internal void LoadAllCells()
-        {
+		{
 			int loadedCellsCount = m_LoadedCells.size;
-			for(int i = 0; i < m_ToBeLoadedCells.size; ++i)
-            {
+			for (int i = 0; i < m_ToBeLoadedCells.size; ++i)
+			{
 				Cell cell = m_ToBeLoadedCells[i];
 				if (LoadCell(cell, true))
 					m_LoadedCells.Add(cell);
-            }
+			}
 
-			for(int i = loadedCellsCount; i < m_LoadedCells.size; ++i)
-            {
+			for (int i = loadedCellsCount; i < m_LoadedCells.size; ++i)
+			{
 				m_ToBeLoadedCells.Remove(m_LoadedCells[i]);
-            }
-        }
+			}
+		}
 
 		// This will compute the min/max position of loaded cells as well as the max number of SH chunk for a cell
 		private void ComputeCellGlobalInfo()
-        {
+		{
 			minLoadedCellPos = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
 			maxLoadedCellPos = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
 
-			foreach(var cell in cells.Values)
-            {
-                if (cell.loaded)
-                {
+			foreach (var cell in cells.Values)
+			{
+				if (cell.loaded)
+				{
 					minLoadedCellPos = Vector3Int.Min(cell.desc.position, minLoadedCellPos);
 					maxLoadedCellPos = Vector3Int.Max(cell.desc.position, maxLoadedCellPos);
-                }
-            }
-        }
+				}
+			}
+		}
 
 		internal void AddPendingSceneLoading(string sceneGUID, ProbeVolumeBakingSet bakingSet)
 		{
@@ -1441,57 +1442,304 @@ namespace BXRenderPipeline
 		}
 
 		internal void RemovePendingScene(string sceneGUID, List<int> cellList)
-        {
-            if (m_ActiveScenes.Contains(sceneGUID))
-            {
+		{
+			if (m_ActiveScenes.Contains(sceneGUID))
+			{
 				m_ActiveScenes.Remove(sceneGUID);
-            }
+			}
 
 			// Remoe bricks and empty cells
-			foreach(var cellIndex in cellList)
-            {
+			foreach (var cellIndex in cellList)
+			{
 				RemoveCell(cellIndex);
-            }
+			}
 
 			ClearDebugData();
 			ComputeCellGlobalInfo();
-        }
+		}
 
 		private void PerformPendingIndexChangeAndInit()
-        {
-            if (m_NeedsIndexRebuild)
-            {
+		{
+			if (m_NeedsIndexRebuild)
+			{
 				ClearnupLoadedData();
 				InitializeGlobalIndirection();
 				m_HasChangeIndex = true;
 				m_NeedsIndexRebuild = false;
-            }
-            else
-            {
+			}
+			else
+			{
 				m_HasChangeIndex = false;
-            }
-        }
+			}
+		}
 
+		internal void SetSubdivisionDimensions(float minBrickSize, int maxSubdiv, Vector3 offset)
+		{
+			m_MinBrickSize = minBrickSize;
+			SetMaxSubdivision(maxSubdiv);
+			m_ProbeOffset = offset;
+		}
 
+		private bool LoadCells(List<int> cellIndices)
+		{
+			if (m_CurrentBakingSet.ResolveCellData(cellIndices))
+			{
+				ClearDebugData();
 
+				// Add all the cells to the system
+				// They'll be streamed in later on
+				for (int i = 0; i < cellIndices.Count; ++i)
+				{
+					AddCell(cellIndices[i]);
+				}
 
+				return true;
+			}
 
+			return false;
+		}
 
+		private void PerformPendingLoading()
+		{
+			if ((m_PendingScenesToBeLoaded.Count == 0 && m_ActiveScenes.Count == 0) || !m_NeedLoadAsset || !m_ProbeReferenceVolumeInit)
+				return;
 
+			m_Pool.EnsureTextureValidity();
+			m_BlendingPool.EnsureTextureValidity();
 
+			// Load the ones that are already active but reload if we said we need to load
+			if (m_HasChangeIndex)
+			{
+				foreach (var sceneGUID in m_ActiveScenes)
+				{
+					LoadCells(m_CurrentBakingSet.GetSceneCellIndexList(sceneGUID));
+				}
+			}
 
+			foreach (var loadRequest in m_PendingScenesToBeLoaded)
+			{
+				var sceneGUID = loadRequest.Key;
+				if (LoadCells(loadRequest.Value.Item2) && !m_ActiveScenes.Contains(sceneGUID))
+				{
+					m_ActiveScenes.Add(sceneGUID);
+				}
+			}
 
+			m_PendingScenesToBeLoaded.Clear();
 
+			// Mark the loading as done
+			m_NeedLoadAsset = false;
+		}
 
+		private void PerformPendingDeletion()
+		{
+			foreach (var unloadRequest in m_PendingScenesToBeUnloaded)
+			{
+				RemovePendingScene(unloadRequest.Key, unloadRequest.Value);
+			}
 
+			m_PendingScenesToBeUnloaded.Clear();
+		}
 
+		internal void ComputeEntryMinMax(ref IndirectionEntryInfo entryInfo, ReadOnlySpan<Brick> bricks)
+		{
+			int entrySize = CellSize(GetEntrySubdivLevel());
+			Vector3Int entry_min = entryInfo.positionInBricks;
+			Vector3Int entry_max = entryInfo.positionInBricks + new Vector3Int(entrySize, entrySize, entrySize);
 
+			if (entryInfo.hasOnlyBiggerBricks)
+			{
+				entryInfo.minBrickPos = entry_min;
+				entryInfo.maxBrickPosPlusOne = entry_max;
+			}
+			else
+			{
+				entryInfo.minBrickPos = entryInfo.maxBrickPosPlusOne = Vector3Int.zero;
 
+				bool initialized = false;
+				for (int i = 0; i < bricks.Length; ++i)
+				{
+					int brickSize = ProbeReferenceVolume.CellSize(bricks[i].subdivisionLevel);
+					var brickMin = bricks[i].position;
+					var brickMax = bricks[i].position + new Vector3Int(brickSize, brickSize, brickSize);
+					if (!ProbeBrickIndex.BrickOverlapEntry(brickMin, brickMax, entry_min, entry_max))
+						continue;
 
+					// Bricsk can be bigger than entries !
+					brickMin = Vector3Int.Max(brickMin, entry_min);
+					brickMax = Vector3Int.Min(brickMax, entry_max);
 
+					if (initialized)
+					{
+						entryInfo.minBrickPos = Vector3Int.Min(brickMin, entryInfo.minBrickPos);
+						entryInfo.maxBrickPosPlusOne = Vector3Int.Max(brickMax, entryInfo.maxBrickPosPlusOne);
+					}
+					else
+					{
+						entryInfo.minBrickPos = brickMin;
+						entryInfo.maxBrickPosPlusOne = brickMax;
+						initialized = true;
+					}
+				}
+			}
 
+			entryInfo.minBrickPos = entryInfo.minBrickPos - entry_min;
+			entryInfo.maxBrickPosPlusOne = Vector3Int.one + entryInfo.maxBrickPosPlusOne - entry_min;
+			entryInfo.hasMinMax = transform;
+		}
 
+		internal static int GetNumberOfBricksAtSubdiv(IndirectionEntryInfo entryInfo)
+		{
+			// This is a special case that can be handled manually easily.
+			if (entryInfo.hasOnlyBiggerBricks)
+				return 1;
 
+			Vector3Int sizeOfValidIndicesAtMaxRes = entryInfo.maxBrickPosPlusOne - entryInfo.minBrickPos;
+			Vector3Int bricksForEntry = sizeOfValidIndicesAtMaxRes / CellSize(entryInfo.minSubdiv);
+			return bricksForEntry.x * bricksForEntry.y * bricksForEntry.z;
+		}
+
+		/// <summary>
+		/// Perform all the operations that are relative to changing the content or characteristics of the probe reference volume
+		/// </summary>
+		public void PerformPendingOperations()
+		{
+#if UNITY_EDITOR
+			checksDuringBakeAction?.Invoke();
+#endif
+
+			PerformPendingDeletion();
+			PerformPendingIndexChangeAndInit();
+			PerformPendingLoading();
+		}
+
+		internal void InitializeGlobalIndirection()
+		{
+			// Current baking set can be null at init and we still need the buffers to valid.
+			var minCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.minCellPosition : Vector3Int.zero;
+			var maxCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.maxCellPosition : Vector3Int.zero;
+			if (m_CellIndices != null)
+				m_CellIndices.Cleanup();
+			m_CellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
+			if (m_SupportGPUStreaming)
+			{
+				if (m_DefragCellIndices != null)
+					m_DefragCellIndices.Cleanup();
+				m_DefragCellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
+			}
+		}
+
+		/// <summary>
+		/// Initialize the reference volume
+		/// </summary>
+		private void InitProbeReferenceVolume()
+		{
+			// If a set without sky occlusion was loaded, and a set with sky occlusion is now loaded,
+			// the pools will not have allocated all necessary buffers
+			// To support that case, we can force reinit here because we know no scenes are loaded (as we are changing baking set)
+			if (m_ProbeReferenceVolumeInit && !m_Pool.EnsureTextureValidity(useRenderingLayers, skyOcclusion, skyOcclusionShadingDirection, probeOcclusion))
+			{
+				m_TemporaryDataLocation.Cleanup();
+				m_TemporaryDataLocation = ProbeBrickPool.CreateDataLocation(ProbeBrickPool.GetChunkSizeInProbeCount(), false, m_SHBands, "APV_Intermediate",
+					false, true, useRenderingLayers, skyOcclusion, skyOcclusionShadingDirection, probeOcclusion, out m_TemporaryDataLocationMemCoast);
+			}
+
+			if (!m_ProbeReferenceVolumeInit)
+			{
+				Profiler.BeginSample("Initialize Reference Volume");
+				m_Pool = new ProbeBrickPool(m_MemoryBudget, m_SHBands, true, useRenderingLayers, skyOcclusion, skyOcclusionShadingDirection, probeOcclusion);
+				m_BlendingPool = new ProbeBrickBlendingPool(m_BlendingMemoryBudget, m_SHBands, probeOcclusion);
+
+				m_Index = new ProbeBrickIndex(m_MemoryBudget);
+
+				if (m_SupportGPUStreaming)
+				{
+					m_DefragIndex = new ProbeBrickIndex(m_MemoryBudget);
+				}
+
+				InitializeGlobalIndirection();
+
+				m_TemporaryDataLocation = ProbeBrickPool.CreateDataLocation(ProbeBrickPool.GetChunkSizeInProbeCount(), false, m_SHBands, "APV_Intermediate",
+					false, true, useRenderingLayers, skyOcclusion, skyOcclusionShadingDirection, probeOcclusion, out m_TemporaryDataLocationMemCoast);
+
+				// initialize offsets
+				m_PositionOffsets[0] = 0.0f;
+				float probeDelta = 1.0f / ProbeBrickPool.kBrickCellCount;
+				for (int i = 1; i < ProbeBrickPool.kBrickProbeCountPerDim - 1; ++i)
+					m_PositionOffsets[i] = i * probeDelta;
+				m_PositionOffsets[m_PositionOffsets.Length - 1] = 1.0f;
+
+				Profiler.EndSample();
+
+				m_ProbeReferenceVolumeInit = true;
+
+				ClearDebugData();
+
+				m_NeedLoadAsset = true;
+			}
+
+			if (DebugManager.instance.GetPanel(k_DebugPanelName, false) != null)
+			{
+				instance.UnregisterDebug(false);
+				instance.RegisterDebug();
+			}
+		}
+
+		ProbeReferenceVolume()
+		{
+			m_MinBrickSize = 1.0f;
+		}
+
+#if UNITY_EDITOR
+		internal bool EnsureCurrentBakingSet(ProbeVolumeBakingSet bakingSet)
+		{
+			// Ensure that all currently loaded scenes belong to the same set.
+			foreach (var data in perSceneDataList)
+			{
+				var set = ProbeVolumeBakingSet.GetBakingSetForScene(data.gameObject.scene);
+				if (set != bakingSet)
+					return false;
+			}
+
+			SetBakingSetAsCurrent(bakingSet);
+			return true;
+		}
+#endif
+
+		/// <summary>
+		/// Get the resources that are bound to the runtime shaders for sampling Adaptive Probe Volume data.
+		/// </summary>
+		/// <returns>The resources to bind to runtime shaders.</returns>
+		public RuntimeResources GetRuntimeResources()
+		{
+			if (!m_ProbeReferenceVolumeInit)
+				return default(RuntimeResources);
+
+			RuntimeResources rr = new RuntimeResources();
+			m_Index.GetRuntimeResources(ref rr);
+			m_CellIndices.GetRuntimeResources(ref rr);
+			m_Pool.GetRuntimeResources(ref rr);
+			ProbeVolumeConstantRuntimeResources.GetRuntimeResources(ref rr);
+			return rr;
+		}
+
+		internal void SetMaxSubdivision(int maxSubdivision)
+		{
+			int newValue = Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
+			if (newValue != m_MaxSubdivision)
+			{
+				m_MaxSubdivision = newValue;
+				if (m_CellIndices != null)
+				{
+					m_CellIndices.Cleanup();
+				}
+				if (m_SupportGPUStreaming && m_DefragCellIndices != null)
+				{
+					m_DefragCellIndices.Cleanup();
+				}
+				InitializeGlobalIndirection();
+			}
+		}
 
 		internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
 
@@ -1511,30 +1759,96 @@ namespace BXRenderPipeline
 		internal float GetEntrySize() => BrickSize(GetEntrySubdivLevel());
 
 		/// <summary>
-        /// Returns whether any brick data has been loaded.
-        /// </summary>
-        /// <returns>True if brick data is present, otherwise false.</returns>
+		/// Returns whether any brick data has been loaded.
+		/// </summary>
+		/// <returns>True if brick data is present, otherwise false.</returns>
 		public bool DataHasBeenLoaded() => m_LoadedCells.size != 0;
 
-
-
-
-
-
-
-
-
-
-
-		internal void SetMaxSubdivision(int maxSubdivision)
+		internal void Clear()
 		{
-			int newValue = Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
-			if (newValue != m_MaxSubdivision)
+			if (m_ProbeReferenceVolumeInit)
 			{
-				m_MaxSubdivision = newValue;
-				InitializeGlobalIndirection();
+				try
+				{
+					// Need to do that first because some assets may be in the process of being removed.
+					PerformPendingOperations();
+				}
+				finally
+				{
+					UnloadAllCells();
+					m_ToBeLoadedCells.Clear();
+					m_Pool.Clear();
+					m_BlendingPool.Clear();
+					m_Index.Clear();
+					cells.Clear();
+
+					Debug.Assert(m_LoadedCells.size == 0);
+				}
+			}
+
+			if (clearAssetsOnVolumeClear)
+			{
+				m_PendingScenesToBeLoaded.Clear();
+				m_ActiveScenes.Clear();
 			}
 		}
+
+		// Currently only used for 1 chunk at a time but kept in case we need more in the future.
+		private List<Chunk> GetSourceLocations(int count, int chunkSize, ProbeBrickPool.DataLocation dataLoc)
+		{
+			var c = new Chunk();
+			m_TmpSrcChunks.Clear();
+			m_TmpSrcChunks.Add(c);
+
+			// currently this code assumes that the texture width is a multiple of the allocation chunk size
+			for (int j = 1; j < count; ++j)
+			{
+				c.x += chunkSize * ProbeBrickPool.kBrickProbeCountPerDim;
+				if (c.x >= dataLoc.width)
+				{
+					c.x = 0;
+					c.y += ProbeBrickPool.kBrickProbeCountPerDim;
+					if (c.z >= dataLoc.height)
+					{
+						c.y = 0;
+						c.z += ProbeBrickPool.kBrickProbeCountPerDim;
+					}
+				}
+				m_TmpSrcChunks.Add(c);
+			}
+
+			return m_TmpSrcChunks;
+		}
+
+		private void UpdateDataLocationTexture<T>(Texture output, NativeArray<T> input) where T : struct
+		{
+			var outputNativeArray = (output as Texture3D).GetPixelData<T>(0);
+			Debug.Assert(outputNativeArray.Length >= input.Length);
+			outputNativeArray.GetSubArray(0, input.Length).CopyFrom(input);
+			(output as Texture3D).Apply();
+		}
+
+		private void UpdateValidityTextureWithoutMask(Texture output, NativeArray<byte> input)
+        {
+			// On some platforms, single channel unorm format isn't supported, so validity uses 4 channel unorm format.
+			// Then we can't directly copy the data, but need to account for the 3 unused channels.
+			uint numComponents = GraphicsFormatUtility.GetComponentCount(output.graphicsFormat);
+			if(numComponents == 1)
+            {
+				UpdateDataLocationTexture(output, input);
+            }
+            else
+            {
+				Debug.Assert(output.graphicsFormat == GraphicsFormat.R8G8B8A8_UNorm);
+				var outputNativeArray = (output as Texture3D).GetPixelData<(byte, byte, byte, byte)>(0);
+				Debug.Assert(outputNativeArray.Length >= input.Length);
+				for(int i = 0; i < input.Length; ++i)
+                {
+					outputNativeArray[i] = (input[i], input[i], input[i], input[i]);
+                }
+				(output as Texture3D).Apply();
+            }
+        }
 
 		private void UpdatePool(List<Chunk> chunkList, CellData.PerScenarioData data, NativeArray<byte> validityNeighMaskData,
 			NativeArray<ushort> skyOcclusionDataL0L1, NativeArray<byte> skyShadingDirectionIndices,
@@ -1586,15 +1900,50 @@ namespace BXRenderPipeline
 			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
 			if (poolIndex == -1)
 				m_Pool.Update(m_TemporaryDataLocation, srcChunks, chunkList, chunkIndex, m_SHBands);
+			else
+				m_BlendingPool.Update(m_TemporaryDataLocation, srcChunks, chunkList, chunkIndex, m_SHBands, poolIndex);
 		}
 
-		private void UpdateDataLocationTexture<T>(Texture output, NativeArray<T> input) where T : struct
-		{
-			var outputNativeArray = (output as Texture3D).GetPixelData<T>(0);
-			Debug.Assert(outputNativeArray.Length >= input.Length);
-			outputNativeArray.GetSubArray(0, input.Length).CopyFrom(input);
-			(output as Texture3D).Apply();
-		}
+		private void UpdatePool(CommandBuffer cmd, List<Chunk> chunkList, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex)
+        {
+			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
+			if (poolIndex == -1)
+				m_Pool.Update(cmd, dataBuffer, layout, chunkList, true, m_Pool.GetValidityTexture(), m_SHBands, skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
+			else
+				m_BlendingPool.Update(cmd, dataBuffer, layout, chunkList, m_SHBands, poolIndex, m_Pool.GetValidityTexture(), skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
+        }
+
+		private void UpdateSharedData(List<Chunk> chunkList, NativeArray<byte> validityNeighMaskData, NativeArray<ushort> skyOcclusionData, NativeArray<byte> skyShadingDirectionIndices, int chunkIndex)
+        {
+			var chunkSizeInProbes = ProbeBrickPool.GetChunkSizeInProbeCount();
+
+			if (m_CurrentBakingSet.bakedMaskCount == 1)
+				UpdateValidityTextureWithoutMask(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+			else
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.Reinterpret<uint>(1).GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+
+			if(skyOcclusion && skyOcclusionData.Length > 0)
+            {
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyOcclusion, skyOcclusionData.GetSubArray(chunkIndex * chunkSizeInProbes * 4, chunkSizeInProbes * 4));
+            }
+
+			if(skyOcclusion && skyOcclusionShadingDirection && skyShadingDirectionIndices.Length > 0)
+            {
+				UpdateDataLocationTexture(m_TemporaryDataLocation.TexSkyShadingDirectionIndices, skyShadingDirectionIndices.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+            }
+
+			var srcChunks = GetSourceLocations(1, ProbeBrickPool.GetChunkSizeInBrickCount(), m_TemporaryDataLocation);
+
+			m_Pool.UpdateValidity(m_TemporaryDataLocation, srcChunks, chunkList, chunkIndex);
+        }
+
+
+
+
+
+
+
+
 
 		private void UpdateDataLocationTextureMask(Texture output, NativeArray<byte> input)
 		{
@@ -1709,55 +2058,9 @@ namespace BXRenderPipeline
 			m_CellIndices.UpdateCell(cell.indexInfo);
 		}
 
-		// Currently only used for 1 chunk at a time but kept in case we need more in the future.
-		private List<Chunk> GetSourceLocations(int count, int chunkSize, ProbeBrickPool.DataLocation dataLoc)
-		{
-			var c = new Chunk();
-			m_TmpSrcChunks.Clear();
-			m_TmpSrcChunks.Add(c);
 
-			// currently this code assumes that the texture width is a multiple of the allocation chunk size
-			for (int j = 1; j < count; ++j)
-			{
-				c.x += chunkSize * ProbeBrickPool.kBrickProbeCountPerDim;
-				if (c.x >= dataLoc.width)
-				{
-					c.x = 0;
-					c.y += ProbeBrickPool.kBrickProbeCountPerDim;
-					if (c.z >= dataLoc.height)
-					{
-						c.y = 0;
-						c.z += ProbeBrickPool.kBrickProbeCountPerDim;
-					}
-				}
-				m_TmpSrcChunks.Add(c);
-			}
 
-			return m_TmpSrcChunks;
-		}
 
-		internal void SetSubdivisionDimensions(float minBrickSize, int maxSubdiv, Vector3 offset)
-        {
-			m_MinBrickSize = minBrickSize;
-			SetMaxSubdivision(maxSubdiv);
-			m_ProbeOffset = offset;
-        }
-
-		internal void InitializeGlobalIndirection()
-        {
-			// Current baking set can be null at init and we still need the buffers to valid.
-			var minCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.minCellPosition : Vector3Int.zero;
-			var maxCellPosition = m_CurrentBakingSet ? m_CurrentBakingSet.maxCellPosition : Vector3Int.zero;
-			if (m_CellIndices != null)
-				m_CellIndices.Cleanup();
-			m_CellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
-            if (m_SupportGPUStreaming)
-            {
-				if (m_DefragCellIndices != null)
-					m_DefragCellIndices.Cleanup();
-				m_DefragCellIndices = new ProbeGlobalIndirection(minCellPosition, maxCellPosition, Mathf.Max(1, (int)Mathf.Pow(3, m_MaxSubdivision - 1)));
-            }
-		}
 
 
 
