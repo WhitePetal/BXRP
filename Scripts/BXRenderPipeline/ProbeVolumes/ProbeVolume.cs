@@ -9,7 +9,7 @@ namespace BXRenderPipeline
 	/// A marker to determine what area of the scene is considered by the Probe Volumes system
 	/// </summary>
 	[ExecuteAlways]
-	[AddComponentMenu("BXRenderPipeline/Adaptive Probe Volume")]
+	[AddComponentMenu("BXRenderPipeline/BX Adaptive Probe Volume")]
 	public partial class ProbeVolume : MonoBehaviour
 	{
 		/// <summary>
@@ -198,6 +198,230 @@ namespace BXRenderPipeline
 
 		internal static List<ProbeVolume> instances = new();
 
+		private MeshGizmo brickGizmos;
+		private MeshGizmo cellGizmos;
+
+		private void DisposeGizmos()
+        {
+			brickGizmos?.Dispose();
+			brickGizmos = null;
+			cellGizmos?.Dispose();
+			cellGizmos = null;
+        }
+
+        private void OnEnable()
+        {
+			instances.Add(this);
+        }
+
+        private void OnDisable()
+        {
+			instances.Remove(this);
+			DisposeGizmos();
+        }
+
+		// Only the first PV of the available ones will draw gizmos
+		private bool IsResponsibleToDrawGizmo() => instances.Count > 0 && instances[0] == this;
+
+		internal bool ShouldCullCell(Vector3 cellPosition)
+        {
+			var cellSizeInMeters = ProbeReferenceVolume.instance.MaxBrickSize();
+			var probeOffset = ProbeReferenceVolume.instance.ProbeOffset() + ProbeVolumeDebug.currentOffset;
+			var debugDisplay = ProbeReferenceVolume.instance.probeVolumeDebug;
+            if (debugDisplay.realtimeSubdivision)
+            {
+				var bakingSet = ProbeVolumeBakingSet.GetBakingSetForScene(gameObject.scene);
+				if (bakingSet == null)
+					return true;
+
+				// Use the non-backed data to display real-time info
+				cellSizeInMeters = ProbeVolumeBakingSet.GetMinBrickSize(bakingSet.minDistanceBetweenProbes) * ProbeVolumeBakingSet.GetCellSizeInBricks(bakingSet.simplificationLevels);
+				probeOffset = bakingSet.probeOffset + ProbeVolumeDebug.currentOffset;
+            }
+			Camera activeCamera = Camera.current;
+#if UNITY_EDITOR
+			if (activeCamera == null)
+				activeCamera = UnityEditor.SceneView.lastActiveSceneView.camera;
+#endif
+
+			if (activeCamera == null)
+				return true;
+
+			var cameraTransform = activeCamera.transform;
+
+			Vector3 cellCenterWS = probeOffset + cellPosition * cellSizeInMeters + Vector3.one * (cellSizeInMeters / 2.0f);
+
+			// Round down to cell size distance
+			float roundedDownDist = Mathf.Floor(Vector3.Distance(cameraTransform.position, cellCenterWS) / cellSizeInMeters) * cellSizeInMeters;
+
+			if (roundedDownDist > debugDisplay.subdivisionViewCullingDistance)
+				return true;
+
+			var frustumPlanes = GeometryUtility.CalculateFrustumPlanes(activeCamera);
+			var volumeAABB = new Bounds(cellCenterWS, cellSizeInMeters * Vector3.one);
+
+			return !GeometryUtility.TestPlanesAABB(frustumPlanes, volumeAABB);
+		}
+
+		private struct CellDebugData
+        {
+			public Vector4 center;
+			public Color color;
+        }
+
+		// Path to the gizmos location
+		internal readonly static string s_gizmosLocationPath = "Assets/Scripts/BXRenderPipeline/ProbeVolumes/Editor/Gizmos/";
+
+		// TODO: We need to get rid of Handles.DrawWireCube to be able to have those at runtime as well.
+        private void OnDrawGizmos()
+        {
+			Gizmos.DrawIcon(transform.position, s_gizmosLocationPath + "ProbeVolume.png", true);
+
+			if (!ProbeReferenceVolume.instance.isInitialized || !IsResponsibleToDrawGizmo())
+				return;
+
+			var debugDisplay = ProbeReferenceVolume.instance.probeVolumeDebug;
+
+			float minBrickSize = ProbeReferenceVolume.instance.MinBrickSize();
+			var cellSizeInMeters = ProbeReferenceVolume.instance.MaxBrickSize();
+			var probeOffset = ProbeReferenceVolume.instance.ProbeOffset() + ProbeVolumeDebug.currentOffset;
+            if (debugDisplay.realtimeSubdivision)
+            {
+				var bakingSet = ProbeVolumeBakingSet.GetBakingSetForScene(gameObject.scene);
+				if (bakingSet == null)
+					return;
+
+				// Overwrite settings with data from profile
+				minBrickSize = ProbeVolumeBakingSet.GetMinBrickSize(bakingSet.minDistanceBetweenProbes);
+				cellSizeInMeters = ProbeVolumeBakingSet.GetCellSizeInBricks(bakingSet.simplificationLevels) * minBrickSize;
+				probeOffset = bakingSet.probeOffset;
+            }
+
+            if (debugDisplay.drawBricks)
+            {
+				var subdivColors = ProbeReferenceVolume.instance.subdivisionDebugColors;
+
+				IEnumerable<ProbeBrickIndex.Brick> GetVisibleBricks()
+                {
+                    if (debugDisplay.realtimeSubdivision)
+                    {
+						// realtime subdiv cells are already culled
+						foreach(var kp in ProbeReferenceVolume.instance.realtimeSubdivisionInfo)
+                        {
+							var cellVolume = kp.Key;
+
+							foreach(var brick in kp.Value)
+                            {
+								yield return brick;
+                            }
+                        }
+                    }
+                    else
+                    {
+						foreach(var cell in ProbeReferenceVolume.instance.cells.Values)
+                        {
+							if (!cell.loaded)
+								continue;
+
+							if (ShouldCullCell(cell.desc.position))
+								continue;
+
+							if (cell.data.bricks == null)
+								continue;
+
+							foreach (var brick in cell.data.bricks)
+								yield return brick;
+                        }
+                    }
+                }
+
+				if (brickGizmos == null)
+					brickGizmos = new MeshGizmo((int)(Mathf.Pow(3, ProbeBrickIndex.kMaxSubdivisionLevels) * MeshGizmo.vertexCountPerCube));
+
+				brickGizmos.Clear();
+				foreach(var brick in GetVisibleBricks())
+                {
+					if (brick.subdivisionLevel < 0)
+						continue;
+
+					float brickSize = minBrickSize * ProbeReferenceVolume.CellSize(brick.subdivisionLevel);
+					Vector3 scaledSize = new Vector3(brickSize, brickSize, brickSize);
+					Vector3 scaledPos = probeOffset + new Vector3(brick.position.x * minBrickSize, brick.position.y * minBrickSize, brick.position.z * minBrickSize) + scaledSize / 2f;
+					brickGizmos.AddWireCube(scaledPos, scaledSize, subdivColors[brick.subdivisionLevel]);
+                }
+
+				brickGizmos.RenderWireframe(Matrix4x4.identity, gizmoName: "Brick Gizmo Rendering");
+            }
+
+            if (debugDisplay.drawCells)
+            {
+				IEnumerable<CellDebugData> GetVisibleCellDebugData()
+                {
+					Color s_LoadedColor = new Color(0, 1, 0.5f, 0.2f);
+					Color s_UnloadedColor = new Color(1, 0.0f, 0.0f, 0.2f);
+					Color s_StreamingColor = new Color(0.0f, 0.0f, 1.0f, 0.2f);
+					Color s_LowScoreColor = new Color(0, 0, 0, 0.2f);
+					Color s_HighScoreColor = new Color(1, 1, 0, 0.2f);
+
+					var prv = ProbeReferenceVolume.instance;
+
+					float minStreamingScore = prv.minStreamingScore;
+					float streamingScoreRange = prv.maxStreamingScore - prv.minStreamingScore;
+
+                    if (debugDisplay.realtimeSubdivision)
+                    {
+						foreach(var kp in prv.realtimeSubdivisionInfo)
+                        {
+							var center = kp.Key.center;
+							yield return new CellDebugData { center = center, color = s_LoadedColor };
+                        }
+                    }
+                    else
+                    {
+						foreach(var cell in ProbeReferenceVolume.instance.cells.Values)
+                        {
+							if (ShouldCullCell(cell.desc.position))
+								continue;
+
+							var positionF = new Vector4(cell.desc.position.x, cell.desc.position.y, cell.desc.position.z, 0f);
+							var output = new CellDebugData();
+							output.center = (Vector4)probeOffset + positionF * cellSizeInMeters + cellSizeInMeters * 0.5f * Vector4.one;
+							if(debugDisplay.displayCellStreamingScore)
+                            {
+								float lerpFactor = (cell.streamingInfo.streamingScore - minStreamingScore) / streamingScoreRange;
+								output.color = Color.Lerp(s_HighScoreColor, s_LowScoreColor, lerpFactor);
+                            }
+                            else
+                            {
+								if (cell.streamingInfo.IsStreaming())
+									output.color = s_StreamingColor;
+								else
+									output.color = cell.loaded ? s_LoadedColor : s_UnloadedColor;
+                            }
+							yield return output;
+                        }
+                    }
+				}
+
+				var oldGizmoMatrix = Gizmos.matrix;
+
+				if (cellGizmos == null)
+					cellGizmos = new MeshGizmo();
+				cellGizmos.Clear();
+				foreach(var cell in GetVisibleCellDebugData())
+                {
+					Gizmos.color = cell.color;
+					Gizmos.matrix = Matrix4x4.identity;
+
+					Gizmos.DrawCube(cell.center, Vector3.one * cellSizeInMeters);
+					var wireColor = cell.color;
+					wireColor.a = 1.0f;
+					cellGizmos.AddWireCube(cell.center, Vector3.one * cellSizeInMeters, wireColor);
+                }
+				cellGizmos.RenderWireframe(Gizmos.matrix, gizmoName: "Brick Gizmo Rendering");
+				Gizmos.matrix = oldGizmoMatrix;
+            }
+        }
 
         #endregion
 #endif
