@@ -139,6 +139,7 @@ namespace BXRenderPipeline
 
                 parameters.skyOcclusionIntensity = skyOcclusion ? probeVolumesOptions.skyOcclusionIntensityMultiplier_runtime : 0f;
                 parameters.skyOcclusionShadingDirection = skyOcclusion && skyOcclusionShadingDirection;
+                parameters.regionCount = m_CurrentBakingSet.bakedMaskCount;
                 parameters.regionLayerMasks = supportRenderingLayers ? m_CurrentBakingSet.bakedLayerMasks : 0xFFFFFFFF;
                 parameters.worldOffset = probeVolumesOptions.worldOffset_runtime;
                 UpdateConstantBuffer(cmd, parameters);

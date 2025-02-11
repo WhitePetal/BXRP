@@ -515,7 +515,7 @@ namespace BXRenderPipeline
 						break;
 				}
 
-				m_WorseLoadedCells.Insert(cell, index);
+				m_WorseLoadedCells.Insert(index, cell);
 
 				// Compute the chunk counts of the current worse cells.
 				int currentSHChunks = 0;
@@ -808,7 +808,7 @@ namespace BXRenderPipeline
 				{
 					foreach (var cell in m_TempCellToUnloadList)
 						m_LoadedCells.Remove(cell);
-					ComputeCellGlobaleInfo();
+					ComputeCellGlobalInfo();
 				}
 				m_ToBeLoadedCells.AddRange(m_TempCellToUnloadList);
 

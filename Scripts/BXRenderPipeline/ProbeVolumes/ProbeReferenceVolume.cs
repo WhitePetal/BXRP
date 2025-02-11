@@ -19,6 +19,7 @@ using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Profiling;
+using Unity.Profiling;
 
 namespace BXRenderPipeline
 {
@@ -1462,7 +1463,7 @@ namespace BXRenderPipeline
 		{
 			if (m_NeedsIndexRebuild)
 			{
-				ClearnupLoadedData();
+				CleanupLoadedData();
 				InitializeGlobalIndirection();
 				m_HasChangeIndex = true;
 				m_NeedsIndexRebuild = false;
@@ -1878,7 +1879,7 @@ namespace BXRenderPipeline
 				if (validityNeighMaskData.Length > 0)
 				{
 					if (m_CurrentBakingSet.bakedMaskCount == 1)
-						UpdateDataLocationTextureMask(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
+						UpdateValidityTextureWithoutMask(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
 					else
 						UpdateDataLocationTexture(m_TemporaryDataLocation.TexValidity, validityNeighMaskData.Reinterpret<uint>(1).GetSubArray(chunkIndex * chunkSizeInProbes, chunkSizeInProbes));
 				}
@@ -1937,35 +1938,98 @@ namespace BXRenderPipeline
 			m_Pool.UpdateValidity(m_TemporaryDataLocation, srcChunks, chunkList, chunkIndex);
         }
 
+		// Runtime API starts here
+		private bool AddBlendingBricks(Cell cell)
+        {
+			Debug.Assert(cell.loaded);
 
+			using var pm = new ProfilerMarker("AddBlendingBricks").Auto();
 
+			Debug.Assert(cell.blendingInfo.chunkList.Count == 0);
 
+			// If no blending is needed, bypass the blending pool and directly update uploaded cells
+			bool bypassBlending = m_CurrentBakingSet.otherScenario == null || !cell.hasTwoScenarios;
 
+			// Try to allocate texture space
+			if (!bypassBlending && !m_BlendingPool.Allocate(cell.poolInfo.shChunkCount, cell.blendingInfo.chunkList))
+				return false;
 
+            if (diskStreamingEnabled)
+            {
+                if (bypassBlending)
+                {
+					if (cell.blendingInfo.blendingFactor != scenarioBlendingFactor)
+						PushDiskStreamingRequest(cell, lightingScenario, -1, m_OnStreamingComplete);
 
+					// As we bypass blendingm, we don't load the blending data so we want to avoid trying to blend then later on.
+					cell.blendingInfo.MarkUpToDate();
+                }
+                else
+                {
+					PushDiskStreamingRequest(cell, lightingScenario, 0, m_OnBlendingStreamingComplete);
+					PushDiskStreamingRequest(cell, otherScenario, 1, m_OnBlendingStreamingComplete);
+                }
+            }
+            else
+            {
+                // Now that we are sure probe data will be uploaded, we can register the cell in the poll
+                if (!cell.indexInfo.indexUpdated)
+                {
+					// Update the cell index
+					UpdateCellIndex(cell);
+					// Upload validity data directly to main pool - constant per scenario, will not need blending, therefore we use the cellInfo chunk list.
+					var chunkList = cell.poolInfo.chunkList;
+					for (int chunkIndex = 0; chunkIndex < chunkList.Count; ++chunkIndex)
+						UpdateSharedData(chunkList, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex);
+                }
 
+                if (bypassBlending)
+                {
+					if(cell.blendingInfo.blendingFactor != scenarioBlendingFactor)
+                    {
+						var chunkList = cell.poolInfo.chunkList;
+						for(int chunkIndex = 0; chunkIndex < chunkList.Count; ++chunkIndex)
+                        {
+							// No blending so do the same operation as AddBricks would do. But because cell is already loaded,
+							// no index or chunk data must change, so only probe valuse need to be updated
+							UpdatePool(chunkList, cell.scenario0, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex, -1);
+                        }
+                    }
 
-		private void UpdateDataLocationTextureMask(Texture output, NativeArray<byte> input)
-		{
-			// On some platforms, single channel unorm format isn't supported, so validity uses 4 channel unorm format.
-			// Then we can't directly copy the data, but need to account for the 3 unused channels.
-			uint numComponents = GraphicsFormatUtility.GetComponentCount(output.graphicsFormat);
-			if (numComponents == 1)
-			{
-				UpdateDataLocationTexture(output, input);
-			}
-			else
-			{
-				Debug.Assert(output.graphicsFormat == GraphicsFormat.R8G8B8A8_UNorm);
-				var outputNativeData = (output as Texture3D).GetPixelData<(byte, byte, byte, byte)>(0);
-				Debug.Assert(outputNativeData.Length >= input.Length);
-				for (int i = 0; i < input.Length; ++i)
-				{
-					outputNativeData[i] = (input[i], input[i], input[i], input[i]);
-				}
-				(output as Texture3D).Apply();
-			}
-		}
+					// As we bypass blending, we don't load the blending data so we want to avoid trying to blend them later on.
+					cell.blendingInfo.MarkUpToDate();
+                }
+                else
+                {
+					var chunkList = cell.blendingInfo.chunkList;
+					for(int chunkIndex = 0; chunkIndex < chunkList.Count; ++chunkIndex)
+                    {
+						UpdatePool(chunkList, cell.scenario0, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex, 0);
+						UpdatePool(chunkList, cell.scenario1, cell.data.validityNeighMaskData, cell.data.skyOcclusionDataL0L1, cell.data.skyShadingDirectionIndices, chunkIndex, 1);
+					}
+                }
+            }
+
+			cell.blendingInfo.blending = true;
+
+			return true;
+        }
+
+		private bool ReservePoolChunks(int brickCount, List<Chunk> chunkList, bool ignoreErrorLog)
+        {
+			// calculate the number of chunks necessary
+			int brickChunksCount = ProbeBrickPool.GetChunkCount(brickCount);
+			chunkList.Clear();
+
+			// Try to allocate texture space
+			return m_Pool.Allocate(brickChunksCount, chunkList, ignoreErrorLog);
+        }
+
+		private void ReleasePoolChunks(List<Chunk> chunkList)
+        {
+			m_Pool.Deallocate(chunkList);
+			chunkList.Clear();
+        }
 
 		private void UpdatePoolAndIndex(Cell cell, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex, CommandBuffer cmd)
 		{
@@ -2035,16 +2099,40 @@ namespace BXRenderPipeline
 			}
 		}
 
-		private void UpdatePool(CommandBuffer cmd, List<Chunk> chunkList, CellStreamingScratchBuffer dataBuffer, CellStreamingScratchBufferLayout layout, int poolIndex)
-		{
-			// Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
-			if (poolIndex == -1)
-				m_Pool.Update(cmd, dataBuffer, layout, chunkList, true, m_Pool.GetValidityTexture(), m_SHBands,
-					skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
-			else
-				m_BlendingPool.Update(cmd, dataBuffer, layout, chunkList, m_SHBands, poolIndex,
-					m_Pool.GetValidityTexture(), skyOcclusion, m_Pool.GetSkyOcclusionTexture(), skyOcclusionShadingDirection, m_Pool.GetSkyShadingDirectionIndicesTexture(), probeOcclusion);
-		}
+		private bool AddBricks(Cell cell)
+        {
+			using var pm = new ProfilerMarker("AddBricks").Auto();
+
+			if (supportScenarioBlending) // Register this cell for blending system
+				m_ToBeLoadedBlendingCells.Add(cell);
+
+			// If blending is enabled, we rely on it to upload data already blended to avoid popping
+			// If enabled but blending factor is 0, upload here in scase blending pool is not already allocated
+			if(!supportScenarioBlending || scenarioBlendingFactor == 0.0f || !cell.hasTwoScenarios)
+            {
+                if (diskStreamingEnabled)
+                {
+					PushDiskStreamingRequest(cell, m_CurrentBakingSet.lightingScenario, -1, m_OnStreamingComplete);
+                }
+                else
+                {
+					UpdatePoolAndIndex(cell, null, default, -1, null);
+                }
+
+				cell.blendingInfo.blendingFactor = 0.0f;
+            }
+			else if (supportScenarioBlending)
+            {
+				cell.blendingInfo.Prioritize();
+				// Cell index update is delayed until probe data is loaded
+				cell.indexInfo.indexUpdated = false;
+            }
+
+			cell.loaded = true;
+			ClearDebugData();
+
+			return true;
+        }
 
 		private void UpdateCellIndex(Cell cell)
 		{
@@ -2058,15 +2146,106 @@ namespace BXRenderPipeline
 			m_CellIndices.UpdateCell(cell.indexInfo);
 		}
 
+		private void ReleaseBricks(Cell cell)
+        {
+			if(cell.poolInfo.chunkList.Count == 0)
+            {
+				Debug.Log("Tried to release bricks from an empty Cell.");
+				return;
+            }
 
+			// clean up the index
+			m_Index.RemoveBricks(cell.indexInfo);
+			cell.indexInfo.indexUpdated = false;
 
+			// clean up the pool
+			m_Pool.Deallocate(cell.poolInfo.chunkList);
 
+			cell.poolInfo.chunkList.Clear();
+        }
 
+		internal void UpdateConstantBuffer(CommandBuffer cmd, ProbeVolumeShadingParameters parameters)
+        {
+			float normalBias = parameters.normalBias;
+			float viewBias = parameters.viewBias;
+			var leakReductionMode = parameters.leakReductionMode;
 
+            if (parameters.scaleBiasByMinDistanceBetweenProbe)
+            {
+				normalBias *= MinDistanceBetweenProbes();
+				viewBias *= MinDistanceBetweenProbes();
+            }
 
-		internal bool AddBlendingBricks(Cell cell)
-		{
-			return false;
-		}
+			var indexDim = m_CellIndices.GetGlobalIndirectionDimension();
+			var poolDim = m_Pool.GetPoolDimensions();
+			m_CellIndices.GetMinMaxEntry(out Vector3Int minEntry, out Vector3Int _);
+			var entriesPerCell = m_CellIndices.entriesPerCellDimension;
+			var skyDirectionWeight = parameters.skyOcclusionShadingDirection ? 1f : 0f;
+			var probeOffset = ProbeOffset() + parameters.worldOffset;
+
+			ShaderVariablesProbeVolumes shaderVars;
+			shaderVars._Offset_LayerCount = new Vector4(probeOffset.x, probeOffset.y, probeOffset.z, parameters.regionCount);
+			shaderVars._MinLoadedCellInEntries_IndirectionEntryDim = new Vector4(minLoadedCellPos.x * entriesPerCell, minLoadedCellPos.y * entriesPerCell, minLoadedCellPos.z * entriesPerCell, GetEntrySize());
+			shaderVars._MaxLoadedCellInEntries_RcpIndirectionEntryDim = new Vector4((maxLoadedCellPos.x + 1) * entriesPerCell - 1, (maxLoadedCellPos.y + 1) * entriesPerCell - 1, (maxLoadedCellPos.z + 1) * entriesPerCell - 1, 1.0f / GetEntrySize());
+			shaderVars._PoolDim_MinBrickSize = new Vector4(poolDim.x, poolDim.y, poolDim.z, MinBrickSize());
+			shaderVars._RcpPoolDim_XY = new Vector4(1f / poolDim.x, 1f / poolDim.y, 1f / poolDim.z, 1f / (poolDim.x * poolDim.y));
+			shaderVars._MinEntryPos_Noise = new Vector4(minEntry.x, minEntry.y, minEntry.z, parameters.samplingNoise);
+			shaderVars._EntryCount_X_XY_LeakReduction = new uint4((uint)indexDim.x, (uint)indexDim.x * (uint)indexDim.y, (uint)leakReductionMode, 0); // One slot available here
+			shaderVars._Biases_NormalizationClamp = new Vector4(normalBias, viewBias, parameters.reflNormalizationLowerClamp, parameters.reflNormalizationUpperClamp);
+			shaderVars._FrameIndex_Weights = new Vector4(parameters.frameIndexForNoise, parameters.weight, parameters.skyOcclusionIntensity, skyDirectionWeight);
+			shaderVars._ProbeVolumeLayerMask = parameters.regionLayerMasks;
+
+			ConstantBuffer.PushGlobal(cmd, shaderVars, m_CBShaderID);
+        }
+
+		private void DeinitProbeReferenceVolume()
+        {
+            if (m_ProbeReferenceVolumeInit)
+            {
+				foreach (var data in perSceneDataList)
+					AddPendingSceneRemoval(data.sceneGUID);
+
+				PerformPendingDeletion();
+
+				m_Index.Cleanup();
+				m_CellIndices.Cleanup();
+
+                if (m_SupportGPUStreaming)
+                {
+					m_DefragIndex.Cleanup();
+					m_DefragCellIndices.Cleanup();
+                }
+
+				if(m_Pool != null)
+                {
+					m_Pool.Cleanup();
+					m_BlendingPool.Cleanup();
+                }
+
+				m_TemporaryDataLocation.Cleanup();
+				m_ProbeReferenceVolumeInit = false;
+
+				if (m_CurrentBakingSet != null)
+					m_CurrentBakingSet.Cleanup();
+				m_CurrentBakingSet = null;
+            }
+            else
+            {
+				m_CellIndices?.Cleanup();
+				m_DefragCellIndices?.Cleanup();
+            }
+
+			ClearDebugData();
+
+			Debug.Assert(m_LoadedCells.size == 0);
+        }
+
+		/// <summary>
+        /// Cleanup loaded data.
+        /// </summary>
+		private void CleanupLoadedData()
+        {
+			UnloadAllCells();
+        }
 	}
 }

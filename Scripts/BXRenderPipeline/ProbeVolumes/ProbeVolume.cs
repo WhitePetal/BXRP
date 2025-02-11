@@ -5,6 +5,9 @@ using UnityEngine.SceneManagement;
 
 namespace BXRenderPipeline
 {
+	/// <summary>
+	/// A marker to determine what area of the scene is considered by the Probe Volumes system
+	/// </summary>
 	[ExecuteAlways]
 	[AddComponentMenu("BXRenderPipeline/Adaptive Probe Volume")]
 	public partial class ProbeVolume : MonoBehaviour
@@ -132,8 +135,71 @@ namespace BXRenderPipeline
 
 		internal void UpdateGlobalVolume(GIContributor.ContributorFilter filter)
 		{
-			//float minBrickSize = proberenferenceVolume
-		}
+			float minBrickSize = ProbeReferenceVolume.instance.MinBrickSize();
+			var bounds = ComputeBounds(filter, gameObject.scene);
+			transform.position = bounds.center;
+			size = Vector3.Max(bounds.size + new Vector3(minBrickSize, minBrickSize, minBrickSize), Vector3.zero);
+        }
+
+		internal void OnLightingDataAssetCleared()
+        {
+			mightNeedRebaking = true;
+        }
+
+		internal void OnBakeCompleted()
+        {
+			// We cache the data of last baked completed.
+			cachedTransform = gameObject.transform.worldToLocalMatrix;
+			cachedHashCode = GetHashCode();
+			mightNeedRebaking = false;
+        }
+
+        public override int GetHashCode()
+        {
+			int hash = 17;
+
+            unchecked
+            {
+				hash = hash * 23 + size.GetHashCode();
+				hash = hash * 23 + gameObject.transform.worldToLocalMatrix.GetHashCode();
+				hash = hash * 23 + overridesSubdivLevels.GetHashCode();
+				hash = hash * 23 + highestSubdivLevelOverride.GetHashCode();
+				hash = hash * 23 + lowestSubdivLevelOverride.GetHashCode();
+				hash = hash * 23 + overrideRendererFilters.GetHashCode();
+                if (overrideRendererFilters)
+                {
+					hash = hash * 23 + minRendererVolumeSize.GetHashCode();
+					hash = hash * 23 + objectLayerMask.value.GetHashCode();
+                }
+				hash = hash * 23 + fillEmptrySpaces.GetHashCode();
+            }
+
+			return hash;
+        }
+
+		internal void GetSubdivisionOverride(int maxSubdivisionLevel, out int minLevel, out int maxLevel)
+        {
+            if (overridesSubdivLevels)
+            {
+				maxLevel = Mathf.Min(highestSubdivLevelOverride, maxSubdivisionLevel);
+				minLevel = Mathf.Min(lowestSubdivLevelOverride, maxLevel);
+            }
+            else
+            {
+				maxLevel = maxSubdivisionLevel;
+				minLevel = 0;
+            }
+        }
+
+		// Momentarily moving the gizmo rendering for bricks and cells to Probe Volume itself,
+		// only the first probe volume in the scene will render them. The reason is that we dont have any
+		// other non-hidden component related to APV.
+		#region APVGizm0
+
+		internal static List<ProbeVolume> instances = new();
+
+
+        #endregion
 #endif
-	}
+    }
 }

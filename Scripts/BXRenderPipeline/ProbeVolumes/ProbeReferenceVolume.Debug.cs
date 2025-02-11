@@ -829,8 +829,8 @@ namespace BXRenderPipeline
 				blendingContainer.children.Add(new DebugUI.IntField
 				{
 					displayName = "Number Of Cells Blended Per Frame",
-					getter = () => instance.numberOfCellsBlendedPerFram,
-					setter = value => instance.numberOfCellsBlendedPerFram = value,
+					getter = () => instance.numberOfCellsBlendedPerFrame,
+					setter = value => instance.numberOfCellsBlendedPerFrame = value,
 					min = () => 0
 				});
 				blendingContainer.children.Add(new DebugUI.FloatField
