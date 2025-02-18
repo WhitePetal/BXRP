@@ -28,5 +28,17 @@ namespace BXRenderPipeline
                 return m_WhiteVolumeTexture;
             }
         }
+
+        /// <summary>
+        /// Divides one value by another and rounds up to the next integer.
+        /// This is often used to calculate dispatch dimensions for compute shaders.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="divisor"></param>
+        /// <returns></returns>
+        public static int DivRoundUp(int value, int divisor)
+        {
+            return (value + (divisor - 1)) / divisor;
+        }
     }
 }

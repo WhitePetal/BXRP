@@ -216,6 +216,8 @@ namespace BXRenderPipeline
         {
             BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeRuntimeResources, out var runtimeResult, out var runtimeMessage);
             BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeDebugResources, out var debugResult, out var debugMessage);
+            BXRenderPipelineResourcesEditorUtils.TryReloadContainedNullFields(probeVolumeBakingResources, out var bakeResult, out var bakeMessage);
+            //probeVolumeBakingResources.skyOcclusionCS = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Shaders/ShaderLibrarys/ProbeVolume/Editor/DynamicGISkyOcclusion.urtshader");
         }
 
         public void OnAfterDeserialize()
