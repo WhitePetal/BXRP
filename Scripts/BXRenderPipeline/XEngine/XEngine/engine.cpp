@@ -764,7 +764,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				g_VSync = !g_VSync;
 				break;
 			case VK_ESCAPE:
-				::PostQuitMessage(0);
+				if(hwnd == g_hWnd)
+					::DestroyWindow(hwnd);
+				//::PostQuitMessage(0);
 				break;
 			case VK_RETURN:
 				if (alt)
@@ -951,4 +953,5 @@ XENGINE_API void StartXEngine(HWND parentWnd = nullptr)
 	Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
 
 	::CloseHandle(g_FenceEvent);
+	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
 }
