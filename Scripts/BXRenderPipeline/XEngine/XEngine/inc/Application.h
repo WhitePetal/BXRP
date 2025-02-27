@@ -24,7 +24,7 @@ public:
 	/// Create the application singleton with the application instance handle
 	/// </summary>
 	/// <param name="hInst"></param>
-	static void Create(HINSTANCE hInst);
+	static void Create(HINSTANCE hInst, HWND parentWnd = nullptr);
 
 	/// <summary>
 	/// Destroy the application instance and all windows created by application instance
@@ -51,7 +51,7 @@ public:
 	/// <param name="clientHeight"></param>
 	/// <param name="vSync"></param>
 	/// <returns></returns>
-	std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync = true, HWND parentWnd = NULL);
+	std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync = true);
 
 	/// <summary>
 	/// Destroy a window given the window name
@@ -118,12 +118,14 @@ public:
 	/// <returns></returns>
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
+	bool HaveAndIsParentWnd(HWND wnd);
+
 protected:
 	/// <summary>
 	/// Create an application instance
 	/// </summary>
 	/// <param name="hInst"></param>
-	Application(HINSTANCE hInst);
+	Application(HINSTANCE hInst, HWND parentWnd = nullptr);
 
 	virtual ~Application();
 
@@ -155,6 +157,8 @@ private:
 	/// The application instance handle that this application was created with
 	/// </summary>
 	HINSTANCE m_hInstance;
+
+	HWND m_ParentWnd;
 
 	ComPtr<IDXGIAdapter4> m_dxgiAdapter;
 	ComPtr<ID3D12Device2> m_d3d12Device;

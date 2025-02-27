@@ -44,6 +44,7 @@ using namespace Microsoft::WRL;
 #include <Application.h>
 #include <Window.h>
 #include <SampleScene.h>
+#include <Debug.h>
 
 HINSTANCE g_hInstance;
 
@@ -63,14 +64,14 @@ void ReportLiveObjects()
 /// <param name="fdwReason"></param>
 /// <param name="lpvReserved"></param>
 /// <returns></returns>
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
-{
-	if (fdwReason == DLL_PROCESS_ATTACH)
-	{
-		g_hInstance = hinstDLL;
-	}
-	return TRUE;
-}
+//BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+//{
+//	if (fdwReason == DLL_PROCESS_ATTACH)
+//	{
+//		g_hInstance = hinstDLL;
+//	}
+//	return TRUE;
+//}
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
@@ -85,13 +86,22 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 		::SetCurrentDirectoryW(path);
 	}
 
-	Application::Create(hInstance);
+	Debug::Initialize("Logs");
+	try
 	{
-		std::shared_ptr<SampleScene> demo = std::make_shared<SampleScene>(L"Learning DirectX 12 - Lesson 2", 1280, 720);
-		retCode = Application::Get().Run(demo);
+		Application::Create(hInstance);
+		{
+			std::shared_ptr<SampleScene> demo = std::make_shared<SampleScene>(L"Learning DirectX 12 - Lesson 2", 1280, 720);
+			retCode = Application::Get().Run(demo);
+		}
+		Application::Destroy();
 	}
-	Application::Destroy();
+	catch (const std::exception& e)
+	{
+		Debug::LogException(e);
+	}
 
+	Debug::Shutdown();
 	atexit(&ReportLiveObjects);
 
 	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
@@ -101,37 +111,36 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
 XENGINE_API void StartXEngine(HWND parentWnd = nullptr)
 {
-	int retCode = 0;
+	//int retCode = 0;
 
-	// Set the working directory to the path of the executable.
-	WCHAR path[MAX_PATH];
-	HMODULE hModule = GetModuleHandleW(NULL);
-	if (GetModuleFileNameW(hModule, path, MAX_PATH) > 0)
-	{
-		::PathRemoveFileSpecW(path);
-		::SetCurrentDirectoryW(path);
-	}
+	//// Set the working directory to the path of the executable.
+	//WCHAR path[MAX_PATH];
+	//HMODULE hModule = GetModuleHandleW(NULL);
+	//if (GetModuleFileNameW(hModule, path, MAX_PATH) > 0)
+	//{
+	//	::PathRemoveFileSpecW(path);
+	//	::SetCurrentDirectoryW(path);
+	//}
 
-	Application::Create(g_hInstance);
-	std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720, parentWnd);
-	::MessageBox(nullptr, "Create Application and SampleScene", "Info", MB_OK);
-	retCode = Application::Get().Run(sampleScene);
+	//Application::Create(g_hInstance);
+	//std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720);
+	//::MessageBox(nullptr, "Create Application and SampleScene", "Info", MB_OK);
+	//retCode = Application::Get().Run(sampleScene);
 
-	Application::Destroy();
+	//Application::Destroy();
 
-	atexit(&ReportLiveObjects);
+	//atexit(&ReportLiveObjects);
 
-	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
+	//::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
 }
 
 
 
-Engine::Engine(const std::wstring& name, int width, int height, bool vSync, HWND parentWnd)
+Engine::Engine(const std::wstring& name, int width, int height, bool vSync)
 	: m_Name(name)
 	, m_Width(width)
 	, m_Height(height)
 	, m_vSync(vSync)
-	, m_ParentWnd(parentWnd)
 {
 }
 
@@ -148,8 +157,7 @@ bool Engine::Initialize()
 		::MessageBoxA(NULL, "Failed to verify DirectX Math library support.", "Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
-
-	m_pWindow = Application::Get().CreateRenderWindow(m_Name, m_Width, m_Height, m_vSync, m_ParentWnd);
+	m_pWindow = Application::Get().CreateRenderWindow(m_Name, m_Width, m_Height, m_vSync);
 	m_pWindow->RegisterCallbacks(shared_from_this());
 	m_pWindow->Show();
 

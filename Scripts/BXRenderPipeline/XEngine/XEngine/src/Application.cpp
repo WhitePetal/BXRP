@@ -31,9 +31,10 @@ struct MakeWindow : public Window
 
 
 
-Application::Application(HINSTANCE hInst)
+Application::Application(HINSTANCE hInst, HWND parentWnd)
 	: m_hInstance(hInst)
 	, m_TeraingSupported(false)
+	, m_ParentWnd(parentWnd)
 {
 }
 
@@ -203,11 +204,11 @@ bool Application::CheckTearingSupport()
 	return allowTearing == TRUE;
 }
 
-void Application::Create(HINSTANCE hInst)
+void Application::Create(HINSTANCE hInst, HWND parentWnd)
 {
 	if (!gs_pSingelton)
 	{
-		gs_pSingelton = new Application(hInst);
+		gs_pSingelton = new Application(hInst, parentWnd);
 		gs_pSingelton->Initialize();
 	}
 }
@@ -235,7 +236,7 @@ bool Application::IsTeraingSupported() const
 	return m_TeraingSupported;
 }
 
-std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync, HWND parentWnd)
+std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
 {
 	// First check if a window with the given name already exists
 	WindowNameMap::iterator windowIter = gs_WindowByName.find(windowName);
@@ -265,7 +266,7 @@ std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& wind
 		windowY,
 		windowWidth,
 		windowHeight,
-		parentWnd,
+		m_ParentWnd,
 		NULL,
 		m_hInstance,
 		nullptr
@@ -273,7 +274,7 @@ std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& wind
 
 	if (!hWnd)
 	{
-		MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
+		::MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
 		return nullptr;
 	}
 
@@ -313,9 +314,7 @@ std::shared_ptr<Window> Application::GetWindowByName(const std::wstring& windowN
 int Application::Run(std::shared_ptr<Engine> pEngine)
 {
 	if (!pEngine->Initialize()) return 1;
-	::MessageBox(nullptr, "XEngine Initialize", "Info", MB_OK);
 	if (!pEngine->LoadContent()) return 2;
-	::MessageBox(nullptr, "XEngine Initialize and LoadContent", "Info", MB_OK);
 	MSG msg = { 0 };
 	while (msg.message != WM_QUIT)
 	{
@@ -392,6 +391,11 @@ UINT Application::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE ty
 	return m_d3d12Device->GetDescriptorHandleIncrementSize(type);
 }
 
+bool Application::HaveAndIsParentWnd(HWND wnd)
+{
+	if (m_ParentWnd == nullptr) return false;
+	return m_ParentWnd == wnd;
+}
 
 Application::~Application()
 {
@@ -443,6 +447,9 @@ MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	//::OutputDebugString(L"Processing message: X\n");
+	if(Application::Get().HaveAndIsParentWnd(hwnd))
+		return DefWindowProcW(hwnd, message, wParam, lParam);
 	WindowPtr pWindow;
 	{
 		WindowMap::iterator iter = gs_Windows.find(hwnd);

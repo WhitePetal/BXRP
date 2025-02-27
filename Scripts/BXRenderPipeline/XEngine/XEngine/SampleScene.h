@@ -12,7 +12,7 @@ class SampleScene : public Engine
 public:
 	using super = Engine;
 
-	SampleScene(const std::wstring& name, int width, int height, bool vSync = false, HWND parentWnd = NULL);
+	SampleScene(const std::wstring& name, int width, int height, bool vSync = false);
 
 	virtual bool LoadContent() override;
 

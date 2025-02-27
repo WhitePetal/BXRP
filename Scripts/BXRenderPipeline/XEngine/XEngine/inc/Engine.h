@@ -16,7 +16,7 @@ extern "C" {
 class Engine : public std::enable_shared_from_this<Engine>
 {
 public:
-	Engine(const std::wstring& name, int width, int height, bool vSync, HWND parentWnd);
+	Engine(const std::wstring& name, int width, int height, bool vSync);
 	virtual ~Engine();
 
 	virtual bool Initialize();
@@ -80,8 +80,6 @@ protected:
 	/// Invoked when the registered window instance is destroyed
 	/// </summary>
 	virtual void OnWindowDestroy();
-
-	HWND m_ParentWnd;
 
 	std::shared_ptr<Window> m_pWindow;
 

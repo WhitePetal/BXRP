@@ -49,12 +49,11 @@ static WORD g_Indicies[36] =
     4, 0, 3, 4, 3, 7
 };
 
-SampleScene::SampleScene(const std::wstring& name, int width, int height, bool vSync, HWND parentWnd)
-    : super(name, width, height, vSync, parentWnd)
+SampleScene::SampleScene(const std::wstring& name, int width, int height, bool vSync)
+    : super(name, width, height, vSync)
     , m_ScissorRect(CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX))
     , m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)))
     , m_FoV(45.0)
-    , m_ContentLoaded(false)
 {
 }
 
