@@ -1,7 +1,32 @@
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 #include <cassert>
+#include <algorithm>
+// The min/max macros conflict with like-named member functions.
+// Only use std::main and std::max defined in <algorithm>.
+#if defined(min)
+#undef min
+#endif // defined(min)
+
+#if defined(max)
+#undef max
+#endif // defined(max)
+
+#include <wrl.h>
+using namespace Microsoft::WRL;
+
+#include <d3d12.h>
+#include <dxgi1_5.h>
+
+#include <d3dx12.h>
+
+#include <memory>
+#include <string>
 
 #include <Application.h>
 #include <Window.h>
+#include <CommandQueue.h>
+#include <Engine.h>
 #include <Helpers.h>
 
 
@@ -22,7 +47,7 @@ Window::Window(HWND hWnd, const std::wstring& windowName, int clientWidth, int c
 	m_d3d12RTVDescriptorHeap = app.CreateDescriptorHeap(BackBufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	m_RTVDescriptorSize = app.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	UpdateRenderTargetViews();
+	UpdateRenderTargetViews(app);
 }
 
 Window::~Window()
@@ -37,7 +62,7 @@ void Window::RegisterCallbacks(std::shared_ptr<Engine> pEngine)
 	m_pEngine = pEngine;
 }
 
-void Window::OnUpdate()
+void Window::OnUpdate(UpdateEventArgs& e)
 {
 	m_UpdateClock.Tick();
 
@@ -45,17 +70,104 @@ void Window::OnUpdate()
 	{
 		m_FrameCounter++;
 
-
+		UpdateEventArgs updateEventArgs(m_UpdateClock.GetDeltaSeconds(), m_UpdateClock.GetTotalSeconds());
+		pEngine->OnUpdate(updateEventArgs);
 	}
 }
 
-void Window::OnRender()
+void Window::OnRender(RenderEventArgs& e)
 {
 	m_RenderClock.Tick();
 
 	if (auto pEngine = m_pEngine.lock())
 	{
-		
+		RenderEventArgs renderEventArgs(m_RenderClock.GetDeltaSeconds(), m_RenderClock.GetTotalSeconds());
+		pEngine->OnRender(renderEventArgs);
+	}
+}
+
+void Window::OnResize(ResizeEventArgs& e)
+{
+	if (m_ClientWidth != e.Width || m_ClientHeight != e.Height)
+	{
+		// Don't allow 0 size swap chain back buffers.
+		m_ClientWidth = std::max(1, e.Width);
+		m_ClientHeight = std::max(1, e.Height);
+
+		Application& app = Application::Get();
+
+		// Flush the GPU queue to make sure the swap chain's back buffers
+		// are not being referenced by an in-flight command list.
+		app.Flush();
+
+		for (int i = 0; i < BackBufferCount; ++i)
+		{
+			// Any references to the back buffers must be released
+			// before the swap chain can be resized
+			m_d3d12BackBuffers[i].Reset();
+		}
+
+		DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+		ThrowIfFaild(m_dxgiSwapChain->GetDesc(&swapChainDesc));
+		ThrowIfFaild(m_dxgiSwapChain->ResizeBuffers(BackBufferCount, m_ClientWidth, m_ClientHeight,
+			swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
+
+		m_CurrentBackBufferIndex = m_dxgiSwapChain->GetCurrentBackBufferIndex();
+
+		UpdateRenderTargetViews(app);
+	}
+
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnResize(e);
+	}
+}
+
+void Window::OnKeyboardDown(KeyEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnKeyboardDown(e);
+	}
+}
+
+void Window::OnKeyboardUp(KeyEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnKeyboardUp(e);
+	}
+}
+
+void Window::OnMouseMoved(MouseMotionEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnMouseMoved(e);
+	}
+}
+
+void Window::OnMouseButtonDown(MouseButtonEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnMouseButtonDown(e);
+	}
+}
+
+void Window::OnMouseButtonUp(MouseButtonEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnMouseButtonUp(e);
+	}
+}
+
+void Window::OnMouseWheel(MouseWheelEventArgs& e)
+{
+	if (auto pEngine = m_pEngine.lock())
+	{
+		pEngine->OnMouseWheel(e);
 	}
 }
 
@@ -195,7 +307,15 @@ void Window::Destroy()
 	if (auto pEngine = m_pEngine.lock())
 	{
 		// Notify the registered engine that the window is being destroyed.
+		pEngine->OnWindowDestroy();
 	}
+
+	for (int i = 0; i < BackBufferCount; ++i)
+	{
+		auto resource = m_d3d12BackBuffers[i].Get();
+		m_d3d12BackBuffers[i].Reset();
+	}
+
 	if (m_hWnd)
 	{
 		::DestroyWindow(m_hWnd);

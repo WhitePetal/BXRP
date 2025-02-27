@@ -19,8 +19,7 @@ class CommandQueue;
 class Application
 {
 public:
-	~Application();
-
+	void Initialize();
 	/// <summary>
 	/// Create the application singleton with the application instance handle
 	/// </summary>
@@ -131,7 +130,7 @@ protected:
 	/// <summary>
 	/// Get the adapter
 	/// </summary>
-	/// <param name="useWarp">Ê¹ÓÃÈí¼şäÖÈ¾Æ÷</param>
+	/// <param name="useWarp">ä½¿ç”¨è½¯ä»¶é€‚é…å™¨</param>
 	/// <returns></returns>
 	ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp);
 

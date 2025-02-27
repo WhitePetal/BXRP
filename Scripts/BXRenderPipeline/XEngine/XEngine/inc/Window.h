@@ -1,20 +1,18 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <wrl.h>
-#include <d3d12.h>
-#include <dxgi1_5.h>
-
-#include <d3dx12.h>
-
-#include <memory>
 #include <string>
+#include <memory>
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
 
 #include <HighResolutionClock.h>
+#include <Events.h>
+#include <Application.h>
 
+#include <wrl.h>
 using namespace Microsoft::WRL;
+
 
 class Engine;
 
@@ -64,7 +62,7 @@ public:
 	bool IsFullScreen() const;
 
 	/// <summary>
-	/// Set the fullscreen of the window (ȫ���ޱ߿򴰿�)
+	/// Set the fullscreen of the window (无边框全屏窗口)
 	/// </summary>
 	/// <param name="fullscreen"></param>
 	void SetFullScreen(bool fullscreen);
@@ -96,7 +94,7 @@ public:
 	/// Get the render target view for the current back buffer
 	/// </summary>
 	/// <returns></returns>
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView() const;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView()  const;
 
 	/// <summary>
 	/// Get the back buffer resource for the current back buffer
@@ -122,8 +120,16 @@ protected:
 
 	void RegisterCallbacks(std::shared_ptr<Engine> pEngine);
 
-	virtual void OnUpdate();
-	virtual void OnRender();
+	virtual void OnUpdate(UpdateEventArgs& e);
+	virtual void OnRender(RenderEventArgs& e);
+	virtual void OnResize(ResizeEventArgs& e);
+
+	virtual void OnKeyboardDown(KeyEventArgs& e);
+	virtual void OnKeyboardUp(KeyEventArgs& e);
+	virtual void OnMouseMoved(MouseMotionEventArgs& e);
+	virtual void OnMouseButtonDown(MouseButtonEventArgs& e);
+	virtual void OnMouseButtonUp(MouseButtonEventArgs& e);
+	virtual void OnMouseWheel(MouseWheelEventArgs& e);
 
 private:
 	Window(const Window& copy) = delete;

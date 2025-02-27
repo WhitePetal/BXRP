@@ -11,7 +11,7 @@ using namespace Microsoft::WRL;
 class CommandQueue
 {
 public:
-	CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+	CommandQueue(D3D12_COMMAND_LIST_TYPE type);
 	virtual ~CommandQueue();
 
 	/// <summary>

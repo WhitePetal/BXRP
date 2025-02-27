@@ -5,7 +5,14 @@
       <FullPath>D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\XEngine.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
-  <ContentFiles />
+  <ContentFiles>
+    <ContentFile>
+      <FullPath>D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\PixelShader.cso</FullPath>
+    </ContentFile>
+    <ContentFile>
+      <FullPath>D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\VertexShader.cso</FullPath>
+    </ContentFile>
+  </ContentFiles>
   <SatelliteDlls />
   <NonRecipeFileRefs />
 </Project>

@@ -15,40 +15,60 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="engine.cpp">
+    <ClCompile Include="src\Application.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighResolutionClock.cpp">
+    <ClCompile Include="src\CommandQueue.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Application.cpp">
+    <ClCompile Include="src\Engine.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Window.cpp">
+    <ClCompile Include="src\HighResolutionClock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CommandQueue.cpp">
+    <ClCompile Include="src\Window.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SampleScene.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Helpers.h">
+    <ClInclude Include="inc\Application.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="engine.h">
+    <ClInclude Include="inc\CommandQueue.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Application.h">
+    <ClInclude Include="inc\Engine.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Window.h">
+    <ClInclude Include="inc\Events.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="HighResolutionClock.h">
+    <ClInclude Include="inc\Helpers.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="CommandQueue.h">
+    <ClInclude Include="inc\HighResolutionClock.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="inc\KeyCodes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Window.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleScene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="res\VertexShader.hlsl">
+      <Filter>资源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="res\PixelShader.hlsl">
+      <Filter>资源文件</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

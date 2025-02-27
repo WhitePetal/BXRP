@@ -1,10 +1,14 @@
 #include <cassert>
 #include <map>
 
+#include <d3d12.h>
+
 #include <Helpers.h>
 
 #include <Window.h>
+#include <CommandQueue.h>
 #include <Application.h>
+#include <Engine.h>
 
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"XEngineWindowClass";
 
@@ -31,6 +35,10 @@ Application::Application(HINSTANCE hInst)
 	: m_hInstance(hInst)
 	, m_TeraingSupported(false)
 {
+}
+
+void Application::Initialize()
+{
 	// Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
 	// Using this awareness context allows the client area of the window
 	// to achieve 100% scaling while still allowing non-client window content to
@@ -52,14 +60,14 @@ Application::Application(HINSTANCE hInst)
 	windowClass.cbSize = sizeof(WNDCLASSEXW);
 	windowClass.style = CS_HREDRAW | CS_VREDRAW;
 	windowClass.lpfnWndProc = &WndProc;
-	windowClass.cbClsExtra = 0;
-	windowClass.cbWndExtra = 0;
 	windowClass.hInstance = m_hInstance;
 	windowClass.hIcon = ::LoadIcon(m_hInstance, NULL);
 	windowClass.hCursor = ::LoadCursor(NULL, IDC_ARROW);
 	windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	windowClass.lpszMenuName = NULL;
 	windowClass.lpszClassName = WINDOW_CLASS_NAME;
+	windowClass.cbClsExtra = 0;
+	windowClass.cbWndExtra = 0;
+	windowClass.lpszMenuName = NULL;
 	windowClass.hIconSm = ::LoadIcon(m_hInstance, NULL);
 
 	if (!::RegisterClassExW(&windowClass))
@@ -72,14 +80,12 @@ Application::Application(HINSTANCE hInst)
 	{
 		m_d3d12Device = CreateDevice(m_dxgiAdapter);
 	}
-	if (m_d3d12Device)
-	{
-		m_DirectCommandQueue = std::make_shared<CommandQueue>(m_d3d12Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-		m_ComputeCommandQueue = std::make_shared<CommandQueue>(m_d3d12Device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		m_CopyCommandQueue = std::make_shared<CommandQueue>(m_d3d12Device, D3D12_COMMAND_LIST_TYPE_COPY);
 
-		m_TeraingSupported = CheckTearingSupport();
-	}
+	m_DirectCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	m_ComputeCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	m_CopyCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_COPY);
+
+	m_TeraingSupported = CheckTearingSupport();
 }
 
 ComPtr<IDXGIAdapter4> Application::GetAdapter(bool useWarp)
@@ -202,6 +208,7 @@ void Application::Create(HINSTANCE hInst)
 	if (!gs_pSingelton)
 	{
 		gs_pSingelton = new Application(hInst);
+		gs_pSingelton->Initialize();
 	}
 }
 
@@ -228,7 +235,7 @@ bool Application::IsTeraingSupported() const
 	return m_TeraingSupported;
 }
 
-std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync, HWND parentWnd = NULL)
+std::shared_ptr<Window> Application::CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync, HWND parentWnd)
 {
 	// First check if a window with the given name already exists
 	WindowNameMap::iterator windowIter = gs_WindowByName.find(windowName);
@@ -305,6 +312,10 @@ std::shared_ptr<Window> Application::GetWindowByName(const std::wstring& windowN
 
 int Application::Run(std::shared_ptr<Engine> pEngine)
 {
+	if (!pEngine->Initialize()) return 1;
+	::MessageBox(nullptr, "XEngine Initialize", "Info", MB_OK);
+	if (!pEngine->LoadContent()) return 2;
+	::MessageBox(nullptr, "XEngine Initialize and LoadContent", "Info", MB_OK);
 	MSG msg = { 0 };
 	while (msg.message != WM_QUIT)
 	{
@@ -318,7 +329,10 @@ int Application::Run(std::shared_ptr<Engine> pEngine)
 	// Flush any commands in the commands queues before quiting
 	Flush();
 
-	return static_cast<int>(msg.wParam);
+	pEngine->UnloadContent();
+	pEngine->Destroy();
+
+	return 0;
 }
 
 void Application::Quit(int exitCode)
@@ -384,6 +398,49 @@ Application::~Application()
 	Flush();
 }
 
+static void RemoveWindow(HWND hWnd)
+{
+	WindowMap::iterator windowIter = gs_Windows.find(hWnd);
+	if (windowIter != gs_Windows.end())
+	{
+		WindowPtr pWindow = windowIter->second;
+		gs_WindowByName.erase(pWindow->GetWindowName());
+		gs_Windows.erase(windowIter);
+	}
+}
+
+// Convert the message ID into a MouseButton ID
+MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
+{
+	MouseButtonEventArgs::MouseButton mouseButton = MouseButtonEventArgs::None;
+	switch (messageID)
+	{
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_LBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Left;
+	}
+	break;
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_RBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Right;
+	}
+	break;
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+	case WM_MBUTTONDBLCLK:
+	{
+		mouseButton = MouseButtonEventArgs::Middel;
+	}
+	break;
+	}
+
+	return mouseButton;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	WindowPtr pWindow;
@@ -403,32 +460,61 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	switch (message)
 	{
 	case WM_PAINT:
-		pWindow->OnUpdate();
-		pWindow->OnRender();
-		break;
+	{
+		// delta time will be filled in by the window
+		UpdateEventArgs updateEventArgs(0.0f, 0.0f);
+		pWindow->OnUpdate(updateEventArgs);
+		// delta time will be filled in by the window
+		RenderEventArgs renderEventArgs(0.0f, 0.0f);
+		pWindow->OnRender(renderEventArgs);
+	}
+	break;
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
 	{
-		bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-
-		switch (wParam)
+		MSG charMsg;
+		// Get the Unicode character (UTF-16)
+		unsigned int c = 0;
+		// For printable characters, the next message will be WM_CHAR.
+		// This message contains the character code we need to send the KeyPressed event.
+		// Inspired by the SDL 1.2 implementation.
+		if (PeekMessage(&charMsg, hwnd, 0, 0, PM_NOREMOVE) && charMsg.message == WM_CHAR)
 		{
-		case 'V':
-			g_VSync = !g_VSync;
-			break;
-		case VK_ESCAPE:
-			if (hwnd == g_hWnd)
-				::DestroyWindow(hwnd);
-			//::PostQuitMessage(0);
-			break;
-		case VK_RETURN:
-			if (alt)
-			{
-		case VK_F11:
-			SetFullScreen(!g_FullScreen);
-			}
-			break;
+			GetMessage(&charMsg, hwnd, 0, 0);
+			c = static_cast<unsigned int>(charMsg.wParam);
 		}
+		bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+		bool control = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+		bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+		KeyCode::Key key = (KeyCode::Key)wParam;
+		unsigned int scanCode = (lParam & 0x00FF0000) >> 16;
+		KeyEventArgs keyEventArgs(key, c, KeyEventArgs::Down, shift, control, alt);
+		pWindow->OnKeyboardDown(keyEventArgs);
+	}
+	break;
+	case WM_SYSKEYUP:
+	case WM_KEYUP:
+	{
+		bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+		bool control = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+		bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+		KeyCode::Key key = (KeyCode::Key)wParam;
+		unsigned int c = 0;
+		unsigned int scanCode = (lParam & 0x00FF0000) >> 16;
+
+		// Determine which key was released by converting the key code and the scan code
+		// to a printable character (if possible).
+		// Inspired by the SDL 1.2 implementation.
+		unsigned char keyboardState[256];
+		GetKeyboardState(keyboardState);
+		wchar_t translatedCharacters[4];
+		if (int result = ToUnicodeEx(static_cast<UINT>(wParam), scanCode, keyboardState, translatedCharacters, 4, 0, NULL) > 0)
+		{
+			c = translatedCharacters[0];
+		}
+
+		KeyEventArgs keyEventArgs(key, c, KeyEventArgs::Up, shift, control, alt);
+		pWindow->OnKeyboardUp(keyEventArgs);
 	}
 	break;
 	// The default window procedure will play a system notification sound
@@ -436,19 +522,97 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	// not handled
 	case WM_SYSCHAR:
 		break;
+	case WM_MOUSEMOVE:
+	{
+		bool lButton = (wParam & MK_LBUTTON) != 0;
+		bool rButton = (wParam & MK_RBUTTON) != 0;
+		bool mButton = (wParam & MK_MBUTTON) != 0;
+		bool shift = (wParam & MK_SHIFT) != 0;
+		bool control = (wParam & MK_CONTROL) != 0;
+
+		int x = ((int)(short)LOWORD(lParam));
+		int y = ((int)(short)HIWORD(lParam));
+
+		MouseMotionEventArgs mouseMotionEventArgs(lButton, mButton, rButton, control, shift, x, y);
+		pWindow->OnMouseMoved(mouseMotionEventArgs);
+	}
+	break;
+	case WM_LBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+	case WM_MBUTTONDOWN:
+	{
+		bool lButton = (wParam & MK_LBUTTON) != 0;
+		bool rButton = (wParam & MK_RBUTTON) != 0;
+		bool mButton = (wParam & MK_MBUTTON) != 0;
+		bool shift = (wParam & MK_SHIFT) != 0;
+		bool control = (wParam & MK_CONTROL) != 0;
+
+		int x = ((int)(short)LOWORD(lParam));
+		int y = ((int)(short)HIWORD(lParam));
+
+		MouseButtonEventArgs mouseButtonEventArgs(DecodeMouseButton(message), MouseButtonEventArgs::Down, lButton, mButton, rButton, control, shift, x, y);
+		pWindow->OnMouseButtonDown(mouseButtonEventArgs);
+	}
+	break;
+	case WM_LBUTTONUP:
+	case WM_RBUTTONUP:
+	case WM_MBUTTONUP: 
+	{
+		bool lButton = (wParam & MK_LBUTTON) != 0;
+		bool rButton = (wParam & MK_RBUTTON) != 0;
+		bool mButton = (wParam & MK_MBUTTON) != 0;
+		bool shift = (wParam & MK_SHIFT) != 0;
+		bool control = (wParam & MK_CONTROL) != 0;
+
+		int x = ((int)(short)LOWORD(lParam));
+		int y = ((int)(short)HIWORD(lParam));
+
+		MouseButtonEventArgs mouseButtonEventArgs(DecodeMouseButton(message), MouseButtonEventArgs::Up, lButton, mButton, rButton, control, shift, x, y);
+		pWindow->OnMouseButtonUp(mouseButtonEventArgs);
+	}
+	break;
+	case WM_MOUSEWHEEL:
+	{
+		// The distance the mouse wheel is rotated.
+		// A positive value indicates the wheel was rotated to the right.
+		// A negative value indicates the wheel was rotated to the left.
+		float zDelta = ((int)(short)HIWORD(wParam)) / (float)WHEEL_DELTA;
+		short keyStates = (short)LOWORD(wParam);
+
+		bool lButton = (keyStates & MK_LBUTTON) != 0;
+		bool rButton = (keyStates & MK_RBUTTON) != 0;
+		bool mButton = (keyStates & MK_MBUTTON) != 0;
+		bool shift = (keyStates & MK_SHIFT) != 0;
+		bool control = (keyStates & MK_CONTROL) != 0;
+
+		int x = ((int)(short)LOWORD(lParam));
+		int y = ((int)(short)HIWORD(lParam));
+
+		// Convert the screen coordinates to client coordinates.
+		POINT clientToScreenPoint;
+		clientToScreenPoint.x = x;
+		clientToScreenPoint.y = y;
+		ScreenToClient(hwnd, &clientToScreenPoint);
+
+		MouseWheelEventArgs mouseWheelEventArgs(zDelta, lButton, mButton, rButton, control, shift, (int)clientToScreenPoint.x, (int)clientToScreenPoint.y);
+		pWindow->OnMouseWheel(mouseWheelEventArgs);
+	}
+	break;
 	case WM_SIZE:
 	{
-		RECT clientRect = {};
-		::GetClientRect(hwnd, &clientRect);
-
-		int width = clientRect.right - clientRect.left;
-		int height = clientRect.bottom - clientRect.top;
-
-		Resize(width, height);
+		int width = ((int)(short)LOWORD(lParam));
+		int height = ((int)(short)HIWORD(lParam));
+		
+		ResizeEventArgs resizeEventArgs(width, height);
+		pWindow->OnResize(resizeEventArgs);
 	}
 	break;
 	case WM_DESTROY:
-		::PostQuitMessage(0);
+		RemoveWindow(hwnd);
+		if (gs_Windows.empty())
+		{
+			::PostQuitMessage(0);
+		}
 		break;
 	default:
 		return ::DefWindowProcW(hwnd, message, wParam, lParam);
