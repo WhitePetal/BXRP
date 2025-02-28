@@ -3,6 +3,7 @@
 #define WIN32_LEN_AND_MEAN
 #include <Windows.h> // For HRESULT
 #include <exception>
+#include <Debug.h>
 
 // From DXSampleHelper.h
 // Source: https://github.com/Microsoft/DirectX-Graphics-Samples

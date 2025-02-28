@@ -3,6 +3,7 @@
 #include <string>
 #include <Window.h>
 #include <mutex>
+#include <LogQueue.h>
 
 
 class Debug
@@ -28,7 +29,10 @@ private:
 	static std::string GetLogFileName();
 	static void WriteToFile(const std::string& message);
 
+	static void LogThreadProc();
+
 	static std::string g_LogDirectory;
 	static HANDLE g_LogFileHandle;
-	static std::mutex g_LogMutex;
+	static LogQueue g_LogQueue;
+	static std::thread g_LogThread;
 };

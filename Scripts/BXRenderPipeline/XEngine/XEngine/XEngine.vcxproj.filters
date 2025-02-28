@@ -36,6 +36,9 @@
     <ClCompile Include="src\Debug.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\LogQueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\Application.h">
@@ -62,10 +65,13 @@
     <ClInclude Include="inc\Window.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="SampleScene.h">
+    <ClInclude Include="inc\Debug.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Debug.h">
+    <ClInclude Include="inc\SampleScene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\LogQueue.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

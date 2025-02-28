@@ -3,7 +3,7 @@
 #define XENGINE_API __declspec(dllexport)
 
 extern "C" {
-	XENGINE_API void StartXEngine(HWND parentHWnd);
+	XENGINE_API void StartXEngine(HWND parentHWnd = nullptr, LPWSTR workDir = nullptr);
 }
 
 #include <Events.h>

@@ -24,6 +24,7 @@
     <ClCompile Include="src\Debug.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\HighResolutionClock.cpp" />
+    <ClCompile Include="src\LogQueue.cpp" />
     <ClCompile Include="src\SampleScene.cpp" />
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
@@ -36,8 +37,9 @@
     <ClInclude Include="inc\Helpers.h" />
     <ClInclude Include="inc\HighResolutionClock.h" />
     <ClInclude Include="inc\KeyCodes.h" />
+    <ClInclude Include="inc\LogQueue.h" />
+    <ClInclude Include="inc\SampleScene.h" />
     <ClInclude Include="inc\Window.h" />
-    <ClInclude Include="SampleScene.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="res\PixelShader.hlsl">
@@ -77,7 +79,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>

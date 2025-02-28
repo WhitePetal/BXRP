@@ -5,7 +5,8 @@
 
 std::string Debug::g_LogDirectory;
 HANDLE Debug::g_LogFileHandle;
-std::mutex Debug::g_LogMutex;
+LogQueue Debug::g_LogQueue;
+std::thread Debug::g_LogThread;
 
 void Debug::Initialize(const std::string& logDir)
 {
@@ -30,20 +31,34 @@ void Debug::Initialize(const std::string& logDir)
 
 	if (g_LogFileHandle == INVALID_HANDLE_VALUE)
 	{
-		MessageBox(nullptr, "Failed to open log file!", "Error", MB_OK | MB_ICONERROR);
+		::MessageBox(nullptr, "Failed to open log file!", "Error", MB_OK | MB_ICONERROR);
 	}
 	else
 	{
 		SetFilePointer(g_LogFileHandle, 0, nullptr, FILE_END);
 	}
+
+	g_LogThread = std::thread(LogThreadProc);
+}
+
+void Debug::LogThreadProc()
+{
+	while (true)
+	{
+		std::string message = g_LogQueue.Pop();
+		if (message.empty()) break;
+
+		WriteToFile(message);
+	}
 }
 
 void Debug::Log(Level level, const std::string& message)
 {
-	std::lock_guard<std::mutex> lock(g_LogMutex);
-
 	if (g_LogFileHandle == INVALID_HANDLE_VALUE)
 		return;
+
+	// 确保日志线程已启动
+	if (!g_LogThread.joinable()) return;
 
 	// 获取当前时间
 	SYSTEMTIME localTime;
@@ -79,8 +94,8 @@ void Debug::Log(Level level, const std::string& message)
 	// 构建完整日志消息
 	std::string logMessage = std::string(timestamp) + " [" + levelStr + "] " + message + "\n";
 
-	// 写入文件
-	WriteToFile(logMessage);
+	// 加入日志队列
+	g_LogQueue.Push(logMessage);
 }
 
 void Debug::Log(const std::string& message)
@@ -131,6 +146,12 @@ void Debug::WriteToFile(const std::string& message)
 
 void Debug::Shutdown()
 {
+	g_LogQueue.Stop();
+	if (g_LogThread.joinable())
+	{
+		// 等待后台线程结束
+		g_LogThread.join();
+	}
 	if (g_LogFileHandle != INVALID_HANDLE_VALUE)
 	{
 		::CloseHandle(g_LogFileHandle);
@@ -144,7 +165,7 @@ std::string Debug::GetLogFileName()
 	::GetLocalTime(&localTime);
 
 	char fileName[256];
-	sprintf_s(fileName, "%s\\Log_%04d%02d%02d_%02d%02d%02d.log",
+	sprintf_s(fileName, "%s\\XEngine_Log_%04d%02d%02d_%02d%02d%02d.log",
 		g_LogDirectory.c_str(),
 		localTime.wYear, localTime.wMonth, localTime.wDay,
 		localTime.wHour, localTime.wMinute, localTime.wSecond);

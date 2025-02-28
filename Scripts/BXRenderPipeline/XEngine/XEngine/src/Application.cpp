@@ -1,5 +1,4 @@
 #include <cassert>
-#include <map>
 
 #include <d3d12.h>
 
@@ -12,14 +11,6 @@
 
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"XEngineWindowClass";
 
-using WindowPtr = std::shared_ptr<Window>;
-using WindowMap = std::map<HWND, WindowPtr>;
-using WindowNameMap = std::map<std::wstring, WindowPtr>;
-
-static Application* gs_pSingelton = nullptr;
-static WindowMap gs_Windows;
-static WindowNameMap gs_WindowByName;
-
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 struct MakeWindow : public Window
@@ -29,6 +20,10 @@ struct MakeWindow : public Window
 	{ }
 };
 
+Application* Application::gs_pSingelton = nullptr;
+
+WindowMap Application::gs_Windows;
+WindowNameMap Application::gs_WindowByName;
 
 
 Application::Application(HINSTANCE hInst, HWND parentWnd)
@@ -391,7 +386,7 @@ UINT Application::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE ty
 	return m_d3d12Device->GetDescriptorHandleIncrementSize(type);
 }
 
-bool Application::HaveAndIsParentWnd(HWND wnd)
+bool Application::IsParentWnd(HWND wnd)
 {
 	if (m_ParentWnd == nullptr) return false;
 	return m_ParentWnd == wnd;
@@ -402,7 +397,7 @@ Application::~Application()
 	Flush();
 }
 
-static void RemoveWindow(HWND hWnd)
+void Application::RemoveWindow(HWND hWnd)
 {
 	WindowMap::iterator windowIter = gs_Windows.find(hWnd);
 	if (windowIter != gs_Windows.end())
@@ -411,6 +406,17 @@ static void RemoveWindow(HWND hWnd)
 		gs_WindowByName.erase(pWindow->GetWindowName());
 		gs_Windows.erase(windowIter);
 	}
+}
+
+WindowPtr Application::Find(HWND hwnd)
+{
+	WindowPtr pWindow;
+	WindowMap::iterator iter = gs_Windows.find(hwnd);
+	if (iter != gs_Windows.end())
+	{
+		pWindow = iter->second;
+	}
+	return pWindow;
 }
 
 // Convert the message ID into a MouseButton ID
@@ -448,16 +454,11 @@ MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	//::OutputDebugString(L"Processing message: X\n");
-	if(Application::Get().HaveAndIsParentWnd(hwnd))
-		return DefWindowProcW(hwnd, message, wParam, lParam);
-	WindowPtr pWindow;
-	{
-		WindowMap::iterator iter = gs_Windows.find(hwnd);
-		if (iter != gs_Windows.end())
-		{
-			pWindow = iter->second;
-		}
-	}
+	//if (Application::Get().IsParentWnd(hwnd))
+	//{
+	//	return DefWindowProcW(hwnd, message, wParam, lParam);
+	//}
+	WindowPtr pWindow = Application::Find(hwnd);
 
 	if (!pWindow)
 	{
@@ -615,8 +616,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	}
 	break;
 	case WM_DESTROY:
-		RemoveWindow(hwnd);
-		if (gs_Windows.empty())
+		Application::RemoveWindow(hwnd);
+		if (Application::gs_Windows.empty())
 		{
 			::PostQuitMessage(0);
 		}

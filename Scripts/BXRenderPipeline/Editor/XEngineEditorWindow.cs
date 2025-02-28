@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 public class XEngineEditorWindow : EditorWindow
 {
 	[DllImport("XEngine.dll")]
-	private static extern void StartXEngine(IntPtr parentHWnd);
+	private static extern void StartXEngine(IntPtr parentHWnd, [MarshalAs(UnmanagedType.LPWStr)]string workDir);
 
 	[DllImport("user32.dll")]
 	private static extern IntPtr GetActiveWindow();
@@ -25,7 +25,7 @@ public class XEngineEditorWindow : EditorWindow
 	{
 		if(GUILayout.Button("Start XEngine"))
 		{
-			StartXEngine(GetActiveWindow());
+			StartXEngine(GetActiveWindow(), System.IO.Directory.GetCurrentDirectory());
 		}
 	}
 }

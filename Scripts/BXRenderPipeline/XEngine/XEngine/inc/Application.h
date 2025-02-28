@@ -2,6 +2,7 @@
 
 // Windows Runtime Library. Needed for Microsoft:WRL:ComPtr<> template class.
 #include <wrl.h>
+#include <map>
 
 // DirectX 12 specific headers.
 #include <d3d12.h>
@@ -15,6 +16,10 @@ using namespace Microsoft::WRL;
 class Window;
 class Engine;
 class CommandQueue;
+
+using WindowPtr = std::shared_ptr<Window>;
+using WindowMap = std::map<HWND, WindowPtr>;
+using WindowNameMap = std::map<std::wstring, WindowPtr>;
 
 class Application
 {
@@ -36,6 +41,10 @@ public:
 	/// </summary>
 	/// <returns></returns>
 	static Application& Get();
+
+	static void RemoveWindow(HWND hWnd);
+
+	static WindowPtr Find(HWND hwnd);
 
 	/// <summary>
 	/// Check to see if VSync-off is supported
@@ -118,7 +127,10 @@ public:
 	/// <returns></returns>
 	UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
 
-	bool HaveAndIsParentWnd(HWND wnd);
+	bool IsParentWnd(HWND wnd);
+
+	static WindowMap gs_Windows;
+	static WindowNameMap gs_WindowByName;
 
 protected:
 	/// <summary>
@@ -148,6 +160,8 @@ protected:
 	/// </summary>
 	/// <returns></returns>
 	bool CheckTearingSupport();
+
+	static Application* gs_pSingelton;
 
 private:
 	Application(const Application& copy) = delete;

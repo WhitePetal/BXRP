@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <Shlwapi.h>
+#include <psapi.h>
 
 
 // The min/max macros conflict with like-named member functions.
@@ -64,14 +65,14 @@ void ReportLiveObjects()
 /// <param name="fdwReason"></param>
 /// <param name="lpvReserved"></param>
 /// <returns></returns>
-//BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
-//{
-//	if (fdwReason == DLL_PROCESS_ATTACH)
-//	{
-//		g_hInstance = hinstDLL;
-//	}
-//	return TRUE;
-//}
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+{
+	if (fdwReason == DLL_PROCESS_ATTACH)
+	{
+		g_hInstance = hinstDLL;
+	}
+	return TRUE;
+}
 
 int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
@@ -85,23 +86,37 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 		::PathRemoveFileSpecW(path);
 		::SetCurrentDirectoryW(path);
 	}
-
+#if defined(_DEBUG)
 	Debug::Initialize("Logs");
+	std::wstring pathWStr = std::wstring(path);
+	std::string pathStr = std::string(pathWStr.begin(), pathWStr.end());
+	Debug::Log("工作目录：" + pathStr);
 	try
 	{
+#endif
 		Application::Create(hInstance);
 		{
 			std::shared_ptr<SampleScene> demo = std::make_shared<SampleScene>(L"Learning DirectX 12 - Lesson 2", 1280, 720);
+			//demo->Initialize();
 			retCode = Application::Get().Run(demo);
+			//Debug::Log("retCode: " + std::to_string(retCode));
+			//WindowPtr window = Application::Get().GetWindowByName(L"Learning DirectX 12 - Lesson 2");
+			//Debug::Log("WindowFind: " + std::to_string(window == nullptr));
+			//std::wstring wndName = window->GetWindowName();
+			//Debug::Log("WindowName: " + std::string(wndName.begin(), wndName.end()));
+			//Application::RemoveWindow(window->GetWindowHandle());
+			//demo->Destroy();
 		}
 		Application::Destroy();
+#if defined(_DEBUG)
 	}
 	catch (const std::exception& e)
 	{
 		Debug::LogException(e);
 	}
-
 	Debug::Shutdown();
+#endif
+
 	atexit(&ReportLiveObjects);
 
 	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
@@ -109,32 +124,44 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	return retCode;
 }
 
-XENGINE_API void StartXEngine(HWND parentWnd = nullptr)
+XENGINE_API void StartXEngine(HWND parentWnd, LPWSTR workDir)
 {
-	//int retCode = 0;
+	int retCode = 0;
 
-	//// Set the working directory to the path of the executable.
-	//WCHAR path[MAX_PATH];
-	//HMODULE hModule = GetModuleHandleW(NULL);
-	//if (GetModuleFileNameW(hModule, path, MAX_PATH) > 0)
-	//{
-	//	::PathRemoveFileSpecW(path);
-	//	::SetCurrentDirectoryW(path);
-	//}
+	// Set the working directory to the path of the executable.
+	WCHAR path[MAX_PATH];
+	if (GetModuleFileNameW(g_hInstance, path, MAX_PATH) > 0)
+	{
+		::PathRemoveFileSpecW(path);
+		::SetCurrentDirectoryW(path);
+	}
+#if defined(_DEBUG)
+	Debug::Initialize("Logs");
+	try
+	{
+#endif
+		Application::Create(g_hInstance, parentWnd);
+		std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720);
+		retCode = Application::Get().Run(sampleScene);
 
-	//Application::Create(g_hInstance);
-	//std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720);
-	//::MessageBox(nullptr, "Create Application and SampleScene", "Info", MB_OK);
-	//retCode = Application::Get().Run(sampleScene);
+		Application::Destroy();
+#if defined(_DEBUG)
+	}
+	catch (const std::exception& e)
+	{
+		Debug::LogException(e);
+	}
+	Debug::Shutdown();
+#endif
 
-	//Application::Destroy();
+	atexit(&ReportLiveObjects);
 
-	//atexit(&ReportLiveObjects);
-
-	//::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
+	if (workDir != nullptr)
+	{
+		::SetCurrentDirectoryW(workDir);
+	}
+	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
 }
-
-
 
 Engine::Engine(const std::wstring& name, int width, int height, bool vSync)
 	: m_Name(name)
@@ -146,7 +173,7 @@ Engine::Engine(const std::wstring& name, int width, int height, bool vSync)
 
 Engine::~Engine()
 {
-	assert(!m_pWindow && "Use Game::Destroy() before destruction.");
+	assert(!m_pWindow && "Use Engine::Destroy() before destruction.");
 }
 
 bool Engine::Initialize()
