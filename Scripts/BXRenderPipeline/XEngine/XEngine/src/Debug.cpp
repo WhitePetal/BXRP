@@ -114,6 +114,10 @@ void Debug::LogException(const std::exception& e)
 {
 	Log(Level::_EXCEPTION, std::string(e.what()));
 }
+void Debug::LogException(const std::string& message)
+{
+	Log(Level::_EXCEPTION, message));
+}
 
 void Debug::WriteToFile(const std::string& message)
 {

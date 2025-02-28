@@ -137,19 +137,30 @@ XENGINE_API void StartXEngine(HWND parentWnd, LPWSTR workDir)
 	}
 #if defined(_DEBUG)
 	Debug::Initialize("Logs");
-	try
+	__try
 	{
+		try
+		{
 #endif
-		Application::Create(g_hInstance, parentWnd);
-		std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720);
-		retCode = Application::Get().Run(sampleScene);
+			Application::Create(g_hInstance, parentWnd);
+			std::shared_ptr<SampleScene> sampleScene = std::make_shared<SampleScene>(L"XEngine DX12", 1280, 720);
+			retCode = Application::Get().Run(sampleScene);
 
-		Application::Destroy();
+			Application::Destroy();
 #if defined(_DEBUG)
+		}
+		catch (const std::exception& e)
+		{
+			Debug::LogException(e);
+		}
+		catch (...)
+		{
+			Debug::LogException("Unknown Exception");
+		}
 	}
-	catch (const std::exception& e)
+	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		Debug::LogException(e);
+		Debug::LogException("Structured exception occurred!");
 	}
 	Debug::Shutdown();
 #endif
@@ -163,11 +174,12 @@ XENGINE_API void StartXEngine(HWND parentWnd, LPWSTR workDir)
 	::MessageBox(nullptr, "XEngine be Quited", "Info", MB_OK);
 }
 
-Engine::Engine(const std::wstring& name, int width, int height, bool vSync)
+Engine::Engine(const std::wstring& name, int width, int height, bool vSync, bool raster)
 	: m_Name(name)
 	, m_Width(width)
 	, m_Height(height)
 	, m_vSync(vSync)
+	, m_Raster(raster)
 {
 }
 

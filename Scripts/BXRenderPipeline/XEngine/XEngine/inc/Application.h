@@ -98,7 +98,7 @@ public:
 	/// Get the DX12 device
 	/// </summary>
 	/// <returns></returns>
-	ComPtr<ID3D12Device2> GetDevice() const;
+	ComPtr<ID3D12Device5> GetDevice() const;
 
 	/// <summary>
 	/// Get a command queue
@@ -153,13 +153,15 @@ protected:
 	/// </summary>
 	/// <param name="adapter"></param>
 	/// <returns></returns>
-	ComPtr<ID3D12Device2> CreateDevice(ComPtr<IDXGIAdapter4> adapter);
+	ComPtr<ID3D12Device5> CreateDevice(ComPtr<IDXGIAdapter4> adapter);
 
 	/// <summary>
 	/// The VSync-off is supported
 	/// </summary>
 	/// <returns></returns>
 	bool CheckTearingSupport();
+
+	bool CheckRaytracingSupport();
 
 	static Application* gs_pSingelton;
 
@@ -175,11 +177,12 @@ private:
 	HWND m_ParentWnd;
 
 	ComPtr<IDXGIAdapter4> m_dxgiAdapter;
-	ComPtr<ID3D12Device2> m_d3d12Device;
+	ComPtr<ID3D12Device5> m_d3d12Device;
 
 	std::shared_ptr<CommandQueue> m_DirectCommandQueue;
 	std::shared_ptr<CommandQueue> m_ComputeCommandQueue;
 	std::shared_ptr<CommandQueue> m_CopyCommandQueue;
 
 	bool m_TeraingSupported;
+	bool m_RaytracingSupported;
 };

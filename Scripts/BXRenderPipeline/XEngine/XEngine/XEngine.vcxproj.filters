@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="头文件\DXRHelper">
+      <UniqueIdentifier>{f1ae8eca-f105-4843-9db5-4e973f3328c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\DXRHelper">
+      <UniqueIdentifier>{8e98b1f5-8a06-459a-9e0d-9dac4c1fa382}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp">
@@ -38,6 +44,21 @@
     </ClCompile>
     <ClCompile Include="src\LogQueue.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\BottomLevelASGenerator.cpp">
+      <Filter>源文件\DXRHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\RaytracingPipelineGenerator.cpp">
+      <Filter>源文件\DXRHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\RootSignatureGenerator.cpp">
+      <Filter>源文件\DXRHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.cpp">
+      <Filter>源文件\DXRHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.cpp">
+      <Filter>源文件\DXRHelper</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -73,6 +94,24 @@
     </ClInclude>
     <ClInclude Include="inc\LogQueue.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\BottomLevelASGenerator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\DXRHelper.h">
+      <Filter>头文件\DXRHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\RaytracingPipelineGenerator.h">
+      <Filter>头文件\DXRHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\RootSignatureGenerator.h">
+      <Filter>头文件\DXRHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.h">
+      <Filter>头文件\DXRHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.h">
+      <Filter>头文件\DXRHelper</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -29,10 +29,10 @@ CommandQueue::~CommandQueue()
 {
 }
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
+ComPtr<ID3D12GraphicsCommandList4> CommandQueue::GetCommandList()
 {
 	ComPtr<ID3D12CommandAllocator> commandAllocator;
-	ComPtr<ID3D12GraphicsCommandList2> commandList;
+	ComPtr<ID3D12GraphicsCommandList4> commandList;
 
 	if (!m_CommandAllocatorQueue.empty() && IsFenceComplete(m_CommandAllocatorQueue.front().fenceValue))
 	{
@@ -65,7 +65,7 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
 	return commandList;
 }
 
-uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
+uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList4> commandList)
 {
 	commandList->Close();
 
@@ -133,9 +133,9 @@ ComPtr<ID3D12CommandAllocator> CommandQueue::CreateCommandAllocator()
 	return commandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandList(ComPtr<ID3D12CommandAllocator> allocator)
+ComPtr<ID3D12GraphicsCommandList4> CommandQueue::CreateCommandList(ComPtr<ID3D12CommandAllocator> allocator)
 {
-	ComPtr<ID3D12GraphicsCommandList2> commandList;
+	ComPtr<ID3D12GraphicsCommandList4> commandList;
 	ThrowIfFaild(m_d3d12Device->CreateCommandList(0, m_CommandListType, allocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
 
 	return commandList;

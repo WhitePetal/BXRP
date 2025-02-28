@@ -19,6 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\BottomLevelASGenerator.cpp" />
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\RaytracingPipelineGenerator.cpp" />
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\RootSignatureGenerator.cpp" />
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.cpp" />
+    <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.cpp" />
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\CommandQueue.cpp" />
     <ClCompile Include="src\Debug.cpp" />
@@ -29,6 +34,12 @@
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="external\DXRHelpers\DXRHelper.h" />
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\BottomLevelASGenerator.h" />
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\RaytracingPipelineGenerator.h" />
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\RootSignatureGenerator.h" />
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.h" />
+    <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.h" />
     <ClInclude Include="inc\Application.h" />
     <ClInclude Include="inc\CommandQueue.h" />
     <ClInclude Include="inc\Debug.h" />

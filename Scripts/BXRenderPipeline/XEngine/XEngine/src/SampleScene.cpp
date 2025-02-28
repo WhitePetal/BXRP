@@ -49,8 +49,8 @@ static WORD g_Indicies[36] =
     4, 0, 3, 4, 3, 7
 };
 
-SampleScene::SampleScene(const std::wstring& name, int width, int height, bool vSync)
-    : super(name, width, height, vSync)
+SampleScene::SampleScene(const std::wstring& name, int width, int height, bool vSync, bool raster)
+    : super(name, width, height, vSync, raster)
     , m_ScissorRect(CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX))
     , m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)))
     , m_FoV(45.0)
@@ -341,34 +341,40 @@ void SampleScene::OnRender(RenderEventArgs& e)
     auto rtv = m_pWindow->GetCurrentRenderTargetView();
     auto dsv = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
-    // Clear the render targets
-    {
-        TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-        FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
-
-        ClearRTV(commandList, rtv, clearColor);
-        ClearDepth(commandList, dsv);
-    }
-
-    commandList->SetPipelineState(m_PipelineState.Get());
-    commandList->SetGraphicsRootSignature(m_RootSignature.Get());
-
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-    commandList->IASetIndexBuffer(&m_IndexBufferView);
 
     commandList->RSSetViewports(1, &m_Viewport);
     commandList->RSSetScissorRects(1, &m_ScissorRect);
 
     commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
-    // Update the MVP matrix
-    XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
-    mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
-    commandList->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &mvpMatrix, 0);
+    TransitionResource(commandList, backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    commandList->DrawIndexedInstanced(_countof(g_Indicies), 1, 0, 0, 0);
+    commandList->SetPipelineState(m_PipelineState.Get());
+    commandList->SetGraphicsRootSignature(m_RootSignature.Get());
+
+    if (m_Raster)
+    {
+        // Clear the render targets
+        FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+        ClearRTV(commandList, rtv, clearColor);
+        ClearDepth(commandList, dsv);
+
+        commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+        commandList->IASetIndexBuffer(&m_IndexBufferView);
+
+        // Update the MVP matrix
+        XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
+        mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
+        commandList->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &mvpMatrix, 0);
+
+        commandList->DrawIndexedInstanced(_countof(g_Indicies), 1, 0, 0, 0);
+    }
+    else
+    {
+        FLOAT clearColor[] = { 0.6f, 0.8f, 0.4f, 1.0f };
+        ClearRTV(commandList, rtv, clearColor);
+    }
 
     // Present
     {
@@ -404,6 +410,9 @@ void SampleScene::OnKeyboardDown(KeyEventArgs& e)
         }
     case KeyCode::V:
         m_pWindow->ToggleVSync();
+        break;
+    case KeyCode::R:
+        m_Raster = !m_Raster;
         break;
     }
 }

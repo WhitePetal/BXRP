@@ -16,7 +16,7 @@ extern "C" {
 class Engine : public std::enable_shared_from_this<Engine>
 {
 public:
-	Engine(const std::wstring& name, int width, int height, bool vSync);
+	Engine(const std::wstring& name, int width, int height, bool vSync, bool raster);
 	virtual ~Engine();
 
 	virtual bool Initialize();
@@ -84,6 +84,8 @@ protected:
 	std::shared_ptr<Window> m_pWindow;
 
 	uint64_t m_FenceValues[Window::BackBufferCount] = {};
+
+	bool m_Raster = true;
 
 private:
 	std::wstring m_Name;

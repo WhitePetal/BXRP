@@ -12,7 +12,7 @@ class SampleScene : public Engine
 public:
 	using super = Engine;
 
-	SampleScene(const std::wstring& name, int width, int height, bool vSync = false);
+	SampleScene(const std::wstring& name, int width, int height, bool vSync = false, bool raster = true);
 
 	virtual bool LoadContent() override;
 

@@ -82,6 +82,8 @@ void Application::Initialize()
 	m_CopyCommandQueue = std::make_shared<CommandQueue>(D3D12_COMMAND_LIST_TYPE_COPY);
 
 	m_TeraingSupported = CheckTearingSupport();
+
+	m_RaytracingSupported = CheckRaytracingSupport();
 }
 
 ComPtr<IDXGIAdapter4> Application::GetAdapter(bool useWarp)
@@ -114,7 +116,7 @@ ComPtr<IDXGIAdapter4> Application::GetAdapter(bool useWarp)
 			// creating it. The adapter with the largest dedicated video memory
 			// is favored.
 			if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
-				SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)) &&
+				SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)) &&
 				dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 			{
 				maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
@@ -126,15 +128,15 @@ ComPtr<IDXGIAdapter4> Application::GetAdapter(bool useWarp)
 	return dxgiAdapter4;
 }
 
-ComPtr<ID3D12Device2> Application::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
+ComPtr<ID3D12Device5> Application::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
 {
-	ComPtr<ID3D12Device2> d3d12Device2;
-	ThrowIfFaild(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)));
+	ComPtr<ID3D12Device5> d3d12Device5;
+	ThrowIfFaild(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device5)));
 
 	// Enable debug message in debug mode.
 #if defined(_DEBUG)
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
-	if (SUCCEEDED(d3d12Device2.As(&pInfoQueue)))
+	if (SUCCEEDED(d3d12Device5.As(&pInfoQueue)))
 	{
 		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
@@ -169,7 +171,7 @@ ComPtr<ID3D12Device2> Application::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
 	}
 #endif
 
-	return d3d12Device2;
+	return d3d12Device5;
 }
 
 bool Application::CheckTearingSupport()
@@ -197,6 +199,22 @@ bool Application::CheckTearingSupport()
 	}
 
 	return allowTearing == TRUE;
+}
+
+bool Application::CheckRaytracingSupport()
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+	ThrowIfFaild(m_d3d12Device->CheckFeatureSupport(
+		D3D12_FEATURE_D3D12_OPTIONS5,
+		&options5,
+		sizeof(options5)
+	));
+	if (options5.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void Application::Create(HINSTANCE hInst, HWND parentWnd)
@@ -334,7 +352,7 @@ void Application::Quit(int exitCode)
 	PostQuitMessage(exitCode);
 }
 
-ComPtr<ID3D12Device2> Application::GetDevice() const
+ComPtr<ID3D12Device5> Application::GetDevice() const
 {
 	return m_d3d12Device;
 }
