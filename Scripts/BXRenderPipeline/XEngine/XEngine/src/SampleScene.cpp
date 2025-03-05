@@ -11,6 +11,10 @@ using namespace Microsoft::WRL;
 #include <d3dx12.h>
 #include <d3dcompiler.h>
 
+// DXR
+#include "external/DXRHelpers/DXRHelper.h"
+#include "external/DXRHelpers/nv_helpers_dx12/BottomLevelASGenerator.h"
+
 #include <algorithm>
 #if defined(min)
 	#undef min
@@ -133,6 +137,10 @@ bool SampleScene::LoadContent()
         &intermediateIndexBuffer,
         _countof(g_Indicies), sizeof(WORD), g_Indicies);
 
+    // Setup the acceleration structures (AS) for raytracing. When setting up
+// geometry, each bottom-level AS has its own transform matrix.
+    CreateAccelerationStructures();
+
     // Create index buffer view.
     m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
     m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
@@ -218,9 +226,9 @@ bool SampleScene::LoadContent()
     commandQueue->WaitForFenceValue(fenceValue);
 
     m_ContentLoaded = true;
-
+    
     // Resize/Create the depth buffer
-    ResizeDepthBuffer(m_Viewport.Width, m_Viewport.Height);
+    ResizeDepthBuffer(m_Width, m_Height);
 
     return true;
 }
@@ -264,6 +272,125 @@ void SampleScene::ResizeDepthBuffer(int width, int height)
         device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv,
             m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
     }
+}
+
+AccelerationStructureBuffers SampleScene::CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers)
+{
+    nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
+
+    // Adding all vertex buffers and not transforming their positon
+    for (const auto& buffer : vVertexBuffers)
+    {
+        bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), m_IndexBuffer.Get(), 0, _countof(g_Indicies), 0, 0);
+    }
+
+    // The AS build requires some scratch space to store temporary information.
+    // The amount of scratch memory is dependent on the scene complexity.
+    UINT64 scratchSizeInBytes = 0;
+    // The final AS also needs to be stored in addition to the existing vertex buffers.
+    // It size is alos dependent on the scene complexity.
+    UINT64 resultSizeInBytes = 0;
+
+    bottomLevelAS.ComputeASBufferSizes(device.Get(), false, &scratchSizeInBytes, &resultSizeInBytes);
+
+    // Once the size are obtained, the application is responsible for allocating the necessary buffers.
+    // Since the entire generation will be done on the GPU, 
+    // we can directly allocate those on the default heap
+    AccelerationStructureBuffers buffers;
+    buffers.pScratch = nv_helpers_dx12::CreateBuffer(
+        device.Get(), scratchSizeInBytes,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_COMMON,
+        nv_helpers_dx12::kDefaultHeapProps
+    );
+    buffers.pResult = nv_helpers_dx12::CreateBuffer(
+        device.Get(), resultSizeInBytes,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+        nv_helpers_dx12::kDefaultHeapProps
+    );
+
+    // Build the aceeleration structure. Note that this call integrates a barrier on the generated AS,
+    // so that it can be used to compute a top-level AS right after this method.
+    bottomLevelAS.Generate(commandList.Get(), buffers.pScratch.Get(), buffers.pResult.Get(), false, nullptr);
+
+    return buffers;
+}
+
+void SampleScene::CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, XMMATRIX>>& instances)
+{
+    // Gather all the instances into the builder helper
+    for (size_t i = 0; i < instances.size(); ++i)
+    {
+        m_TopLevelASGenerator.AddInstance(
+            instances[i].first.Get(),
+            instances[i].second,
+            static_cast<UINT>(i), static_cast<UINT>(0));
+    }
+
+    // As for the bottom-levels AS, the building the AS requires some scratch space
+    // to store stemporary data in addition to the actual AS.
+    // In the case of the top-level AS, the instance descriptors also need to be stored in GPU memory.
+    // This call ouputs the memory requirements for each (scratch, results, instance descriptors)
+    // so that the application can allocate the corresponding memory
+    UINT64 scratchSize, resultSize, instanceDescsSize;
+
+    m_TopLevelASGenerator.ComputeASBufferSizes(device.Get(), true, &scratchSize, &resultSize, &instanceDescsSize);
+
+    // Create the scratch and result buffers. Since the build is all done on GPU,
+    // those can be allocated on the default heap
+    m_TopLevelASBuffers.pScratch = nv_helpers_dx12::CreateBuffer(
+        device.Get(), scratchSize,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        nv_helpers_dx12::kDefaultHeapProps
+    );
+    m_TopLevelASBuffers.pResult = nv_helpers_dx12::CreateBuffer(
+        device.Get(), resultSize,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+        nv_helpers_dx12::kDefaultHeapProps
+    );
+
+    // The buffer describing the instances: ID, shader binding information, matrices ...
+    // Those will be copied into the buffer by the helper through mapping,
+    // so the buffer has to be allocated on the upload heap.
+    m_TopLevelASBuffers.pInstanceDesc = nv_helpers_dx12::CreateBuffer(
+        device.Get(), instanceDescsSize,
+        D3D12_RESOURCE_FLAG_NONE,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nv_helpers_dx12::kUploadHeapProps
+    );
+
+    // After all the buffers are allocated, or if only an update is required,
+    // we can build the acceleration structure. Note that in the case of the update
+    // we also pass the existing AS as the 'previous' AS, so that it can be refitted in place.
+    m_TopLevelASGenerator.Generate(
+        commandList.Get(),
+        m_TopLevelASBuffers.pScratch.Get(),
+        m_TopLevelASBuffers.pResult.Get(),
+        m_TopLevelASBuffers.pInstanceDesc.Get()
+    );
+}
+
+void SampleScene::CreateAccelerationStructures()
+{
+    auto device = Application::Get().GetDevice();
+    auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    auto commandList = commandQueue->GetCommandList();
+
+    // Build the bottom AS
+    AccelerationStructureBuffers bottomLevelBuffers = CreateBottomLevelAS(device, commandList, { {m_VertexBuffer.Get(), _countof(g_Vertices)} });
+
+    // Just one instance for now
+    m_Instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()} };
+    CreateTopLevelAS(device, commandList, m_Instances);
+
+    // Flush the command list and wait for it to finish
+    auto fenceValue = commandQueue->ExecuteCommandList(commandList);
+    commandQueue->WaitForFenceValue(fenceValue);
+
+    m_BottomLevelAS = bottomLevelBuffers.pResult;
 }
 
 void SampleScene::OnResize(ResizeEventArgs& e)

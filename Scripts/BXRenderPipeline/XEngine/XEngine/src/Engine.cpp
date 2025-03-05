@@ -34,6 +34,8 @@ using namespace Microsoft::WRL;
 // D3D12 extension library.
 #include <d3dx12.h>
 
+using namespace DirectX;
+
 // STL Headers
 #include <algorithm>
 #include <cassert>
@@ -137,8 +139,8 @@ XENGINE_API void StartXEngine(HWND parentWnd, LPWSTR workDir)
 	}
 #if defined(_DEBUG)
 	Debug::Initialize("Logs");
-	__try
-	{
+	//__try
+	//{
 		try
 		{
 #endif
@@ -157,11 +159,11 @@ XENGINE_API void StartXEngine(HWND parentWnd, LPWSTR workDir)
 		{
 			Debug::LogException("Unknown Exception");
 		}
-	}
-	__except (EXCEPTION_EXECUTE_HANDLER)
-	{
-		Debug::LogException("Structured exception occurred!");
-	}
+	//}
+	//__except (EXCEPTION_EXECUTE_HANDLER)
+	//{
+	//	Debug::LogException("Structured exception occurred!");
+	//}
 	Debug::Shutdown();
 #endif
 
@@ -201,6 +203,19 @@ bool Engine::Initialize()
 	m_pWindow->Show();
 
 	return true;
+}
+
+AccelerationStructureBuffers Engine::CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers)
+{
+	return AccelerationStructureBuffers();
+}
+
+void Engine::CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, XMMATRIX>>& instances)
+{
+}
+
+void Engine::CreateAccelerationStructures()
+{
 }
 
 void Engine::Destroy()

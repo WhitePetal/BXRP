@@ -67,7 +67,7 @@ return buffers;
 
 #pragma once
 
-#include "d3d12.h"
+#include <d3d12.h>
 
 #include <vector>
 

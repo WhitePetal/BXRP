@@ -13,6 +13,18 @@ extern "C" {
 
 #include <Window.h>
 
+#include <dxcapi.h>
+#include <DirectXMath.h>
+#include <vector>
+#include "external/DXRHelpers/nv_helpers_dx12/TopLevelASGenerator.h"
+
+struct AccelerationStructureBuffers
+{
+	ComPtr<ID3D12Resource> pScratch; // Scratch memory for AS builder
+	ComPtr<ID3D12Resource> pResult; // Where the AS is
+	ComPtr<ID3D12Resource> pInstanceDesc; // Hold the matrices of the instances
+};
+
 class Engine : public std::enable_shared_from_this<Engine>
 {
 public:
@@ -81,15 +93,39 @@ protected:
 	/// </summary>
 	virtual void OnWindowDestroy();
 
+	/// <summary>
+	/// Create the acceleration structure of an instance
+	/// </summary>
+	/// <param name="vVertexBuffers">pair of buffer and vertex count</param>
+	/// <returns>AccelerationStructureBuffers for TLAS</returns>
+	virtual AccelerationStructureBuffers CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers);
+	
+	/// <summary>
+	/// Create the main accleration structure that holds
+	/// all instances of the scene
+	/// </summary>
+	/// <param name="instances">instances: pair of BLAS and transform</param>
+	virtual void CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances);
+
+	/// <summary>
+	/// Create all acceleration structures, bottom and top
+	/// </summary>
+	virtual void CreateAccelerationStructures();
+
 	std::shared_ptr<Window> m_pWindow;
 
 	uint64_t m_FenceValues[Window::BackBufferCount] = {};
 
+	int m_Width;
+	int m_Height;
 	bool m_Raster = true;
+
+	ComPtr<ID3D12Resource> m_BottomLevelAS;
+	nv_helpers_dx12::TopLevelASGenerator m_TopLevelASGenerator;
+	AccelerationStructureBuffers m_TopLevelASBuffers;
+	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_Instances;
 
 private:
 	std::wstring m_Name;
-	int m_Width;
-	int m_Height;
 	bool m_vSync;
 };

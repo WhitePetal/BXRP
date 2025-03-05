@@ -19,6 +19,9 @@ public:
 	virtual void UnloadContent() override;
 
 protected:
+	virtual AccelerationStructureBuffers CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers) override;
+	virtual void CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances) override;
+	virtual void CreateAccelerationStructures() override;
 	virtual void OnUpdate(UpdateEventArgs& e) override;
 	virtual void OnRender(RenderEventArgs& e) override;
 	virtual void OnKeyboardDown(KeyEventArgs& e) override;

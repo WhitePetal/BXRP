@@ -30,6 +30,8 @@ Contacts for feedback:
 */
 
 #include "BottomLevelASGenerator.h"
+#include <stdexcept>
+#include <Debug.h>
 
 // Helper to compute aligned buffer sizes
 #ifndef ROUND_UP
@@ -230,6 +232,10 @@ void BottomLevelASGenerator::Generate(
       previousResult ? previousResult->GetGPUVirtualAddress() : 0;
   buildDesc.Inputs.Flags = flags;
 
+  if (commandList == nullptr)
+  {
+      Debug::LogError("commandList is null");
+  }
   // Build the AS
   commandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
@@ -237,7 +243,7 @@ void BottomLevelASGenerator::Generate(
   // buffer. This is particularly important as the construction of the top-level
   // hierarchy may be called right afterwards, before executing the command
   // list.
-  D3D12_RESOURCE_BARRIER uavBarrier;
+  D3D12_RESOURCE_BARRIER uavBarrier = {};
   uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
   uavBarrier.UAV.pResource = resultBuffer;
   uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;

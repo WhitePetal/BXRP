@@ -8,8 +8,10 @@
 #include <sstream>
 #include <string>
 #include <d3d12.h>
-#include "DXSampleHelper.h"
+#include <Helpers.h>
 #include <dxcapi.h>
+
+#pragma comment(lib, "dxcompiler.lib")
 
 #include <vector>
 
@@ -37,7 +39,7 @@ inline ID3D12Resource* CreateBuffer(ID3D12Device* m_device, uint64_t size,
   bufDesc.Width = size;
 
   ID3D12Resource* pBuffer;
-  ThrowIfFailed(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+  ThrowIfFaild(m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
                                                   initState, nullptr, IID_PPV_ARGS(&pBuffer)));
   return pBuffer;
 }
@@ -70,9 +72,9 @@ IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
   // Initialize the DXC compiler and compiler helper
   if (!pCompiler)
   {
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler), (void **)&pCompiler));
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcLibrary, __uuidof(IDxcLibrary), (void **)&pLibrary));
-    ThrowIfFailed(pLibrary->CreateIncludeHandler(&dxcIncludeHandler));
+      ThrowIfFaild(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler), (void **)&pCompiler));
+      ThrowIfFaild(DxcCreateInstance(CLSID_DxcLibrary, __uuidof(IDxcLibrary), (void **)&pLibrary));
+      ThrowIfFaild(pLibrary->CreateIncludeHandler(&dxcIncludeHandler));
   }
   // Open and read the file
   std::ifstream shaderFile(fileName);
@@ -86,17 +88,17 @@ IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
 
   // Create blob from the string
   IDxcBlobEncoding* pTextBlob;
-  ThrowIfFailed(pLibrary->CreateBlobWithEncodingFromPinned(
+  ThrowIfFaild(pLibrary->CreateBlobWithEncodingFromPinned(
       (LPBYTE)sShader.c_str(), (uint32_t)sShader.size(), 0, &pTextBlob));
 
   // Compile
   IDxcOperationResult* pResult;
-  ThrowIfFailed(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_3", nullptr, 0, nullptr, 0,
+  ThrowIfFaild(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_3", nullptr, 0, nullptr, 0,
                                    dxcIncludeHandler, &pResult));
 
   // Verify the result
   HRESULT resultCode;
-  ThrowIfFailed(pResult->GetStatus(&resultCode));
+  ThrowIfFaild(pResult->GetStatus(&resultCode));
   if (FAILED(resultCode))
   {
     IDxcBlobEncoding* pError;
@@ -119,7 +121,7 @@ IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
   }
 
   IDxcBlob* pBlob;
-  ThrowIfFailed(pResult->GetResult(&pBlob));
+  ThrowIfFaild(pResult->GetResult(&pBlob));
   return pBlob;
 }
 
@@ -136,7 +138,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, uint32_t count,
       shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
   ID3D12DescriptorHeap* pHeap;
-  ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pHeap)));
+  ThrowIfFaild(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pHeap)));
   return pHeap;
 }
 
@@ -149,18 +151,18 @@ void GenerateMengerSponge(int32_t level, float probability, std::vector<Vertex>&
 {
   struct Cube
   {
-    Cube(const XMVECTOR& tlf, float s) : m_topLeftFront(tlf), m_size(s)
+    Cube(const DirectX::XMVECTOR& tlf, float s) : m_topLeftFront(tlf), m_size(s)
     {
     }
-    XMVECTOR m_topLeftFront;
+    DirectX::XMVECTOR m_topLeftFront;
     float m_size;
 
     void enqueueQuad(std::vector<Vertex>& vertices, std::vector<UINT>& indices,
-                     const XMVECTOR& bottomLeft4, const XMVECTOR& dx, const XMVECTOR& dy, bool flip)
+                     const DirectX::XMVECTOR& bottomLeft4, const DirectX::XMVECTOR& dx, const DirectX::XMVECTOR& dy, bool flip)
     {
       UINT currentIndex = static_cast<UINT>(vertices.size());
-      XMFLOAT3 bottomLeft(bottomLeft4.m128_f32);
-      XMVECTOR normal = XMVector3Cross(XMVector3Normalize(dy), XMVector3Normalize(dx));
+      DirectX::XMFLOAT3 bottomLeft(bottomLeft4.m128_f32);
+      DirectX::XMVECTOR normal = XMVector3Cross(XMVector3Normalize(dy), XMVector3Normalize(dx));
       if (flip)
       {
         normal = -normal;
@@ -206,7 +208,7 @@ void GenerateMengerSponge(int32_t level, float probability, std::vector<Vertex>&
     void enqueueVertices(std::vector<Vertex>& vertices, std::vector<UINT>& indices)
     {
 
-      XMVECTOR current = m_topLeftFront;
+        DirectX::XMVECTOR current = m_topLeftFront;
       enqueueQuad(vertices, indices, current, {m_size, 0, 0}, {0, m_size, 0}, false);
       enqueueQuad(vertices, indices, current, {m_size, 0, 0}, {0, 0, m_size}, true);
       enqueueQuad(vertices, indices, current, {0, m_size, 0}, {0, 0, m_size}, false);
@@ -221,7 +223,7 @@ void GenerateMengerSponge(int32_t level, float probability, std::vector<Vertex>&
     void split(std::vector<Cube>& cubes)
     {
       float size = m_size / 3.f;
-      XMVECTOR topLeftFront = m_topLeftFront;
+      DirectX::XMVECTOR topLeftFront = m_topLeftFront;
       for (int x = 0; x < 3; x++)
       {
         topLeftFront.m128_f32[0] = m_topLeftFront.m128_f32[0] + static_cast<float>(x) * size;
@@ -248,7 +250,7 @@ void GenerateMengerSponge(int32_t level, float probability, std::vector<Vertex>&
     {
 
       float size = m_size / 3.f;
-      XMVECTOR topLeftFront = m_topLeftFront;
+      DirectX::XMVECTOR topLeftFront = m_topLeftFront;
       for (int x = 0; x < 3; x++)
       {
         topLeftFront.m128_f32[0] = m_topLeftFront.m128_f32[0] + static_cast<float>(x) * size;
@@ -268,7 +270,7 @@ void GenerateMengerSponge(int32_t level, float probability, std::vector<Vertex>&
     }
   };
 
-  XMVECTOR orig;
+  DirectX::XMVECTOR orig;
   orig.m128_f32[0] = -0.5f;
   orig.m128_f32[1] = -0.5f;
   orig.m128_f32[2] = -0.5f;
