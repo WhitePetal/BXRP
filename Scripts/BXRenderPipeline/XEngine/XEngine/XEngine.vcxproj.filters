@@ -19,6 +19,9 @@
     <Filter Include="源文件\DXRHelper">
       <UniqueIdentifier>{8e98b1f5-8a06-459a-9e0d-9dac4c1fa382}</UniqueIdentifier>
     </Filter>
+    <Filter Include="资源文件\RayTracingShaders">
+      <UniqueIdentifier>{43b5b5b2-0bf1-47fc-902c-4523532097b2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp">
@@ -120,6 +123,18 @@
     </FxCompile>
     <FxCompile Include="res\PixelShader.hlsl">
       <Filter>资源文件</Filter>
+    </FxCompile>
+    <FxCompile Include="..\x64\Debug\RayTracingShaders\Common.hlsl">
+      <Filter>资源文件\RayTracingShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\x64\Debug\RayTracingShaders\Hit.hlsl">
+      <Filter>资源文件\RayTracingShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\x64\Debug\RayTracingShaders\Miss.hlsl">
+      <Filter>资源文件\RayTracingShaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\x64\Debug\RayTracingShaders\RayGen.hlsl">
+      <Filter>资源文件\RayTracingShaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

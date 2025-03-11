@@ -100,4 +100,26 @@ private:
 	DirectX::XMMATRIX m_ProjectionMatrix;
 
 	bool m_ContentLoaded;
+
+
+	// DXR
+	ComPtr<ID3D12RootSignature> CreateRayGenSignature();
+	ComPtr<ID3D12RootSignature> CreateMissSignature();
+	ComPtr<ID3D12RootSignature> CreateHitSignature();
+
+	void CreateRaytracingPipline();
+
+	ComPtr<IDxcBlob> m_RayGenLibrary;
+	ComPtr<IDxcBlob> m_HitLibrary;
+	ComPtr<IDxcBlob> m_MissLibrary;
+
+	ComPtr<ID3D12RootSignature> m_RayGenSignature;
+	ComPtr<ID3D12RootSignature> m_HitSignature;
+	ComPtr<ID3D12RootSignature> m_MissSignature;
+
+	// Ray tracing pipeline state
+	ComPtr<ID3D12StateObject> m_RTStateObject;
+	// Ray tracing pipeline state properties, retaining the shader identifiers
+	// to use int the Shader Binding Table
+	ComPtr<ID3D12StateObjectProperties> m_RTStateObjectProps;
 };

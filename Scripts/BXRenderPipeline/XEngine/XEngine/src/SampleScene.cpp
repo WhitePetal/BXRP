@@ -14,6 +14,8 @@ using namespace Microsoft::WRL;
 // DXR
 #include "external/DXRHelpers/DXRHelper.h"
 #include "external/DXRHelpers/nv_helpers_dx12/BottomLevelASGenerator.h"
+#include "external/DXRHelpers//nv_helpers_dx12/RaytracingPipelineGenerator.h"
+#include "external/DXRHelpers/nv_helpers_dx12/RootSignatureGenerator.h"
 
 #include <algorithm>
 #if defined(min)
@@ -137,10 +139,6 @@ bool SampleScene::LoadContent()
         &intermediateIndexBuffer,
         _countof(g_Indicies), sizeof(WORD), g_Indicies);
 
-    // Setup the acceleration structures (AS) for raytracing. When setting up
-// geometry, each bottom-level AS has its own transform matrix.
-    CreateAccelerationStructures();
-
     // Create index buffer view.
     m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
     m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
@@ -225,6 +223,15 @@ bool SampleScene::LoadContent()
     auto fenceValue = commandQueue->ExecuteCommandList(commandList);
     commandQueue->WaitForFenceValue(fenceValue);
 
+    // #DXR
+    // Setup the acceleration structures (AS) for raytracing. When setting up
+    // geometry, each bottom-level AS has its own transform matrix.
+    CreateAccelerationStructures();
+    // Create the raytracing pipeline, associating the shader code to symbol names
+    // and to their root signatures, and defining the amount of memory carried by
+    // rays (ray payload)
+    CreateRaytracingPipline();
+
     m_ContentLoaded = true;
     
     // Resize/Create the depth buffer
@@ -281,7 +288,8 @@ AccelerationStructureBuffers SampleScene::CreateBottomLevelAS(ComPtr<ID3D12Devic
     // Adding all vertex buffers and not transforming their positon
     for (const auto& buffer : vVertexBuffers)
     {
-        bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), m_IndexBuffer.Get(), 0, _countof(g_Indicies), 0, 0);
+        //bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), m_IndexBuffer.Get(), 0, _countof(g_Indicies), nullptr, 0, true);
+        bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), 0, 0);
     }
 
     // The AS build requires some scratch space to store temporary information.
@@ -391,6 +399,69 @@ void SampleScene::CreateAccelerationStructures()
     commandQueue->WaitForFenceValue(fenceValue);
 
     m_BottomLevelAS = bottomLevelBuffers.pResult;
+}
+
+ComPtr<ID3D12RootSignature> SampleScene::CreateRayGenSignature()
+{
+    auto device = Application::Get().GetDevice();
+    nv_helpers_dx12::RootSignatureGenerator rsc;
+    rsc.AddHeapRangesParameter(
+        {
+            {0 /*u0*/, 1 /*1 descriptor*/, 0 /*use the implicit register space 0*/,
+            D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0 /*heap slot where the UAV is defined*/},
+            {0 /*t0*/, 1, 0,
+            D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, 1}
+        }
+    );
+    return rsc.Generate(device.Get(), true);
+}
+
+ComPtr<ID3D12RootSignature> SampleScene::CreateHitSignature()
+{
+    auto device = Application::Get().GetDevice();
+    nv_helpers_dx12::RootSignatureGenerator rsc;
+    return rsc.Generate(device.Get(), true);
+}
+
+ComPtr<ID3D12RootSignature> SampleScene::CreateMissSignature()
+{
+    auto device = Application::Get().GetDevice();
+    nv_helpers_dx12::RootSignatureGenerator rsc;
+    return rsc.Generate(device.Get(), true);
+}
+
+void SampleScene::CreateRaytracingPipline()
+{
+    auto device = Application::Get().GetDevice();
+    nv_helpers_dx12::RayTracingPipelineGenerator pipeline(device.Get());
+
+    m_RayGenLibrary = nv_helpers_dx12::CompileShaderLibrary(L"RayTracingShaders/RayGen.hlsl");
+    m_MissLibrary = nv_helpers_dx12::CompileShaderLibrary(L"RayTracingShaders/Miss.hlsl");
+    m_HitLibrary = nv_helpers_dx12::CompileShaderLibrary(L"RayTracingShaders/Hit.hlsl");
+
+    pipeline.AddLibrary(m_RayGenLibrary.Get(), { L"RayGen" });
+    pipeline.AddLibrary(m_MissLibrary.Get(), { L"Miss" });
+    pipeline.AddLibrary(m_HitLibrary.Get(), { L"ClosestHit" });
+
+    m_RayGenSignature = CreateRayGenSignature();
+    m_MissSignature = CreateMissSignature();
+    m_HitSignature = CreateHitSignature();
+
+    pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
+
+    pipeline.AddRootSignatureAssociation(m_RayGenSignature.Get(), { L"RayGen" });
+    pipeline.AddRootSignatureAssociation(m_MissSignature.Get(), { L"Miss" });
+    pipeline.AddRootSignatureAssociation(m_HitSignature.Get(), { L"HitGroup" });
+
+    pipeline.SetMaxPayloadSize(4 * sizeof(float));
+
+    pipeline.SetMaxAttributeSize(2 * sizeof(float));
+
+    pipeline.SetMaxRecursionDepth(1);
+
+    m_RTStateObject = pipeline.Generate();
+
+    ThrowIfFaild(m_RTStateObject->QueryInterface(IID_PPV_ARGS(&m_RTStateObjectProps)));
 }
 
 void SampleScene::OnResize(ResizeEventArgs& e)
