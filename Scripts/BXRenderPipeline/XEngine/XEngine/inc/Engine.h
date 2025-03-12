@@ -120,7 +120,7 @@ protected:
 	int m_Height;
 	bool m_Raster = true;
 
-	ComPtr<ID3D12Resource> m_BottomLevelAS;
+	AccelerationStructureBuffers m_BottomLevelASBuffers;
 	nv_helpers_dx12::TopLevelASGenerator m_TopLevelASGenerator;
 	AccelerationStructureBuffers m_TopLevelASBuffers;
 	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_Instances;

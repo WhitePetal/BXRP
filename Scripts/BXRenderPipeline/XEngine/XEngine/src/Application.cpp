@@ -1,6 +1,8 @@
 #include <cassert>
 
 #include <d3d12.h>
+#include <dxgi1_6.h>
+#include <dxgidebug.h>
 
 #include <Helpers.h>
 
@@ -133,6 +135,7 @@ ComPtr<ID3D12Device5> Application::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
 	ComPtr<ID3D12Device5> d3d12Device5;
 	ThrowIfFaild(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device5)));
 
+	UINT dxgiFactoryFlags = 0;
 	// Enable debug message in debug mode.
 #if defined(_DEBUG)
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
@@ -169,8 +172,17 @@ ComPtr<ID3D12Device5> Application::CreateDevice(ComPtr<IDXGIAdapter4> adapter)
 
 		ThrowIfFaild(pInfoQueue->PushStorageFilter(&NewFilter));
 	}
-#endif
 
+	ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue))))
+	{
+		dxgiFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+		dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+
+		dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+	}
+#endif
+	ThrowIfFaild(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 	return d3d12Device5;
 }
 
@@ -182,11 +194,10 @@ bool Application::CheckTearingSupport()
 	// DXGI 1.4 interface and query for the 1.5 interface. This is to enable the
 	// graphics debugging tools which will not support the 1.5 factory interface
 	// until a future update
-	ComPtr<IDXGIFactory4> factor4;
-	if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factor4))))
+	if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory))))
 	{
 		ComPtr<IDXGIFactory5> factory5;
-		if (SUCCEEDED(factor4.As(&factory5)))
+		if (SUCCEEDED(m_dxgiFactory.As(&factory5)))
 		{
 			if (FAILED(factory5->CheckFeatureSupport(
 				DXGI_FEATURE_PRESENT_ALLOW_TEARING,

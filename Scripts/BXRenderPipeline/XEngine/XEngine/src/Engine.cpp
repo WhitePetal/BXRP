@@ -53,11 +53,10 @@ HINSTANCE g_hInstance;
 
 void ReportLiveObjects()
 {
-	IDXGIDebug1* dxgiDebug;
+	ComPtr<IDXGIDebug1> dxgiDebug;
 	DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug));
 
-	dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_IGNORE_INTERNAL);
-	dxgiDebug->Release();
+	dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
 }
 
 /// <summary>
@@ -99,16 +98,9 @@ int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 		Application::Create(hInstance);
 		{
 			std::shared_ptr<SampleScene> demo = std::make_shared<SampleScene>(L"Learning DirectX 12 - Lesson 2", 1280, 720);
-			//demo->Initialize();
 			retCode = Application::Get().Run(demo);
-			//Debug::Log("retCode: " + std::to_string(retCode));
-			//WindowPtr window = Application::Get().GetWindowByName(L"Learning DirectX 12 - Lesson 2");
-			//Debug::Log("WindowFind: " + std::to_string(window == nullptr));
-			//std::wstring wndName = window->GetWindowName();
-			//Debug::Log("WindowName: " + std::string(wndName.begin(), wndName.end()));
-			//Application::RemoveWindow(window->GetWindowHandle());
-			//demo->Destroy();
 		}
+
 		Application::Destroy();
 #if defined(_DEBUG)
 	}

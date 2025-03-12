@@ -177,6 +177,7 @@ private:
 	HWND m_ParentWnd;
 
 	ComPtr<IDXGIAdapter4> m_dxgiAdapter;
+	ComPtr<IDXGIFactory4> m_dxgiFactory;
 	ComPtr<ID3D12Device5> m_d3d12Device;
 
 	std::shared_ptr<CommandQueue> m_DirectCommandQueue;

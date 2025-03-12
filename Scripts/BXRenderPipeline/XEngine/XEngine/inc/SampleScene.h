@@ -7,6 +7,8 @@
 
 #include <DirectXMath.h>
 
+#include "external/DXRHelpers/nv_helpers_dx12/ShaderBindingTableGenerator.h"
+
 class SampleScene : public Engine
 {
 public:
@@ -109,6 +111,12 @@ private:
 
 	void CreateRaytracingPipline();
 
+	void CreateRaytracingOutputBuffer();
+	void CreateRaytracingResourceHeap();
+	void CreateRaytracingResourceView();
+
+	void CreateRaytracingShaderBindingTable();
+
 	ComPtr<IDxcBlob> m_RayGenLibrary;
 	ComPtr<IDxcBlob> m_HitLibrary;
 	ComPtr<IDxcBlob> m_MissLibrary;
@@ -122,4 +130,10 @@ private:
 	// Ray tracing pipeline state properties, retaining the shader identifiers
 	// to use int the Shader Binding Table
 	ComPtr<ID3D12StateObjectProperties> m_RTStateObjectProps;
+
+	ComPtr<ID3D12Resource> m_OutputResource;
+	ComPtr<ID3D12DescriptorHeap> m_SRV_UAV_Heap;
+
+	nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
+	ComPtr<ID3D12Resource> m_sbtStorage;
 };

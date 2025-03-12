@@ -31,18 +31,25 @@ using namespace DirectX;
 struct VertexPosColor
 {
 	XMFLOAT3 Position;
-	XMFLOAT3 COlor;
+	XMFLOAT4 COlor;
 };
 
+//static VertexPosColor g_Vertices[8] = {
+//    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, // 0
+//    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }, // 1
+//    { XMFLOAT3(1.0f,  1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }, // 2
+//    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }, // 3
+//    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }, // 4
+//    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) }, // 5
+//    { XMFLOAT3(1.0f,  1.0f,  1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) }, // 6
+//    { XMFLOAT3(1.0f, -1.0f,  1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }  // 7
+//};
+
 static VertexPosColor g_Vertices[8] = {
-    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f) }, // 0
-    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) }, // 1
-    { XMFLOAT3(1.0f,  1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, 0.0f) }, // 2
-    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) }, // 3
-    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) }, // 4
-    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT3(0.0f, 1.0f, 1.0f) }, // 5
-    { XMFLOAT3(1.0f,  1.0f,  1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) }, // 6
-    { XMFLOAT3(1.0f, -1.0f,  1.0f), XMFLOAT3(1.0f, 0.0f, 1.0f) }  // 7
+    { XMFLOAT3(std::sqrtf(8.f / 9.f), 0.f, -1.f / 3.f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, // 0
+    { XMFLOAT3(-std::sqrtf(2.f / 9.f), std::sqrtf(2.f / 3.f), -1.f / 3.f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }, // 1
+    { XMFLOAT3(-std::sqrtf(2.f / 9.f), -std::sqrtf(2.f / 3.f), -1.f / 3.f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }, // 2
+    { XMFLOAT3(0.f, 0.f, 1.f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }, // 3
 };
 
 static WORD g_Indicies[36] =
@@ -231,9 +238,9 @@ bool SampleScene::LoadContent()
     // and to their root signatures, and defining the amount of memory carried by
     // rays (ray payload)
     CreateRaytracingPipline();
-
-    m_ContentLoaded = true;
+    CreateRaytracingResourceHeap();
     
+    m_ContentLoaded = true;
     // Resize/Create the depth buffer
     ResizeDepthBuffer(m_Width, m_Height);
 
@@ -278,6 +285,11 @@ void SampleScene::ResizeDepthBuffer(int width, int height)
 
         device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv,
             m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+
+        // #DXR
+        CreateRaytracingOutputBuffer();
+        CreateRaytracingResourceView();
+        CreateRaytracingShaderBindingTable();
     }
 }
 
@@ -388,17 +400,15 @@ void SampleScene::CreateAccelerationStructures()
     auto commandList = commandQueue->GetCommandList();
 
     // Build the bottom AS
-    AccelerationStructureBuffers bottomLevelBuffers = CreateBottomLevelAS(device, commandList, { {m_VertexBuffer.Get(), _countof(g_Vertices)} });
+    m_BottomLevelASBuffers = CreateBottomLevelAS(device, commandList, { {m_VertexBuffer.Get(), _countof(g_Vertices)} });
 
     // Just one instance for now
-    m_Instances = { {bottomLevelBuffers.pResult, XMMatrixIdentity()} };
+    m_Instances = { {m_BottomLevelASBuffers.pResult, XMMatrixIdentity()} };
     CreateTopLevelAS(device, commandList, m_Instances);
 
     // Flush the command list and wait for it to finish
     auto fenceValue = commandQueue->ExecuteCommandList(commandList);
     commandQueue->WaitForFenceValue(fenceValue);
-
-    m_BottomLevelAS = bottomLevelBuffers.pResult;
 }
 
 ComPtr<ID3D12RootSignature> SampleScene::CreateRayGenSignature()
@@ -420,6 +430,7 @@ ComPtr<ID3D12RootSignature> SampleScene::CreateHitSignature()
 {
     auto device = Application::Get().GetDevice();
     nv_helpers_dx12::RootSignatureGenerator rsc;
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
     return rsc.Generate(device.Get(), true);
 }
 
@@ -462,6 +473,86 @@ void SampleScene::CreateRaytracingPipline()
     m_RTStateObject = pipeline.Generate();
 
     ThrowIfFaild(m_RTStateObject->QueryInterface(IID_PPV_ARGS(&m_RTStateObjectProps)));
+}
+
+void SampleScene::CreateRaytracingOutputBuffer()
+{
+    auto device = Application::Get().GetDevice();
+    D3D12_RESOURCE_DESC resDesc = {};
+    resDesc.DepthOrArraySize = 1;
+    resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+    resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    resDesc.Width = m_Width;
+    resDesc.Height = m_Height;
+    resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    resDesc.MipLevels = 1;
+    resDesc.SampleDesc.Count = 1;
+
+    ThrowIfFaild(device->CreateCommittedResource(
+        &nv_helpers_dx12::kDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr,
+        IID_PPV_ARGS(&m_OutputResource)
+    ));
+}
+
+void SampleScene::CreateRaytracingResourceHeap()
+{
+    auto device = Application::Get().GetDevice();
+    m_SRV_UAV_Heap = nv_helpers_dx12::CreateDescriptorHeap(device.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+}
+
+void SampleScene::CreateRaytracingResourceView()
+{
+    auto device = Application::Get().GetDevice();
+
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_SRV_UAV_Heap->GetCPUDescriptorHandleForHeapStart();
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    device->CreateUnorderedAccessView(m_OutputResource.Get(), nullptr, &uavDesc, srvHandle);
+
+    // Add the Top Level AS SRV right after the raytracing output buffer
+    srvHandle.ptr += device->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+    );
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.RaytracingAccelerationStructure.Location = m_TopLevelASBuffers.pResult->GetGPUVirtualAddress();
+    device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+}
+
+void SampleScene::CreateRaytracingShaderBindingTable()
+{
+    auto device = Application::Get().GetDevice();
+
+    m_sbtHelper.Reset();
+
+    D3D12_GPU_DESCRIPTOR_HANDLE srv_uav_HeapHandle = m_SRV_UAV_Heap->GetGPUDescriptorHandleForHeapStart();
+
+    auto heapPointer = reinterpret_cast<UINT64 *>(srv_uav_HeapHandle.ptr);
+
+    m_sbtHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
+
+    m_sbtHelper.AddMissProgram(L"Miss", {});
+
+    m_sbtHelper.AddHitGroup(L"HitGroup", {(void *)(m_VertexBuffer->GetGPUVirtualAddress())});
+
+    uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();
+
+    m_sbtStorage = nv_helpers_dx12::CreateBuffer(
+        device.Get(), sbtSize, D3D12_RESOURCE_FLAG_NONE,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps
+    );
+    if (!m_sbtStorage)
+    {
+        throw std::logic_error("Could not allocate the shader binding table");
+    }
+    m_sbtHelper.Generate(m_sbtStorage.Get(), m_RTStateObjectProps.Get());
 }
 
 void SampleScene::OnResize(ResizeEventArgs& e)
@@ -572,6 +663,58 @@ void SampleScene::OnRender(RenderEventArgs& e)
     {
         FLOAT clearColor[] = { 0.6f, 0.8f, 0.4f, 1.0f };
         ClearRTV(commandList, rtv, clearColor);
+
+        std::vector<ID3D12DescriptorHeap *> heaps = { m_SRV_UAV_Heap.Get() };
+        commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
+
+        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            m_OutputResource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+        );
+        commandList->ResourceBarrier(1, &transition);
+
+        D3D12_DISPATCH_RAYS_DESC desc = {};
+
+        uint32_t rayGenerationSectionSizeInBytes = m_sbtHelper.GetRayGenSectionSize();
+        desc.RayGenerationShaderRecord.StartAddress = m_sbtStorage->GetGPUVirtualAddress();
+        desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
+
+        uint32_t missSectionSizeInBytes = m_sbtHelper.GetMissSectionSize();
+        desc.MissShaderTable.StartAddress = m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
+        desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
+        desc.MissShaderTable.StrideInBytes = m_sbtHelper.GetMissEntrySize();
+
+        uint32_t stbStartAddress = m_sbtStorage->GetGPUVirtualAddress();
+        uint32_t hitGroupSectionSize = m_sbtHelper.GetHitGroupSectionSize();
+        desc.HitGroupTable.StartAddress = m_sbtStorage->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes;
+        desc.HitGroupTable.SizeInBytes = hitGroupSectionSize;
+        desc.HitGroupTable.StrideInBytes = m_sbtHelper.GetHitGroupEntrySize();
+
+        desc.Width = m_Width;
+        desc.Height = m_Height;
+        desc.Depth = 1;
+
+        commandList->SetPipelineState1(m_RTStateObject.Get());
+        commandList->DispatchRays(&desc);
+
+        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            m_OutputResource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+            D3D12_RESOURCE_STATE_COPY_SOURCE
+        );
+        commandList->ResourceBarrier(1, &transition);
+        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_COPY_DEST
+        );
+        commandList->ResourceBarrier(1, &transition);
+
+        commandList->CopyResource(backBuffer.Get(), m_OutputResource.Get());
+
+        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_RENDER_TARGET
+        );
+        commandList->ResourceBarrier(1, &transition);
     }
 
     // Present
@@ -588,7 +731,59 @@ void SampleScene::OnRender(RenderEventArgs& e)
 
 void SampleScene::UnloadContent()
 {
-    m_ContentLoaded = false;
+    if (m_ContentLoaded)
+    {
+        m_VertexBuffer->Release();
+        m_IndexBuffer->Release();
+        //m_VertexBuffer = nullptr;
+        //m_IndexBuffer = nullptr;
+        //m_DepthBuffer->Release();
+
+        //m_BottomLevelASBuffers.pInstanceDesc->Release();
+        m_BottomLevelASBuffers.pResult->Release();
+        m_BottomLevelASBuffers.pScratch->Release();
+        m_BottomLevelASBuffers.pResult = nullptr;
+        m_BottomLevelASBuffers.pScratch = nullptr;
+        m_TopLevelASBuffers.pInstanceDesc->Release();
+        m_TopLevelASBuffers.pResult->Release();
+        m_TopLevelASBuffers.pScratch->Release();
+        m_TopLevelASBuffers.pInstanceDesc = nullptr;
+        m_TopLevelASBuffers.pResult = nullptr;
+        m_TopLevelASBuffers.pScratch = nullptr;
+
+        m_RayGenLibrary->Release();
+        m_MissLibrary->Release();
+        m_HitLibrary->Release();
+        m_RayGenLibrary = nullptr;
+        m_MissLibrary = nullptr;
+        m_HitLibrary = nullptr;
+
+        m_RayGenSignature->Release();
+        m_MissSignature->Release();
+        m_HitSignature->Release();
+        m_RayGenSignature = nullptr;
+        m_MissSignature = nullptr;
+        m_HitSignature = nullptr;
+
+        m_RTStateObject->Release();
+        m_RTStateObjectProps->Release();
+        m_RTStateObject = nullptr;
+        m_RTStateObjectProps = nullptr;
+
+        m_SRV_UAV_Heap->Release();
+        m_SRV_UAV_Heap = nullptr;
+
+        //if (m_OutputResource != nullptr)
+        //{
+        //    m_OutputResource->Release();
+        //    m_OutputResource = nullptr;
+        //}
+
+        m_sbtStorage->Release();
+        m_sbtStorage = nullptr;
+
+        m_ContentLoaded = false;
+    }
 }
 void SampleScene::OnKeyboardDown(KeyEventArgs& e)
 {

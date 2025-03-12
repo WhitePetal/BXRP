@@ -74,7 +74,6 @@ private:
 
 	D3D12_COMMAND_LIST_TYPE m_CommandListType;
 
-	ComPtr<ID3D12Device5> m_d3d12Device;
 	ComPtr<ID3D12CommandQueue> m_d3d12CommandQueue;
 	ComPtr<ID3D12Fence> m_d3d12Fence;
 	HANDLE m_FenceEvent;
