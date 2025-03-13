@@ -53,6 +53,7 @@ void RasterPipeline::LoadContent()
     {
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
     }
+
     // Allow input layout and deny unnecessary access to certain pipeline stages
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -60,12 +61,16 @@ void RasterPipeline::LoadContent()
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-    // A single 32-bit constant root parameter that is used by the vertex shader
-    CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-    rootParameters[0].InitAsConstants(sizeof
-    (XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // Camera Matrixs
+    CD3DX12_ROOT_PARAMETER1 rootParameter;
+    CD3DX12_DESCRIPTOR_RANGE1 range;
+    range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    rootParameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
+
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
-    rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+    rootSignatureDescription.Init_1_1(1, &rootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
     // Serialize the root signature
     ComPtr<ID3DBlob> rootSignatureBlob;
     ComPtr<ID3DBlob> errorBlob;
@@ -122,9 +127,13 @@ void RasterPipeline::OnRender(ComPtr<ID3D12GraphicsCommandList4> commandList, D3
     commandList->IASetVertexBuffers(0, 1, m_Engine->GetVertexBufferView());
     commandList->IASetIndexBuffer(m_Engine->GetIndexBufferView());
 
-    // Update the MVP matrix
-    XMMATRIX mvpMatrix = m_Engine->GetMVPMatrix();
-    commandList->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &mvpMatrix, 0);
+    // Update the Camera Matrixs
+    ComPtr<ID3D12DescriptorHeap> camerConstHeap = m_Engine->GetCamera()->GetConstHeap();
+    std::vector<ID3D12DescriptorHeap*> heaps = { camerConstHeap.Get() };
+    commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
+    commandList->SetGraphicsRootDescriptorTable(
+        0, camerConstHeap->GetGPUDescriptorHandleForHeapStart()
+    );
 
     commandList->DrawIndexedInstanced(_countof(g_Indicies), 1, 0, 0, 0);
 }

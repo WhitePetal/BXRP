@@ -3,6 +3,7 @@
 #define XENGINE_API __declspec(dllexport)
 
 #include <Events.h>
+#include <Camera.h>
 
 #include <memory>
 #include <string>
@@ -35,21 +36,16 @@ struct VertexPosColor
 //    { XMFLOAT3(1.0f, -1.0f,  1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }  // 7
 //};
 
-static VertexPosColor g_Vertices[8] = {
+static VertexPosColor g_Vertices[4] = {
 	{ DirectX::XMFLOAT3(std::sqrtf(8.f / 9.f), 0.f, -1.f / 3.f), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, // 0
 	{ DirectX::XMFLOAT3(-std::sqrtf(2.f / 9.f), std::sqrtf(2.f / 3.f), -1.f / 3.f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }, // 1
 	{ DirectX::XMFLOAT3(-std::sqrtf(2.f / 9.f), -std::sqrtf(2.f / 3.f), -1.f / 3.f), DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }, // 2
 	{ DirectX::XMFLOAT3(0.f, 0.f, 1.f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }, // 3
 };
 
-static WORD g_Indicies[36] =
+static uint32_t g_Indicies[12] =
 {
-	0, 1, 2, 0, 2, 3,
-	4, 6, 5, 4, 7, 6,
-	4, 5, 1, 4, 1, 0,
-	3, 2, 6, 3, 6, 7,
-	1, 5, 6, 1, 6, 2,
-	4, 0, 3, 4, 3, 7
+	0, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2
 };
 
 class Engine : public std::enable_shared_from_this<Engine>
@@ -75,7 +71,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW* GetVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW* GetIndexBufferView();
 
-	DirectX::XMMATRIX GetMVPMatrix();
+	std::shared_ptr<Camera> GetCamera();
 
 	/// <summary>
 	/// Transition a resource
@@ -174,7 +170,7 @@ protected:
 	int m_Width;
 	int m_Height;
 
-	float m_FoV;
+	std::shared_ptr<Camera> m_Camera;
 
 	// Vertex buffer for the cube
 	ComPtr<ID3D12Resource> m_VertexBuffer;
@@ -182,10 +178,6 @@ protected:
 	// Index buffer for the cube
 	ComPtr<ID3D12Resource> m_IndexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
-
-	DirectX::XMMATRIX m_ModelMatrix;
-	DirectX::XMMATRIX m_ViewMatrix;
-	DirectX::XMMATRIX m_ProjectionMatrix;
 
 	bool m_ContentLoaded;
 

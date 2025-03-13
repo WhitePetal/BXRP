@@ -231,11 +231,9 @@ D3D12_INDEX_BUFFER_VIEW* Engine::GetIndexBufferView()
 	return &m_IndexBufferView;
 }
 
-DirectX::XMMATRIX Engine::GetMVPMatrix()
+std::shared_ptr<Camera> Engine::GetCamera()
 {
-	XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
-	mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
-	return mvpMatrix;
+	return m_Camera;
 }
 
 void Engine::UpdateBufferResource(

@@ -31,8 +31,11 @@ SampleScene::SampleScene(const std::wstring& name, int width, int height, bool v
     , m_Viewport(CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)))
 {
     m_ContentLoaded = false;
-    m_FoV = 45.0;
     
+    m_FoV = 45.0f;
+
+    m_Camera = std::make_shared<Camera>(m_FoV, width * 1.0f / height);
+
     Engine* pEngine = this;
     m_RasterPipeline = std::make_shared<RasterPipeline>(pEngine);
     m_RaytracingPipeline = std::make_shared<RaytracingPipeline>(pEngine);
@@ -44,6 +47,8 @@ bool SampleScene::LoadContent()
     auto device = app.GetDevice();
     auto commandQueue = app.GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
     auto commandList = commandQueue->GetCommandList();
+
+    m_Camera->CreateCameraBuffer();
 
     // Upload vertex buffer data.
     ComPtr<ID3D12Resource> intermediateVertexBuffer;
@@ -64,12 +69,12 @@ bool SampleScene::LoadContent()
         commandList,
         &m_IndexBuffer,
         &intermediateIndexBuffer,
-        _countof(g_Indicies), sizeof(WORD), g_Indicies);
+        _countof(g_Indicies), sizeof(uint32_t), g_Indicies);
 
     // Create index buffer view.
     m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
-    m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
-    m_IndexBufferView.SizeInBytes = sizeof(g_Indicies);
+    m_IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    m_IndexBufferView.SizeInBytes = _countof(g_Indicies) * sizeof(uint32_t);
 
     // Create the descriptor heap for the depth-stencil view (DSV)
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
@@ -87,6 +92,7 @@ bool SampleScene::LoadContent()
 
     m_RasterPipeline->LoadContent();
     m_RaytracingPipeline->LoadContent();
+
 
     return true;
 }
@@ -128,23 +134,15 @@ void SampleScene::OnUpdate(UpdateEventArgs& e)
         totalTime = 0.0;
     }
 
-    // Update the model matrix
-    float angle = static_cast<float>(e.TotalTime * 90.0);
-    const XMVECTOR rotationAxis = XMVectorSet(0, 1, 0, 0);
-    m_ModelMatrix = XMMatrixRotationAxis(rotationAxis, XMConvertToRadians(angle));
-    // Update the view matrix
-    const XMVECTOR eyePosition = XMVectorSet(0, 0, -10, 1);
-    const XMVECTOR focusPoint = XMVectorSet(0, 0, 0, 1);
-    const XMVECTOR upDirection = XMVectorSet(0, 1, 0, 0);
-    m_ViewMatrix = XMMatrixLookAtLH(eyePosition, focusPoint, upDirection);
-    // Update the projection matrix.
-    float aspectRatio = m_Viewport.Width / static_cast<float>(m_Viewport.Height);
-    m_ProjectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_FoV), aspectRatio, 0.1f, 100.0f);
+    // Update Camera
+    m_Camera->Update(m_FoV, m_Width * 1.0f / m_Height, e.TotalTime);
 }
 
 void SampleScene::OnRender(RenderEventArgs& e)
 {
     super::OnRender(e);
+
+    m_Camera->UpdateCameraBuffer();
 
     auto commandQueue = Application::Get().GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
     auto commandList = commandQueue->GetCommandList();
@@ -186,8 +184,8 @@ void SampleScene::UnloadContent()
 {
     if (m_ContentLoaded)
     {
-        m_VertexBuffer->Release();
-        m_IndexBuffer->Release();
+        //m_VertexBuffer->Release();
+        //m_IndexBuffer->Release();
         //m_VertexBuffer = nullptr;
         //m_IndexBuffer = nullptr;
         //m_DepthBuffer->Release();

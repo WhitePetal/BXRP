@@ -30,7 +30,7 @@ protected:
 	virtual void OnResize(ResizeEventArgs& e) override;
 
 private:
-
+	float m_FoV;
 	D3D12_RECT m_ScissorRect;
 	D3D12_VIEWPORT m_Viewport;
 

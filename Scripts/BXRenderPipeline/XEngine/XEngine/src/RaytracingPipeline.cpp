@@ -169,15 +169,17 @@ void RaytracingPipeline::Destroy()
     UnloadContent();
 }
 
-AccelerationStructureBuffers RaytracingPipeline::CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers)
+AccelerationStructureBuffers RaytracingPipeline::CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers,
+    std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers)
 {
     nv_helpers_dx12::BottomLevelASGenerator bottomLevelAS;
 
     // Adding all vertex buffers and not transforming their positon
-    for (const auto& buffer : vVertexBuffers)
+    for (size_t i = 0; i < vIndexBuffers.size(); ++i)
     {
         //bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), m_IndexBuffer.Get(), 0, _countof(g_Indicies), nullptr, 0, true);
-        bottomLevelAS.AddVertexBuffer(buffer.first.Get(), 0, buffer.second, sizeof(VertexPosColor), 0, 0);
+        bottomLevelAS.AddVertexBuffer(vVertexBuffers[i].first.Get(), 0, vVertexBuffers[i].second, sizeof(VertexPosColor), 
+            vIndexBuffers[i].first.Get(), 0, vIndexBuffers[i].second, nullptr, true);
     }
 
     // The AS build requires some scratch space to store temporary information.
@@ -276,7 +278,9 @@ void RaytracingPipeline::CreateAccelerationStructures()
     auto commandList = commandQueue->GetCommandList();
 
     // Build the bottom AS
-    m_BottomLevelASBuffers = CreateBottomLevelAS(device, commandList, { {m_Engine->GetVertexBuffer().Get(), _countof(g_Vertices)} });
+    m_BottomLevelASBuffers = CreateBottomLevelAS(device, commandList, 
+        { {m_Engine->GetVertexBuffer().Get(), _countof(g_Vertices)} },
+        { {m_Engine->GetIndexBuffer().Get(), _countof(g_Indicies)} });
 
     // Just one instance for now
     m_Instances = { {m_BottomLevelASBuffers.pResult, XMMatrixIdentity()} };
@@ -295,8 +299,8 @@ ComPtr<ID3D12RootSignature> RaytracingPipeline::CreateRayGenSignature()
         {
             {0 /*u0*/, 1 /*1 descriptor*/, 0 /*use the implicit register space 0*/,
             D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0 /*heap slot where the UAV is defined*/},
-            {0 /*t0*/, 1, 0,
-            D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, 1}
+            {0 /*t0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*Top-level acceleration structure*/, 1},
+            {0 /*b0*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2}
         }
     );
     return rsc.Generate(device.Get(), true);
@@ -306,7 +310,8 @@ ComPtr<ID3D12RootSignature> RaytracingPipeline::CreateHitSignature()
 {
     auto device = Application::Get().GetDevice();
     nv_helpers_dx12::RootSignatureGenerator rsc;
-    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0 /*t0*/);
+    rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1 /*t1*/);
     return rsc.Generate(device.Get(), true);
 }
 
@@ -376,7 +381,7 @@ void RaytracingPipeline::CreateRaytracingOutputBuffer()
 void RaytracingPipeline::CreateRaytracingResourceHeap()
 {
     auto device = Application::Get().GetDevice();
-    m_SRV_UAV_Heap = nv_helpers_dx12::CreateDescriptorHeap(device.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    m_SRV_UAV_Heap = nv_helpers_dx12::CreateDescriptorHeap(device.Get(), 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 }
 
 void RaytracingPipeline::CreateRaytracingResourceView()
@@ -394,12 +399,22 @@ void RaytracingPipeline::CreateRaytracingResourceView()
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
     );
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.RaytracingAccelerationStructure.Location = m_TopLevelASBuffers.pResult->GetGPUVirtualAddress();
     device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
+
+    srvHandle.ptr += device->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+    );
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    auto camera = m_Engine->GetCamera();
+    cbvDesc.BufferLocation = camera->GetCameraBuffer()->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = camera->GetCameraBufferSize();
+    device->CreateConstantBufferView(&cbvDesc, srvHandle);
 }
 
 void RaytracingPipeline::CreateRaytracingShaderBindingTable()
@@ -416,7 +431,10 @@ void RaytracingPipeline::CreateRaytracingShaderBindingTable()
 
     m_SBTHelper.AddMissProgram(L"Miss", {});
 
-    m_SBTHelper.AddHitGroup(L"HitGroup", { (void*)(m_Engine->GetVertexBuffer()->GetGPUVirtualAddress()) });
+    m_SBTHelper.AddHitGroup(L"HitGroup", { 
+        (void*)(m_Engine->GetVertexBuffer()->GetGPUVirtualAddress()),
+        (void*)(m_Engine->GetIndexBuffer()->GetGPUVirtualAddress())
+    });
 
     uint32_t sbtSize = m_SBTHelper.ComputeSBTSize();
 
