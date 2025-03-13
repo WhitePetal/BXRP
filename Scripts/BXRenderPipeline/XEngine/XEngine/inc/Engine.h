@@ -2,10 +2,6 @@
 
 #define XENGINE_API __declspec(dllexport)
 
-extern "C" {
-	XENGINE_API void StartXEngine(HWND parentHWnd = nullptr, LPWSTR workDir = nullptr);
-}
-
 #include <Events.h>
 
 #include <memory>
@@ -16,13 +12,44 @@ extern "C" {
 #include <dxcapi.h>
 #include <DirectXMath.h>
 #include <vector>
-#include "external/DXRHelpers/nv_helpers_dx12/TopLevelASGenerator.h"
+#include <cmath>
 
-struct AccelerationStructureBuffers
+extern "C" {
+	XENGINE_API void StartXEngine(HWND parentHWnd = nullptr, LPWSTR workDir = nullptr);
+}
+
+struct VertexPosColor
 {
-	ComPtr<ID3D12Resource> pScratch; // Scratch memory for AS builder
-	ComPtr<ID3D12Resource> pResult; // Where the AS is
-	ComPtr<ID3D12Resource> pInstanceDesc; // Hold the matrices of the instances
+	DirectX::XMFLOAT3 Position;
+	DirectX::XMFLOAT4 COlor;
+};
+
+//static VertexPosColor g_Vertices[8] = {
+//    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, // 0
+//    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }, // 1
+//    { XMFLOAT3(1.0f,  1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }, // 2
+//    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }, // 3
+//    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) }, // 4
+//    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) }, // 5
+//    { XMFLOAT3(1.0f,  1.0f,  1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) }, // 6
+//    { XMFLOAT3(1.0f, -1.0f,  1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }  // 7
+//};
+
+static VertexPosColor g_Vertices[8] = {
+	{ DirectX::XMFLOAT3(std::sqrtf(8.f / 9.f), 0.f, -1.f / 3.f), DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) }, // 0
+	{ DirectX::XMFLOAT3(-std::sqrtf(2.f / 9.f), std::sqrtf(2.f / 3.f), -1.f / 3.f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) }, // 1
+	{ DirectX::XMFLOAT3(-std::sqrtf(2.f / 9.f), -std::sqrtf(2.f / 3.f), -1.f / 3.f), DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) }, // 2
+	{ DirectX::XMFLOAT3(0.f, 0.f, 1.f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) }, // 3
+};
+
+static WORD g_Indicies[36] =
+{
+	0, 1, 2, 0, 2, 3,
+	4, 6, 5, 4, 7, 6,
+	4, 5, 1, 4, 1, 0,
+	3, 2, 6, 3, 6, 7,
+	1, 5, 6, 1, 6, 2,
+	4, 0, 3, 4, 3, 7
 };
 
 class Engine : public std::enable_shared_from_this<Engine>
@@ -39,8 +66,51 @@ public:
 
 	virtual void Destroy();
 
+	int GetWidth();
+	int GetHeight();
+
+	ComPtr<ID3D12Resource> GetVertexBuffer();
+	ComPtr<ID3D12Resource> GetIndexBuffer();
+
+	D3D12_VERTEX_BUFFER_VIEW* GetVertexBufferView();
+	D3D12_INDEX_BUFFER_VIEW* GetIndexBufferView();
+
+	DirectX::XMMATRIX GetMVPMatrix();
+
+	/// <summary>
+	/// Transition a resource
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="resource"></param>
+	/// <param name="beforeState"></param>
+	/// <param name="afterState"></param>
+	void TransitionResource(ComPtr<ID3D12GraphicsCommandList2> commandList, ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState);
+
+	/// <summary>
+	/// Clear a render target view
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="rtv"></param>
+	/// <param name="clearColor"></param>
+	void ClearRTV(ComPtr<ID3D12GraphicsCommandList2> commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, FLOAT* clearColor);
+
+	/// <summary>
+	/// Create a GPU buffer
+	/// </summary>
+	/// <param name="commandList"></param>
+	/// <param name="pDestinationResource"></param>
+	/// <param name="pIntermediateResource"></param>
+	/// <param name="numElements"></param>
+	/// <param name="elementSize"></param>
+	/// <param name="bufferData"></param>
+	/// <param name="flags"></param>
+	void UpdateBufferResource(ComPtr<ID3D12GraphicsCommandList2> commandList, ID3D12Resource** pDestinationResource, ID3D12Resource** pIntermediateResource,
+		size_t numElements, size_t elementSize, const void* bufferData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+
 protected:
 	friend class Window;
+
+	void ResizeDepthBuffer(int width, int height);
 
 	/// <summary>
 	/// update game logic frame
@@ -93,37 +163,33 @@ protected:
 	/// </summary>
 	virtual void OnWindowDestroy();
 
-	/// <summary>
-	/// Create the acceleration structure of an instance
-	/// </summary>
-	/// <param name="vVertexBuffers">pair of buffer and vertex count</param>
-	/// <returns>AccelerationStructureBuffers for TLAS</returns>
-	virtual AccelerationStructureBuffers CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector <std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers);
-	
-	/// <summary>
-	/// Create the main accleration structure that holds
-	/// all instances of the scene
-	/// </summary>
-	/// <param name="instances">instances: pair of BLAS and transform</param>
-	virtual void CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances);
-
-	/// <summary>
-	/// Create all acceleration structures, bottom and top
-	/// </summary>
-	virtual void CreateAccelerationStructures();
-
 	std::shared_ptr<Window> m_pWindow;
+
+	// Depth buffer
+	ComPtr<ID3D12Resource> m_DepthBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
 
 	uint64_t m_FenceValues[Window::BackBufferCount] = {};
 
 	int m_Width;
 	int m_Height;
-	bool m_Raster = true;
 
-	AccelerationStructureBuffers m_BottomLevelASBuffers;
-	nv_helpers_dx12::TopLevelASGenerator m_TopLevelASGenerator;
-	AccelerationStructureBuffers m_TopLevelASBuffers;
-	std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> m_Instances;
+	float m_FoV;
+
+	// Vertex buffer for the cube
+	ComPtr<ID3D12Resource> m_VertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+	// Index buffer for the cube
+	ComPtr<ID3D12Resource> m_IndexBuffer;
+	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
+
+	DirectX::XMMATRIX m_ModelMatrix;
+	DirectX::XMMATRIX m_ViewMatrix;
+	DirectX::XMMATRIX m_ProjectionMatrix;
+
+	bool m_ContentLoaded;
+
+	bool m_Raster = true;
 
 private:
 	std::wstring m_Name;

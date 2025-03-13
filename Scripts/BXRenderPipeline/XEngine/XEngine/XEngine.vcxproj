@@ -30,6 +30,8 @@
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\HighResolutionClock.cpp" />
     <ClCompile Include="src\LogQueue.cpp" />
+    <ClCompile Include="src\RasterPipeline.cpp" />
+    <ClCompile Include="src\RaytracingPipeline.cpp" />
     <ClCompile Include="src\SampleScene.cpp" />
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
@@ -49,6 +51,8 @@
     <ClInclude Include="inc\HighResolutionClock.h" />
     <ClInclude Include="inc\KeyCodes.h" />
     <ClInclude Include="inc\LogQueue.h" />
+    <ClInclude Include="inc\RasterPipeline.h" />
+    <ClInclude Include="inc\RaytracingPipeline.h" />
     <ClInclude Include="inc\SampleScene.h" />
     <ClInclude Include="inc\Window.h" />
   </ItemGroup>

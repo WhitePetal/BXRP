@@ -22,6 +22,18 @@
     <Filter Include="资源文件\RayTracingShaders">
       <UniqueIdentifier>{43b5b5b2-0bf1-47fc-902c-4523532097b2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Raytracing">
+      <UniqueIdentifier>{9ec97da4-5320-461b-a11f-fa382d19deb0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Raster">
+      <UniqueIdentifier>{7df2f183-dd95-4eab-8db4-051e23e00a76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Raytracing">
+      <UniqueIdentifier>{a6a8bb33-520b-4ab8-abf8-5a57eda2582d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Raster">
+      <UniqueIdentifier>{11e6b409-b824-4b83-a3a2-3a0554dc608a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp">
@@ -62,6 +74,12 @@
     </ClCompile>
     <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.cpp">
       <Filter>源文件\DXRHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RaytracingPipeline.cpp">
+      <Filter>源文件\Raytracing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RasterPipeline.cpp">
+      <Filter>源文件\Raster</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -115,6 +133,12 @@
     </ClInclude>
     <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.h">
       <Filter>头文件\DXRHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\RaytracingPipeline.h">
+      <Filter>头文件\Raytracing</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\RasterPipeline.h">
+      <Filter>头文件\Raster</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

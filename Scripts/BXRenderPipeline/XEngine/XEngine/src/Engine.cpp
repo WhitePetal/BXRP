@@ -197,23 +197,145 @@ bool Engine::Initialize()
 	return true;
 }
 
-AccelerationStructureBuffers Engine::CreateBottomLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers)
-{
-	return AccelerationStructureBuffers();
-}
-
-void Engine::CreateTopLevelAS(ComPtr<ID3D12Device5> device, ComPtr<ID3D12GraphicsCommandList4> commandList, const std::vector<std::pair<ComPtr<ID3D12Resource>, XMMATRIX>>& instances)
-{
-}
-
-void Engine::CreateAccelerationStructures()
-{
-}
-
 void Engine::Destroy()
 {
 	Application::Get().DestroyWindow(m_pWindow);
 	m_pWindow.reset();
+}
+
+int Engine::GetWidth()
+{
+	return m_Width;
+}
+
+int Engine::GetHeight()
+{
+	return m_Height;
+}
+
+ComPtr<ID3D12Resource> Engine::GetVertexBuffer()
+{
+	return m_VertexBuffer;
+}
+ComPtr<ID3D12Resource> Engine::GetIndexBuffer()
+{
+	return m_IndexBuffer;
+}
+
+D3D12_VERTEX_BUFFER_VIEW* Engine::GetVertexBufferView()
+{
+	return &m_VertexBufferView;
+}
+D3D12_INDEX_BUFFER_VIEW* Engine::GetIndexBufferView()
+{
+	return &m_IndexBufferView;
+}
+
+DirectX::XMMATRIX Engine::GetMVPMatrix()
+{
+	XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
+	mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
+	return mvpMatrix;
+}
+
+void Engine::UpdateBufferResource(
+	ComPtr<ID3D12GraphicsCommandList2> commandList,
+	ID3D12Resource** pDestinationResource,
+	ID3D12Resource** pIntermediatedResource,
+	size_t numElements, size_t elementSize, const void* bufferData,
+	D3D12_RESOURCE_FLAGS flags
+)
+{
+	auto device = Application::Get().GetDevice();
+	size_t bufferSize = numElements * elementSize;
+
+	// Create a committed resource for the CPU resource in a default heap
+	// default heap 的内存是 GPU内存, CPU 无法直接写入
+	CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags);
+	ThrowIfFaild(device->CreateCommittedResource(
+		&defaultHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		IID_PPV_ARGS(pDestinationResource)
+	));
+
+	// Create an committted resource for the upload.
+	// upload heap 的内存是 系统内存，CPU可以写入
+	// 之后通过 commandlist 发起指令让 GPU 从这里复制数据
+	if (bufferData)
+	{
+		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
+		ThrowIfFaild(device->CreateCommittedResource(
+			&uploadHeapProperties,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(pIntermediatedResource)
+		));
+
+		D3D12_SUBRESOURCE_DATA subresourceData = {};
+		subresourceData.pData = bufferData;
+		subresourceData.RowPitch = bufferSize;
+		subresourceData.SlicePitch = subresourceData.RowPitch;
+
+		UpdateSubresources(commandList.Get(), *pDestinationResource, *pIntermediatedResource, 0, 0, 1, &subresourceData);
+	}
+}
+
+void Engine::TransitionResource(ComPtr<ID3D12GraphicsCommandList2> commandList, ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState)
+{
+	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), beforeState, afterState);
+	commandList->ResourceBarrier(1, &barrier);
+}
+
+void Engine::ClearRTV(ComPtr<ID3D12GraphicsCommandList2> commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, FLOAT* clearColor)
+{
+	commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+}
+
+void Engine::ResizeDepthBuffer(int width, int height)
+{
+	if (m_ContentLoaded)
+	{
+		// Flush any GPU commands that might be referencing the depth buffer.
+		Application::Get().Flush();
+
+		width = std::max(1, width);
+		height = std::max(1, height);
+
+		auto device = Application::Get().GetDevice();
+		// Resize screen dependent reoures.
+		// Create a depth buffer.
+		D3D12_CLEAR_VALUE optimizedClearValue = {};
+		optimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		optimizedClearValue.DepthStencil = { 1.0f, 0 };
+
+		CD3DX12_HEAP_PROPERTIES heapProerties(D3D12_HEAP_TYPE_DEFAULT);
+		CD3DX12_RESOURCE_DESC tex2DResDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height,
+			1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		ThrowIfFaild(device->CreateCommittedResource(
+			&heapProerties,
+			D3D12_HEAP_FLAG_NONE,
+			&tex2DResDesc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&optimizedClearValue,
+			IID_PPV_ARGS(&m_DepthBuffer)
+		));
+
+		// Update the depth-stencil view
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
+		dsv.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsv.Texture2D.MipSlice = 0;
+		dsv.Flags = D3D12_DSV_FLAG_NONE;
+
+		device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv,
+			m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+	}
 }
 
 void Engine::OnUpdate(UpdateEventArgs& e)
