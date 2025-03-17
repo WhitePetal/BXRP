@@ -15,6 +15,7 @@ namespace BXRenderPipelineForward
         {
             this.commonSettings = commonSettings;
             this.postProcessMat = commonSettings.postProcessMaterial;
+            lights.Init(commonSettings);
         }
 
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,

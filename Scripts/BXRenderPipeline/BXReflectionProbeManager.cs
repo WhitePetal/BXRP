@@ -12,9 +12,10 @@ namespace BXRenderPipeline
     public struct BXReflectionProbeManager : IDisposable
     {
         private const int k_MaxVisibleReflectionProbeCount = 4;
-        private const int k_MaxAtlasTextureSize = 2048;
         private const int k_MaxMipCount = 7;
         private const string k_ReflectionProbeAtlasName = "BX Reflection Probe Atlas";
+
+        private int m_MaxAtlasTextureSize;
 
         private int2 m_Resolution;
         private RenderTexture m_AtlasTexture0;
@@ -59,9 +60,10 @@ namespace BXRenderPipeline
         public RenderTexture atlasRT => m_AtlasTexture0;
         public RTHandle atlasRTHandle => m_AtlasTexture0Handle;
 
-        public static BXReflectionProbeManager Create()
+        public static BXReflectionProbeManager Create(int maxAtlasTextureSize)
         {
             var instance = new BXReflectionProbeManager();
+            instance.m_MaxAtlasTextureSize = maxAtlasTextureSize;
             instance.Init();
             return instance;
         }
@@ -96,7 +98,7 @@ namespace BXRenderPipeline
 
             // The smallest allocatable resolution we want is 4x4. We calculate the number of levels as:
             // log2(max) - log2(4) = log2(max) - 2
-            m_AtlasAllocator = new BXBuddyAllocator(math.floorlog2(k_MaxAtlasTextureSize) - 2, 2);
+            m_AtlasAllocator = new BXBuddyAllocator(math.floorlog2(m_MaxAtlasTextureSize) - 2, 2);
             m_Cache = new Dictionary<int, CacheProbe>(k_MaxVisibleReflectionProbeCount);
             m_WarningCache = new Dictionary<int, int>(k_MaxVisibleReflectionProbeCount);
             m_NeedsUpdate = new List<int>(k_MaxVisibleReflectionProbeCount);

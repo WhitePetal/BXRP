@@ -59,7 +59,6 @@ namespace BXRenderPipelineForward
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
             this.cullingResults = mainCameraRender.cullingResults;
-            this.commonSettings = mainCameraRender.commonSettings;
             this.width = mainCameraRender.width;
             this.height = mainCameraRender.height;
             reflectionProbe.UpdateGPUData(commandBuffer, ref cullingResults);

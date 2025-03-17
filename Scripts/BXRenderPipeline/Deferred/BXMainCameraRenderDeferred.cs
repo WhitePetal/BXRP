@@ -19,6 +19,7 @@ namespace BXRenderPipelineDeferred
         {
             this.commonSettings = commonSettings;
             this.postProcessMat = commonSettings.postProcessMaterial;
+            lights.Init(commonSettings);
             for (int i = 0; i < BXLightsDeferred.maxStencilLightCount; ++i)
             {
                 stencilLightMats[i] = new Material(commonSettings.deferredOtherLightMaterial);

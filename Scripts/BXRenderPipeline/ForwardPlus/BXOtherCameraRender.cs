@@ -14,12 +14,17 @@ namespace BXRenderPipelineForward
 
         private List<BXRenderFeature> onDirShadowsRenderFeatures = new List<BXRenderFeature>();
 
+        public void Init(BXRenderCommonSettings commonSettings)
+        {
+            this.commonSettings = commonSettings;
+            this.postProcessMat = commonSettings.postProcessMaterial;
+            lights.Init(commonSettings);
+        }
+
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing, BXRenderCommonSettings commonSettings)
         {
             this.context = context;
             this.camera = camera;
-            this.commonSettings = commonSettings;
-            this.postProcessMat = commonSettings.postProcessMaterial;
 
             width_screen = camera.pixelWidth;
             height_screen = camera.pixelHeight;

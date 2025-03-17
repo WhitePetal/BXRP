@@ -48,7 +48,7 @@ namespace BXRenderPipeline
         protected GlobalKeyword dirLightKeyword = GlobalKeyword.Create("DIRECTIONAL_LIGHT");
         protected GlobalKeyword clusterLightKeyword = GlobalKeyword.Create("CLUSTER_LIGHT");
 
-        protected BXReflectionProbeManager reflectionProbe = BXReflectionProbeManager.Create();
+        protected BXReflectionProbeManager reflectionProbe;
 
         public int dirLightCount;
         public int clusterLightCount;
@@ -89,6 +89,12 @@ namespace BXRenderPipeline
             otherLightDirections = new Vector4[maxOtherLightCount];
             otherLightThresholds = new Vector4[maxOtherLightCount];
             otherShadowDatas = new Vector4[maxImportedOtherLightCount];
+        }
+
+        public void Init(BXRenderCommonSettings commonSettings)
+		{
+            this.commonSettings = commonSettings;
+            reflectionProbe = BXReflectionProbeManager.Create(commonSettings.reflectProbeTextureAtalsSize);
         }
 
         public virtual void Dispose()

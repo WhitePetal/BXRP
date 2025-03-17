@@ -90,6 +90,9 @@ namespace BXRenderPipeline
         public float cubeOctahedraSizeScale = 2.5f;
         //public bool useStructuredBuffer = false;
 
+        [Header("环境光反射球图集")]
+        public int reflectProbeTextureAtalsSize = 2048;
+
         [Header("EV")]
         public float aperture = 22f;
         public float shutter = 1f / 125f;
