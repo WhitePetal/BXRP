@@ -129,6 +129,8 @@ public:
 
 	bool IsParentWnd(HWND wnd);
 
+	static uint64_t GetFrameCount();
+
 	static WindowMap gs_Windows;
 	static WindowNameMap gs_WindowByName;
 
@@ -166,6 +168,7 @@ protected:
 	static Application* gs_pSingelton;
 
 private:
+	friend LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 	Application(const Application& copy) = delete;
 	Application& operator=(const Application& other) = delete;
 
@@ -186,4 +189,6 @@ private:
 
 	bool m_TeraingSupported;
 	bool m_RaytracingSupported;
+
+	static uint64_t s_FrameCount;
 };

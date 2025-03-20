@@ -141,7 +141,12 @@ namespace BXRenderPipelineForward
 		{
             commandBuffer.SetRenderTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, BXShaderPropertyIDs._DepthBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
             CameraClearFlags clearFlags = camera.clearFlags;
-            commandBuffer.ClearRenderTarget(clearFlags <= CameraClearFlags.Depth, clearFlags <= CameraClearFlags.Color, clearFlags == CameraClearFlags.SolidColor ? camera.backgroundColor : Color.clear);
+            Color clearColor = (clearFlags == CameraClearFlags.SolidColor) ? camera.backgroundColor : Color.clear;
+#if UNITY_EDITOR
+            if (camera.cameraType == CameraType.SceneView && RenderSettings.skybox == null)
+                clearColor = RenderSettings.ambientSkyColor;
+#endif
+            commandBuffer.ClearRenderTarget(clearFlags <= CameraClearFlags.Depth, clearFlags <= CameraClearFlags.Color, clearColor);
 
             var renderSettings = BXVolumeManager.instance.renderSettings;
             var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();

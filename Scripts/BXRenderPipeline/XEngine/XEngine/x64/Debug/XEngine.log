@@ -1,123 +1,225 @@
-﻿  compilation object save succeeded; see D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\PixelShader.cso
-  compilation object save succeeded; see D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\VertexShader.cso
-  BottomLevelASGenerator.cpp
-  RaytracingPipelineGenerator.cpp
-  RootSignatureGenerator.cpp
-  ShaderBindingTableGenerator.cpp
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2541,23): warning C4244: “参数”: 从“wchar_t”转换到“const _Elem”，可能丢失数据
-          with
-          [
-              _Elem=char
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2552): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2552): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2532): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2532): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.cpp(216): message : 查看对正在编译的函数 模板 实例化“std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)”的引用
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\external\DXRHelpers\nv_helpers_dx12\ShaderBindingTableGenerator.cpp(216): message : 查看对正在编译的函数 模板 实例化“std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)”的引用
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-  TopLevelASGenerator.cpp
-  Application.cpp
-  Camera.cpp
-  CommandQueue.cpp
-  Debug.cpp
+﻿  DescriptorAllocation.cpp
+  DescriptorAllocator.cpp
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\DescriptorAllocator\DescriptorAllocator.cpp(1,10): fatal error C1083: 无法打开包括文件: “DescriptorAllocator.h”: No such file or directory
+  DescriptorAllocatorPage.cpp
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\DescriptorAllocator\DescriptorAllocatorPage.cpp(1,10): fatal error C1083: 无法打开包括文件: “DescriptorAllocatorPage.h”: No such file or directory
   Engine.cpp
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2541,23): warning C4244: “参数”: 从“wchar_t”转换到“const _Elem”，可能丢失数据
-          with
-          [
-              _Elem=char
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2552): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2552): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2532): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\xstring(2532): message : 查看对正在编译的函数 模板 实例化“void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)”的引用
-          with
-          [
-              _Iter=wchar_t *
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\Engine.cpp(93): message : 查看对正在编译的函数 模板 实例化“std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)”的引用
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\Engine.cpp(93): message : 查看对正在编译的函数 模板 实例化“std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)”的引用
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-  HighResolutionClock.cpp
-  LogQueue.cpp
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(2303,19): error C3861: “floorf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(2311,15): error C3861: “modff”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4147,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4148,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4149,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4150,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1028,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1029,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1030,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2141,13): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2157,19): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2433,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2439,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2458,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2464,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2483,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2489,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2508,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2514,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,18): error C2039: "fabs": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,22): error C3861: “fabs”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,18): error C2039: "fabsf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,23): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,18): error C2039: "fabsl": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,23): error C3861: “fabsl”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(37,18): error C2039: "acosf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(37,23): error C3861: “acosf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(41,18): error C2039: "acoshf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(41,24): error C3861: “acoshf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(45,18): error C2039: "asinf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(45,23): error C3861: “asinf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(49,18): error C2039: "asinhf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(49,24): error C3861: “asinhf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(53,18): error C2039: "atanf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(53,23): error C3861: “atanf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(57,18): error C2039: "atanhf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(57,24): error C3861: “atanhf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(61,18): error C2039: "atan2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(61,24): error C3861: “atan2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(65,18): error C2039: "cbrtf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(65,23): error C3861: “cbrtf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(89,18): error C2039: "cosf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(89,22): error C3861: “cosf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(93,18): error C2039: "coshf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(93,23): error C3861: “coshf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(97,18): error C2039: "erff": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(97,22): error C3861: “erff”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(101,18): error C2039: "erfcf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(101,23): error C3861: “erfcf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(105,18): error C2039: "expf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(105,22): error C3861: “expf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(109,18): error C2039: "exp2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(109,23): error C3861: “exp2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(113,18): error C2039: "expm1f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(113,24): error C3861: “expm1f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(117,18): error C2039: "fabsf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(117,23): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(121,18): error C2039: "fdimf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(121,23): error C3861: “fdimf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(135,18): error C2039: "fmaf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(135,22): error C3861: “fmaf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(139,18): error C2039: "fmaxf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(139,23): error C3861: “fmaxf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(143,18): error C2039: "fminf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(143,23): error C3861: “fminf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(147,18): error C2039: "fmodf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(147,23): error C3861: “fmodf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(151,18): error C2039: "frexpf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(151,24): error C3861: “frexpf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(155,18): error C2039: "hypotf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(155,24): error C3861: “hypotf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(159,18): error C2039: "ilogbf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(159,24): error C3861: “ilogbf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(163,18): error C2039: "ldexpf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(163,24): error C3861: “ldexpf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(167,18): error C2039: "lgammaf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(167,25): error C3861: “lgammaf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(171,18): error C2039: "llrintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(171,25): error C3861: “llrintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(175,18): error C2039: "llroundf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(175,26): error C3861: “llroundf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(179,18): error C2039: "logf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(179,22): error C3861: “logf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(183,18): error C2039: "log10f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(183,24): error C3861: “log10f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(187,18): error C2039: "log1pf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(187,24): error C3861: “log1pf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(191,18): error C2039: "log2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(191,23): error C3861: “log2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(195,18): error C2039: "logbf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(195,23): error C3861: “logbf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(199,18): error C2039: "lrintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(199,24): error C3861: “lrintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(203,18): error C2039: "lroundf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(203,25): error C3861: “lroundf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(207,18): error C2039: "modff": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(207,23): error C3861: “modff”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(211,18): error C2039: "nearbyintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(211,28): error C3861: “nearbyintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,18): error C2039: "nextafterf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,28): error C3861: “nextafterf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,37): fatal error C1003: 错误计数超过 100；正在停止编译
   RasterPipeline.cpp
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\Raster\RasterPipeline.cpp(1,10): fatal error C1083: 无法打开包括文件: “RasterPipeline.h”: No such file or directory
   RaytracingPipeline.cpp
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\RaytracingPipeline.cpp(83,30): warning C4244: “初始化”: 从“D3D12_GPU_VIRTUAL_ADDRESS”转换到“uint32_t”，可能丢失数据
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\utility(186,54): warning C4244: “初始化”: 从“_Ty”转换到“_Ty2”，可能丢失数据
-          with
-          [
-              _Ty=unsigned __int64
-          ]
-          and
-          [
-              _Ty2=uint32_t
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\RaytracingPipeline.cpp(283): message : 查看对正在编译的函数 模板 实例化“std::pair<Microsoft::WRL::ComPtr<ID3D12Resource>,uint32_t>::pair<T*,unsigned __int64,0>(_Other1 &&,_Other2 &&) noexcept”的引用
-          with
-          [
-              T=ID3D12Resource,
-              _Other1=ID3D12Resource *,
-              _Other2=unsigned __int64
-          ]
-D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\RaytracingPipeline.cpp(281): message : 查看对正在编译的函数 模板 实例化“std::pair<Microsoft::WRL::ComPtr<ID3D12Resource>,uint32_t>::pair<T*,unsigned __int64,0>(_Other1 &&,_Other2 &&) noexcept”的引用
-          with
-          [
-              T=ID3D12Resource,
-              _Other1=ID3D12Resource *,
-              _Other2=unsigned __int64
-          ]
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\Raytracing\RaytracingPipeline.cpp(1,10): fatal error C1083: 无法打开包括文件: “RaytracingPipeline.h”: No such file or directory
   SampleScene.cpp
-  Window.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,18): error C2039: "fabs": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,22): error C3861: “fabs”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,18): error C2039: "fabsf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,23): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,18): error C2039: "fabsl": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,23): error C3861: “fabsl”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(2303,19): error C3861: “floorf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(2311,15): error C3861: “modff”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4147,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4148,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4149,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathVector.inl(4150,9): error C3861: “powf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1028,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1029,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMatrix.inl(1030,17): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2141,13): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2157,19): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2433,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2439,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2458,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2464,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2483,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2489,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2508,15): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um\DirectXMathMisc.inl(2514,18): error C3861: “sqrtf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(37,18): error C2039: "acosf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(37,23): error C3861: “acosf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(41,18): error C2039: "acoshf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(41,24): error C3861: “acoshf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(45,18): error C2039: "asinf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(45,23): error C3861: “asinf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(49,18): error C2039: "asinhf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(49,24): error C3861: “asinhf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(53,18): error C2039: "atanf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(53,23): error C3861: “atanf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(57,18): error C2039: "atanhf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(57,24): error C3861: “atanhf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(61,18): error C2039: "atan2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(61,24): error C3861: “atan2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(65,18): error C2039: "cbrtf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(65,23): error C3861: “cbrtf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(89,18): error C2039: "cosf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(89,22): error C3861: “cosf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(93,18): error C2039: "coshf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(93,23): error C3861: “coshf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(97,18): error C2039: "erff": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(97,22): error C3861: “erff”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(101,18): error C2039: "erfcf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(101,23): error C3861: “erfcf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(105,18): error C2039: "expf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(105,22): error C3861: “expf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(109,18): error C2039: "exp2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(109,23): error C3861: “exp2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(113,18): error C2039: "expm1f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(113,24): error C3861: “expm1f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(117,18): error C2039: "fabsf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(117,23): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(121,18): error C2039: "fdimf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(121,23): error C3861: “fdimf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(135,18): error C2039: "fmaf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(135,22): error C3861: “fmaf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(139,18): error C2039: "fmaxf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(139,23): error C3861: “fmaxf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(143,18): error C2039: "fminf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(143,23): error C3861: “fminf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(147,18): error C2039: "fmodf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(147,23): error C3861: “fmodf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(151,18): error C2039: "frexpf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(151,24): error C3861: “frexpf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(155,18): error C2039: "hypotf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(155,24): error C3861: “hypotf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(159,18): error C2039: "ilogbf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(159,24): error C3861: “ilogbf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(163,18): error C2039: "ldexpf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(163,24): error C3861: “ldexpf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(167,18): error C2039: "lgammaf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(167,25): error C3861: “lgammaf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(171,18): error C2039: "llrintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(171,25): error C3861: “llrintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(175,18): error C2039: "llroundf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(175,26): error C3861: “llroundf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(179,18): error C2039: "logf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(179,22): error C3861: “logf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(183,18): error C2039: "log10f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(183,24): error C3861: “log10f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(187,18): error C2039: "log1pf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(187,24): error C3861: “log1pf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(191,18): error C2039: "log2f": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(191,23): error C3861: “log2f”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(195,18): error C2039: "logbf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(195,23): error C3861: “logbf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(199,18): error C2039: "lrintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(199,24): error C3861: “lrintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(203,18): error C2039: "lroundf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(203,25): error C3861: “lroundf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(207,18): error C2039: "modff": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(207,23): error C3861: “modff”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(211,18): error C2039: "nearbyintf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(211,28): error C3861: “nearbyintf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,18): error C2039: "nextafterf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,28): error C3861: “nextafterf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cmath(215,37): fatal error C1003: 错误计数超过 100；正在停止编译
+  UploadBuffer.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,18): error C2039: "fabs": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(24,22): error C3861: “fabs”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,18): error C2039: "fabsf": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(28,23): error C3861: “fabsf”: 找不到标识符
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,18): error C2039: "fabsl": 不是 "`global namespace'" 的成员
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\cstdlib(32,23): error C3861: “fabsl”: 找不到标识符
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\UploadBuffer.cpp(73): error C2102: “&”要求左值
+D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\XEngine\src\UploadBuffer.cpp(75): error C2102: “&”要求左值
   正在生成代码...
-    正在创建库 D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\XEngine.lib 和对象 D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\XEngine.exp
-  XEngine.vcxproj -> D:\FloowDream\Assets\Scripts\BXRenderPipeline\XEngine\x64\Debug\XEngine.exe

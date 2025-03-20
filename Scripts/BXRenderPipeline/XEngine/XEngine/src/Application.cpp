@@ -13,6 +13,8 @@
 
 constexpr wchar_t WINDOW_CLASS_NAME[] = L"XEngineWindowClass";
 
+uint64_t Application::s_FrameCount = 0;
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 struct MakeWindow : public Window
@@ -86,6 +88,8 @@ void Application::Initialize()
 	m_TeraingSupported = CheckTearingSupport();
 
 	m_RaytracingSupported = CheckRaytracingSupport();
+
+	s_FrameCount = 0;
 }
 
 ComPtr<IDXGIAdapter4> Application::GetAdapter(bool useWarp)
@@ -480,6 +484,11 @@ MouseButtonEventArgs::MouseButton DecodeMouseButton(UINT messageID)
 	return mouseButton;
 }
 
+uint64_t Application::GetFrameCount()
+{
+	return s_FrameCount;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	//::OutputDebugString(L"Processing message: X\n");
@@ -498,6 +507,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	{
 	case WM_PAINT:
 	{
+		++Application::s_FrameCount;
 		// delta time will be filled in by the window
 		UpdateEventArgs updateEventArgs(0.0f, 0.0f);
 		pWindow->OnUpdate(updateEventArgs);

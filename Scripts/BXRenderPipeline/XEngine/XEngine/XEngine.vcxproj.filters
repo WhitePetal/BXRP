@@ -34,6 +34,12 @@
     <Filter Include="源文件\Raster">
       <UniqueIdentifier>{11e6b409-b824-4b83-a3a2-3a0554dc608a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\DescriptorAllocator">
+      <UniqueIdentifier>{df59c39f-a7d9-40ed-96b1-ebe492683539}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\DescriptorAllocator">
+      <UniqueIdentifier>{9fe45a0f-e5e1-4732-aa89-b2a78bcd8460}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp">
@@ -75,14 +81,26 @@
     <ClCompile Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.cpp">
       <Filter>源文件\DXRHelper</Filter>
     </ClCompile>
-    <ClCompile Include="src\RaytracingPipeline.cpp">
-      <Filter>源文件\Raytracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RasterPipeline.cpp">
-      <Filter>源文件\Raster</Filter>
-    </ClCompile>
     <ClCompile Include="src\Camera.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\UploadBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Raster\RasterPipeline.cpp">
+      <Filter>源文件\Raster</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Raytracing\RaytracingPipeline.cpp">
+      <Filter>源文件\Raytracing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocation.cpp">
+      <Filter>源文件\DescriptorAllocator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocator.cpp">
+      <Filter>源文件\DescriptorAllocator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocatorPage.cpp">
+      <Filter>源文件\DescriptorAllocator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -137,14 +155,32 @@
     <ClInclude Include="external\DXRHelpers\nv_helpers_dx12\TopLevelASGenerator.h">
       <Filter>头文件\DXRHelper</Filter>
     </ClInclude>
-    <ClInclude Include="inc\RaytracingPipeline.h">
-      <Filter>头文件\Raytracing</Filter>
-    </ClInclude>
-    <ClInclude Include="inc\RasterPipeline.h">
-      <Filter>头文件\Raster</Filter>
-    </ClInclude>
     <ClInclude Include="inc\Camera.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\StorageDefines.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\UploadBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Raster\RasterPipeline.h">
+      <Filter>头文件\Raster</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Raytracing\RaytracingPipeline.h">
+      <Filter>头文件\Raytracing</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocation.h">
+      <Filter>头文件\DescriptorAllocator</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocator.h">
+      <Filter>头文件\DescriptorAllocator</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocatorPage.h">
+      <Filter>头文件\DescriptorAllocator</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

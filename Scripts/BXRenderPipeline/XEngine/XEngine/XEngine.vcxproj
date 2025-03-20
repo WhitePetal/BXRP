@@ -28,12 +28,16 @@
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\CommandQueue.cpp" />
     <ClCompile Include="src\Debug.cpp" />
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocation.cpp" />
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocator.cpp" />
+    <ClCompile Include="src\DescriptorAllocator\DescriptorAllocatorPage.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\HighResolutionClock.cpp" />
     <ClCompile Include="src\LogQueue.cpp" />
-    <ClCompile Include="src\RasterPipeline.cpp" />
-    <ClCompile Include="src\RaytracingPipeline.cpp" />
+    <ClCompile Include="src\Raster\RasterPipeline.cpp" />
+    <ClCompile Include="src\Raytracing\RaytracingPipeline.cpp" />
     <ClCompile Include="src\SampleScene.cpp" />
+    <ClCompile Include="src\UploadBuffer.cpp" />
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -47,15 +51,21 @@
     <ClInclude Include="inc\Camera.h" />
     <ClInclude Include="inc\CommandQueue.h" />
     <ClInclude Include="inc\Debug.h" />
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocation.h" />
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocator.h" />
+    <ClInclude Include="inc\DescriptorAllocator\DescriptorAllocatorPage.h" />
     <ClInclude Include="inc\Engine.h" />
     <ClInclude Include="inc\Events.h" />
     <ClInclude Include="inc\Helpers.h" />
     <ClInclude Include="inc\HighResolutionClock.h" />
     <ClInclude Include="inc\KeyCodes.h" />
     <ClInclude Include="inc\LogQueue.h" />
-    <ClInclude Include="inc\RasterPipeline.h" />
-    <ClInclude Include="inc\RaytracingPipeline.h" />
+    <ClInclude Include="inc\Math.h" />
+    <ClInclude Include="inc\Raster\RasterPipeline.h" />
+    <ClInclude Include="inc\Raytracing\RaytracingPipeline.h" />
     <ClInclude Include="inc\SampleScene.h" />
+    <ClInclude Include="inc\StorageDefines.h" />
+    <ClInclude Include="inc\UploadBuffer.h" />
     <ClInclude Include="inc\Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -146,7 +156,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>$(ProjectDir)inc;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</ExternalIncludePath>
     <LibraryPath>$(ProjectDir)inc;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
     <PublicIncludeDirectories>
