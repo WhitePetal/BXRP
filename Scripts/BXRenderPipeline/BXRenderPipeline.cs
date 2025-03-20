@@ -72,44 +72,9 @@ namespace BXRenderPipeline
 		private BXOtherCameraRenderDeferred otherCameraRender = new BXOtherCameraRenderDeferred();
 		/// <summary>
         /// 管线基础设置
+		/// <see cref="BXRenderCommonSettings"/>
         /// </summary>
 		public BXRenderCommonSettings commonSettings;
-
-		/// <summary>
-		/// 在所有渲染之前执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> beforeRenderFeatures;
-		/// <summary>
-		/// 在方向光阴影渲染之前执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> onDirShadowRenderFeatures;
-		/// <summary>
-		/// 在不透明物体渲染之前执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> beforeOpaqueRenderFeatures;
-		/// <summary>
-		/// 在不透明物体渲染之后执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> afterOpaqueRenderFeatures;
-		/// <summary>
-		/// 在透明物体渲染之前执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> beforeTransparentFeatures;
-		/// <summary>
-		/// 在透明物体渲染之后执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> afterTransparentFeatures;
-		/// <summary>
-		/// 在后处理之前执行的RenderFeatures
-		/// <see cref="BXRenderFeature"/>
-		/// </summary>
-		private List<BXRenderFeature> onPostProcessRenderFeatures;
 
 		/// <summary>
         /// 构建BXRP实例
@@ -125,11 +90,7 @@ namespace BXRenderPipeline
         /// <param name="beforeTransparentFeatures"></param>
         /// <param name="afterTransparentFeatures"></param>
         /// <param name="onPostProcessRenderFeatures"></param>
-        public BXRenderPipeline(bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatching, BXRenderCommonSettings commonSettings,
-			List<BXRenderFeature> beforeRenderFeatures, List<BXRenderFeature> onDirShadowRenderFeatures, 
-			List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
-			List<BXRenderFeature> beforeTransparentFeatures, List<BXRenderFeature> afterTransparentFeatures,
-			List<BXRenderFeature> onPostProcessRenderFeatures)
+        public BXRenderPipeline(bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatching, BXRenderCommonSettings commonSettings)
 		{
 			this.useDynamicBatching = useDynamicBatching;
 			this.useGPUInstancing = useGPUInstancing;
@@ -141,21 +102,6 @@ namespace BXRenderPipeline
 			GraphicsSettings.lightsUseLinearIntensity = false;
 			QualitySettings.antiAliasing = 1;
 			//QualitySettings.realtimeReflectionProbes = false;
-
-			this.beforeRenderFeatures = beforeRenderFeatures;
-			this.onDirShadowRenderFeatures = onDirShadowRenderFeatures;
-			this.beforeOpaqueRenderFeatures = beforeOpaqueRenderFeatures;
-			this.afterOpaqueRenderFeatures = afterOpaqueRenderFeatures;
-			this.beforeTransparentFeatures = beforeTransparentFeatures;
-			this.afterTransparentFeatures = afterTransparentFeatures;
-			this.onPostProcessRenderFeatures = onPostProcessRenderFeatures;
-			InitRenderFeatures(beforeRenderFeatures);
-			InitRenderFeatures(onDirShadowRenderFeatures);
-			InitRenderFeatures(beforeOpaqueRenderFeatures);
-			InitRenderFeatures(afterOpaqueRenderFeatures);
-			InitRenderFeatures(beforeTransparentFeatures);
-			InitRenderFeatures(afterTransparentFeatures);
-			InitRenderFeatures(onPostProcessRenderFeatures);
 
 			mainCameraRender.Init(commonSettings);
             otherCameraRender.Init(commonSettings);
@@ -180,11 +126,7 @@ namespace BXRenderPipeline
 				var camera = cameras[i];
 				if(camera.CompareTag("MainCamera") || camera.cameraType == CameraType.SceneView)
 				{
-					mainCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing,
-						beforeRenderFeatures, onDirShadowRenderFeatures,
-						beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures,
-						beforeTransparentFeatures, afterTransparentFeatures,
-						onPostProcessRenderFeatures);
+					mainCameraRender.Render(context, camera, useDynamicBatching, useGPUInstancing);
 				}
 				else
 				{
@@ -211,152 +153,10 @@ namespace BXRenderPipeline
 			otherCameraRender = null;
 			commonSettings = null;
 			Blitter.Cleanup();
-			DisposeRenderFeatures(ref beforeRenderFeatures);
-			DisposeRenderFeatures(ref onDirShadowRenderFeatures);
-			DisposeRenderFeatures(ref beforeOpaqueRenderFeatures);
-			DisposeRenderFeatures(ref afterOpaqueRenderFeatures);
-			DisposeRenderFeatures(ref beforeTransparentFeatures);
-			DisposeRenderFeatures(ref afterTransparentFeatures);
-			DisposeRenderFeatures(ref onPostProcessRenderFeatures);
+
 			base.Dispose(disposing);
 
 			BXVolumeManager.instance.Deinitialize();
-		}
-
-		/// <summary>
-        /// 初始化所有RenderFeautre
-        /// <see cref="BXRenderFeature"/>
-        /// </summary>
-        /// <param name="renderFeatures"></param>
-		private void InitRenderFeatures(List<BXRenderFeature> renderFeatures)
-		{
-			if (renderFeatures == null || renderFeatures.Count == 0) return;
-			for (int i = 0; i < renderFeatures.Count; ++i)
-			{
-				renderFeatures[i].Init(commonSettings);
-			}
-		}
-
-		/// <summary>
-        /// 销毁所有RenderFeature
-        /// <see cref="BXRenderFeature"/>
-        /// </summary>
-        /// <param name="renderFeatures"></param>
-		private void DisposeRenderFeatures(ref List<BXRenderFeature> renderFeatures)
-		{
-			if (renderFeatures == null) return;
-			if(renderFeatures.Count == 0)
-			{
-				renderFeatures = null;
-				return;
-			}
-
-			foreach(var feature in renderFeatures)
-			{
-				feature.Dispose();
-			}
-#if UNITY_EDITOR
-			renderFeatures.RemoveAll(feature => feature.isDynamic);
-#else
-			renderFeatures.Clear();
-#endif
-			renderFeatures = null;
-		}
-
-		/// <summary>
-        /// 向BXRP管线实例添加(注册)RenderFeature
-        /// </summary>
-        /// <param name="renderFeature"></param>
-        /// <param name="step"></param>
-		public void AddRenderFeature(BXRenderFeature renderFeature, RenderFeatureStep step)
-		{
-			switch (step)
-			{
-				case RenderFeatureStep.BeforeRender:
-					beforeRenderFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.OnDirShadows:
-					onDirShadowRenderFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.BeforeOpaque:
-					beforeOpaqueRenderFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.AfterOpaque:
-					afterOpaqueRenderFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.BeforeTransparent:
-					beforeTransparentFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.AfterTransparent:
-					afterTransparentFeatures.Add(renderFeature);
-					break;
-				case RenderFeatureStep.OnPostProcess:
-					onPostProcessRenderFeatures.Add(renderFeature);
-					break;
-			}
-			renderFeature.isDynamic = true;
-			renderFeature.step = step;
-			renderFeature.Init(commonSettings);
-		}
-
-		/// <summary>
-        /// 从BXRP管线实例移除(销毁)RenderFeature
-        /// </summary>
-        /// <param name="renderFeature"></param>
-		public void RemoveRenderFeature(BXRenderFeature renderFeature)
-		{
-			switch (renderFeature.step)
-			{
-				case RenderFeatureStep.BeforeRender:
-					beforeRenderFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.OnDirShadows:
-					onDirShadowRenderFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.BeforeOpaque:
-					beforeOpaqueRenderFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.AfterOpaque:
-					afterOpaqueRenderFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.BeforeTransparent:
-					beforeTransparentFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.AfterTransparent:
-					afterTransparentFeatures.Remove(renderFeature);
-					break;
-				case RenderFeatureStep.OnPostProcess:
-					onPostProcessRenderFeatures.Remove(renderFeature);
-					break;
-			}
-			renderFeature.Dispose();
-		}
-
-		/// <summary>
-        /// 访问指定渲染阶段执行的所有RenderFeature
-        /// </summary>
-        /// <param name="step"></param>
-        /// <returns></returns>
-		public List<BXRenderFeature> GetRenderFeatures(RenderFeatureStep step)
-		{
-			switch (step)
-			{
-				case RenderFeatureStep.BeforeRender:
-					return beforeRenderFeatures;
-				case RenderFeatureStep.OnDirShadows:
-					return onDirShadowRenderFeatures;
-				case RenderFeatureStep.BeforeOpaque:
-					return beforeOpaqueRenderFeatures;
-				case RenderFeatureStep.AfterOpaque:
-					return afterOpaqueRenderFeatures;
-				case RenderFeatureStep.BeforeTransparent:
-					return beforeTransparentFeatures;
-				case RenderFeatureStep.AfterTransparent:
-					return afterTransparentFeatures;
-				case RenderFeatureStep.OnPostProcess:
-					return onPostProcessRenderFeatures;
-			}
-			return null;
 		}
 
 		/// <summary>

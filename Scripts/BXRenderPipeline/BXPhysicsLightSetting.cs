@@ -562,7 +562,7 @@ namespace BXRenderPipeline
         {
             if (!BXVolumeManager.instance.isInitialized) return;
 
-            light.intensity = luminous_intensity * BXVolumeManager.instance.renderSettings.standard_expourse;
+            light.intensity = luminous_intensity * BXRenderSettings.standard_expourse;
         }
     }
 }

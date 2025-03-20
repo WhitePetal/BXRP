@@ -43,6 +43,52 @@ namespace BXRenderPipeline
 
         protected Material postProcessMat;
 
+        public RenderTargetIdentifier postProcessInputTarget;
+        protected List<int> needReleasePostProcessTempRTs = new List<int>();
+
+        public void RegisterNeedReleasePostProcessTempRT(int rtID)
+		{
+            needReleasePostProcessTempRTs.Add(rtID);
+        }
+
+        public void RelasePostProcessTempRTs()
+		{
+            for(int i = 0; i < needReleasePostProcessTempRTs.Count; ++i)
+			{
+                commandBuffer.ReleaseTemporaryRT(needReleasePostProcessTempRTs[i]);
+			}
+		}
+
+        public void DrawPostProcess(RenderTargetIdentifier source, RenderTargetIdentifier destination, Material mat, int pass, bool clear = false, bool setViewPort = false, int vW = 0, int vH = 0)
+        {
+            commandBuffer.SetRenderTarget(destination, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+            if (setViewPort)
+            {
+                commandBuffer.SetViewport(new Rect(0, 0, vW, vH));
+            }
+            commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._PostProcessInput_ID, source);
+            if (clear)
+            {
+                commandBuffer.ClearRenderTarget(false, true, Color.clear);
+            }
+            commandBuffer.DrawProcedural(Matrix4x4.identity, mat, pass, MeshTopology.Triangles, 3);
+        }
+
+        public void DrawPostProcess(RenderTargetIdentifier source, RenderTargetIdentifier destination_color, RenderTargetIdentifier destination_depth, Material mat, int pass, bool clear = false, bool setViewPort = false, int vW = 0, int vH = 0)
+        {
+            commandBuffer.SetRenderTarget(destination_color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, destination_depth, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
+            if (setViewPort)
+            {
+                commandBuffer.SetViewport(new Rect(0, 0, vW, vH));
+            }
+            commandBuffer.SetGlobalTexture(BXShaderPropertyIDs._PostProcessInput_ID, source);
+            if (clear)
+            {
+                commandBuffer.ClearRenderTarget(false, true, Color.clear);
+            }
+            commandBuffer.DrawProcedural(Matrix4x4.identity, mat, pass, MeshTopology.Triangles, 3);
+        }
+
         public abstract void Dispose();
     }
 }

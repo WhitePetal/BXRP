@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace BXRenderPipeline
 {
@@ -19,8 +20,34 @@ namespace BXRenderPipeline
         [HideInInspector]
         public float expourseRuntime;
 
-        public override void OverrideData(BXVolumeComponment component, float interpFactor)
+        public override RenderFeatureStep RenderFeatureStep => RenderFeatureStep.BeforeRender;
+
+		public override void BeDisabled()
+		{
+			
+		}
+
+		public override void BeEnabled()
+		{
+            expourseRuntime = BXRenderSettings.standard_expourse;
+		}
+
+		public override void OnDisabling(float interpFactor)
+		{
+            expourseRuntime = Mathf.Lerp(expourseRuntime, BXRenderSettings.standard_expourse, interpFactor);
+		}
+
+		public override void OnRender(CommandBuffer cmd, BXMainCameraRenderBase render)
+		{
+            cmd.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseRuntime / BXRenderSettings.standard_expourse);
+        }
+
+		public override void OverrideData(BXVolumeComponment component, float interpFactor)
         {
+            if (!component.enable)
+                return;
+            if (!enable)
+                enable = true;
             var target = component as BXExpourseComponent;
             float ev100Target = ComputeEV100(target.aperture, target.shutter, target.sensor_sensitvity);
             float expourseTarget = ComputeExpourse(ev100Target);

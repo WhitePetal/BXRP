@@ -165,7 +165,7 @@ namespace BXRenderPipeline
             return data;
         }
 
-        public void Render(List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Render()
         {
             if (!commonSettings.drawShadows)
             {
@@ -207,7 +207,7 @@ namespace BXRenderPipeline
                     if(Shader.IsKeywordEnabled(shadowMaskAlwaysKeyword)) commandBuffer.DisableKeyword(shadowMaskAlwaysKeyword);
                 }
 
-                RenderDirectionalShadows(onDirShadowsRenderFeatures);
+                RenderDirectionalShadows();
             }
             if (shadowedOtherLightCount > 0)
             {
@@ -235,15 +235,7 @@ namespace BXRenderPipeline
             commandBuffer.Clear();
         }
 
-        private void ExecuteRenderFeatures(List<BXRenderFeature> renderFeatures)
-		{
-            for(int i = 0; i < renderFeatures.Count; ++i)
-			{
-                renderFeatures[i].Render(commandBuffer, mainCameraRender);
-			}
-		}
-
-        private void RenderDirectionalShadows(List<BXRenderFeature> onDirShadowsRenderFeatures)
+        private void RenderDirectionalShadows()
         {
             int shadowMapSize = commonSettings.shadowMapSize;
             commandBuffer.GetTemporaryRT(ShaderProperties._DirectionalShadowMap_ID, shadowMapSize, shadowMapSize, commonSettings.shadowMapBits, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear, 1, false, RenderTextureMemoryless.Color);
@@ -283,7 +275,7 @@ namespace BXRenderPipeline
                     commandBuffer.SetGlobalDepthBias(1f, 2.5f + light.slopeScaleBias);
                     ExecuteCommandBuffer();
                     context.DrawShadows(ref dirShadowSettings);
-                    ExecuteRenderFeatures(onDirShadowsRenderFeatures);
+                    BXVolumeManager.instance.Render(RenderFeatureStep.OnDirShadows, commandBuffer, mainCameraRender);
                 }
             }
             commandBuffer.SetGlobalDepthBias(0f, 0f);

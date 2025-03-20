@@ -148,6 +148,13 @@ namespace BXRenderPipeline
                     interpFactor = 1f - (closeDistanceSqr / blendDistSqr);
                 OverrideData(volume, interpFactor * volume.weight);
             }
+
+            m_RenderSettings.CollectRenderComponents();
+		}
+
+        public bool Render(RenderFeatureStep step, CommandBuffer cmd, BXMainCameraRenderBase render)
+		{
+            return m_RenderSettings.Render(step, cmd, render);
 		}
 
         public BXRenderSettingsVolume[] GetVolume(LayerMask layerMask)

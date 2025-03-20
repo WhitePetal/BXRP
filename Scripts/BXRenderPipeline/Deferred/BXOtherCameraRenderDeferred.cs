@@ -25,7 +25,6 @@ namespace BXRenderPipelineDeferred
         private GlobalKeyword framebufferfetch_msaa = GlobalKeyword.Create("FRAMEBUFFERFETCH_MSAA");
 
         private Material[] stencilLightMats = new Material[BXLightsDeferred.maxStencilLightCount];
-        private List<BXRenderFeature> onDirShadowsRenderFeatures = new List<BXRenderFeature>();
         private RenderTargetIdentifier[] mrt = new RenderTargetIdentifier[4];
         private RenderBufferLoadAction[] loadActions = new RenderBufferLoadAction[] { RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare };
         private RenderBufferStoreAction[] storeActions = new RenderBufferStoreAction[] { RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store, RenderBufferStoreAction.Store };
@@ -71,7 +70,7 @@ namespace BXRenderPipelineDeferred
             viewToWorldMatrix = camera.cameraToWorldMatrix;
 
             commandBuffer.BeginSample(SampleName);
-            lights.Setup(this, onDirShadowsRenderFeatures);
+            lights.Setup(this);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
 
@@ -105,12 +104,6 @@ namespace BXRenderPipelineDeferred
 
         private void GenerateGraphicsBuffe()
         {
-            var renderSettings = BXVolumeManager.instance.renderSettings;
-            var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
-
-            // EV-Expourse
-            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
-
             float aspec = camera.aspect;
             float h_half;
             if (camera.orthographic || camera.fieldOfView == 0f)
@@ -395,7 +388,6 @@ namespace BXRenderPipelineDeferred
             lights.Dispose();
             lights = null;
             stencilLightMats = null;
-            onDirShadowsRenderFeatures = null;
         }
     }
 }

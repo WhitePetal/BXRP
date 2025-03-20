@@ -12,14 +12,6 @@ namespace BXRenderPipeline
 		public bool useDynamicBatching = true, useGPUInstancing = true, useSRPBatching = true;
 		public BXRenderCommonSettings commonSettings;
 
-		public List<BXRenderFeature> beforeRenderRenderFeatures;
-		public List<BXRenderFeature> onDirShadowsRenderFeatures;
-		public List<BXRenderFeature> beforeOpaqueRenderFeatures;
-		public List<BXRenderFeature> afterOpaqueRenderFeatures;
-		public List<BXRenderFeature> beforeTransparentRenderFeatures;
-		public List<BXRenderFeature> afterTransparentRenderFeatures;
-		public List<BXRenderFeature> onPostProcessRenderFeatures;
-
 		public bool supportProbeVolume
         {
             get
@@ -44,10 +36,7 @@ namespace BXRenderPipeline
 
         protected override RenderPipeline CreatePipeline()
 		{
-			return new BXRenderPipeline(useDynamicBatching, useGPUInstancing, useSRPBatching, commonSettings,
-				beforeRenderRenderFeatures, onDirShadowsRenderFeatures, beforeOpaqueRenderFeatures,
-				afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures,
-				onPostProcessRenderFeatures);
+			return new BXRenderPipeline(useDynamicBatching, useGPUInstancing, useSRPBatching, commonSettings);
 		}
 	}
 }

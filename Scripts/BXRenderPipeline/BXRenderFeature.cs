@@ -7,22 +7,13 @@ namespace BXRenderPipeline
 {
     public enum RenderFeatureStep
 	{
-        BeforeRender,
-        OnDirShadows,
-        BeforeOpaque,
-        AfterOpaque,
-        BeforeTransparent,
-        AfterTransparent,
-        OnPostProcess
+        BeforeRender = 0,
+        OnDirShadows = 1,
+        BeforeOpaque = 2,
+        AfterOpaque = 3,
+        BeforeTransparent = 4,
+        AfterTransparent = 5,
+        OnPostProcess = 6,
+        MAX = 7
 	}
-
-    public abstract class BXRenderFeature : ScriptableObject
-    {
-        public bool isDynamic;
-        public RenderFeatureStep step;
-        public abstract void Init(BXRenderCommonSettings commonSettings);
-        public abstract void Setup(BXMainCameraRenderBase render);
-        public abstract void Render(CommandBuffer cmd, BXMainCameraRenderBase render);
-        public abstract void Dispose();
-    }
 }

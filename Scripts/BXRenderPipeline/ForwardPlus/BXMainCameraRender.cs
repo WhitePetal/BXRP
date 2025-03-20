@@ -18,11 +18,7 @@ namespace BXRenderPipelineForward
             lights.Init(commonSettings);
         }
 
-        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing,
-            List<BXRenderFeature> beforeRenderRenderFeatures, List<BXRenderFeature> onDirShadowsRenderFeatures,
-            List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
-            List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeatures,
-            List<BXRenderFeature> onPostProcessRenderFeatures)
+        public void Render(ScriptableRenderContext context, Camera camera, bool useDynamicBatching, bool useGPUInstancing)
 		{
             this.context = context;
             this.camera = camera;
@@ -51,14 +47,6 @@ namespace BXRenderPipelineForward
 
             BXVolumeManager.instance.Update(camera.transform, 1 << camera.gameObject.layer);
 
-            SetupRenderFeatures(beforeRenderRenderFeatures);
-            SetupRenderFeatures(onDirShadowsRenderFeatures);
-            SetupRenderFeatures(beforeOpaqueRenderFeatures);
-            SetupRenderFeatures(afterOpaqueRenderFeatures);
-            SetupRenderFeatures(beforeTransparentRenderFeatures);
-            SetupRenderFeatures(afterTransparentRenderFeatures);
-            SetupRenderFeatures(onPostProcessRenderFeatures);
-
 #if UNITY_EDITOR
             PreparBuffer();
             PreparForSceneWindow();
@@ -68,20 +56,20 @@ namespace BXRenderPipelineForward
             if (!Cull(maxShadowDistance)) return;
 
             commandBuffer.BeginSample(SampleName);
-            lights.Setup(this, onDirShadowsRenderFeatures);
+            lights.Setup(this);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
 
             commandBuffer.BeginSample(SampleName);
             context.SetupCameraProperties(camera);
-            ExecuteRenderFeatures(beforeRenderRenderFeatures);
+            ExecuteVolumeRender(RenderFeatureStep.BeforeRender);
             GenerateGraphicsBuffe();
-            DrawGeometry(useDynamicBatching, useGPUInstancing, beforeOpaqueRenderFeatures, afterOpaqueRenderFeatures, beforeTransparentRenderFeatures, afterTransparentRenderFeatures);
+            DrawGeometry(useDynamicBatching, useGPUInstancing);
 #if UNITY_EDITOR
             DrawUnsupportShader();
             DrawGizmosBeforePostProcess();
 #endif
-            DrawPostProcess(onPostProcessRenderFeatures);
+            DrawPostProcess();
 
 #if UNITY_EDITOR
             ExecuteCommand();
@@ -97,25 +85,15 @@ namespace BXRenderPipelineForward
             commandBuffer.Clear();
 		}
 
-        private void SetupRenderFeatures(List<BXRenderFeature> renderFeatures)
+        private bool ExecuteVolumeRender(RenderFeatureStep step)
 		{
-            for(int i = 0; i < renderFeatures.Count; ++i)
+            if(BXVolumeManager.instance.Render(step, commandBuffer, this))
 			{
-                renderFeatures[i].Setup(this);
-			}
-		}
-
-        private void ExecuteRenderFeatures(List<BXRenderFeature> renderFeatures)
-		{
-            if(renderFeatures != null && renderFeatures.Count > 0)
-            {
-                for (int i = 0; i < renderFeatures.Count; ++i)
-                {
-                    renderFeatures[i].Render(commandBuffer, this);
-                }
                 ExecuteCommand();
-            }
-        }
+                return true;
+			}
+            return false;
+		}
 
         private bool Cull(float maxShadowDistance)
 		{
@@ -135,9 +113,7 @@ namespace BXRenderPipelineForward
             commandBuffer.SetGlobalVector("_ScreenParams", new Vector4(width, height, 1f + 1f / width, 1f + 1f / height));
         }
 
-        private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing,
-            List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
-            List<BXRenderFeature> beforeTransparentRenderFeatures, List<BXRenderFeature> afterTransparentRenderFeature)
+        private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing)
 		{
             commandBuffer.SetRenderTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, BXShaderPropertyIDs._DepthBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
             CameraClearFlags clearFlags = camera.clearFlags;
@@ -148,15 +124,9 @@ namespace BXRenderPipelineForward
 #endif
             commandBuffer.ClearRenderTarget(clearFlags <= CameraClearFlags.Depth, clearFlags <= CameraClearFlags.Color, clearColor);
 
-            var renderSettings = BXVolumeManager.instance.renderSettings;
-            var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
-
-            // EV-Expourse
-            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
-
             ExecuteCommand();
 
-            ExecuteRenderFeatures(beforeOpaqueRenderFeatures);
+            ExecuteVolumeRender(RenderFeatureStep.BeforeOpaque);
 
             // Draw Opaque
             SortingSettings sortingSettings = new SortingSettings(camera)
@@ -174,7 +144,7 @@ namespace BXRenderPipelineForward
             opaqueDrawingSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref opaqueDrawingSettings, ref filterSettings_opaue);
 
-            ExecuteRenderFeatures(afterOpaqueRenderFeatures);
+            ExecuteVolumeRender(RenderFeatureStep.AfterOpaque);
 
             // Draw Alpha Test
             DrawingSettings alphaTestDrawSettings = new DrawingSettings()
@@ -190,7 +160,7 @@ namespace BXRenderPipelineForward
             // Draw SkyBox
             context.DrawSkybox(camera);
 
-            ExecuteRenderFeatures(beforeTransparentRenderFeatures);
+            ExecuteVolumeRender(RenderFeatureStep.BeforeTransparent);
 
             // Draw Transparent
             DrawingSettings alphaDrawSettings = new DrawingSettings()
@@ -204,14 +174,13 @@ namespace BXRenderPipelineForward
             alphaDrawSettings.SetShaderPassName(1, BXRenderPipeline.BXRenderPipeline.forwardShaderTagIds[1]);
             context.DrawRenderers(cullingResults, ref alphaDrawSettings, ref filterSettings_transparent);
 
-            ExecuteRenderFeatures(afterTransparentRenderFeature);
-
-            ExecuteCommand();
+            if(!ExecuteVolumeRender(RenderFeatureStep.AfterTransparent))
+                ExecuteCommand();
         }
 
-        private void DrawPostProcess(List<BXRenderFeature> onPostProcessRenderFeatures)
+        private void DrawPostProcess()
 		{
-            ExecuteRenderFeatures(onPostProcessRenderFeatures);
+            ExecuteVolumeRender(RenderFeatureStep.OnPostProcess);
 
             DrawBloom();
 

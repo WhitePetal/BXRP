@@ -12,8 +12,6 @@ namespace BXRenderPipelineForward
     {
         public BXLights lights = new BXLights();
 
-        private List<BXRenderFeature> onDirShadowsRenderFeatures = new List<BXRenderFeature>();
-
         public void Init(BXRenderCommonSettings commonSettings)
         {
             this.commonSettings = commonSettings;
@@ -53,7 +51,7 @@ namespace BXRenderPipelineForward
             if (!Cull(maxShadowDistance)) return;
 
             commandBuffer.BeginSample(SampleName);
-            lights.Setup(this, onDirShadowsRenderFeatures);
+            lights.Setup(this);
             commandBuffer.EndSample(SampleName);
             ExecuteCommand();
 
@@ -95,16 +93,6 @@ namespace BXRenderPipelineForward
 
         private void DrawGeometry(bool useDynamicBatching, bool useGPUInstancing)
         {
-            //commandBuffer.SetRenderTarget(BXShaderPropertyIDs._FrameBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, BXShaderPropertyIDs._DepthBuffer_TargetID, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
-            //CameraClearFlags clearFlags = camera.clearFlags;
-            //commandBuffer.ClearRenderTarget(clearFlags <= CameraClearFlags.Depth, clearFlags <= CameraClearFlags.Color, clearFlags == CameraClearFlags.SolidColor ? camera.backgroundColor : Color.clear);
-
-            var renderSettings = BXVolumeManager.instance.renderSettings;
-            var expourseComponent = renderSettings.GetComponent<BXExpourseComponent>();
-
-            // EV-Expourse
-            commandBuffer.SetGlobalFloat(BXShaderPropertyIDs._ReleateExpourse_ID, expourseComponent.expourseRuntime / renderSettings.standard_expourse);
-
             ExecuteCommand();
 
             // Draw Opaque
@@ -180,7 +168,6 @@ namespace BXRenderPipelineForward
             commonSettings = null;
             lights.Dispose();
             lights = null;
-            onDirShadowsRenderFeatures = null;
         }
     }
 }

@@ -135,6 +135,28 @@ namespace BXRenderPipeline
 		[HideInInspector]
 		public Vector3 worldOffset_runtime;
 
+		public override RenderFeatureStep RenderFeatureStep => RenderFeatureStep.MAX;
+
+		public override void BeDisabled()
+		{
+			
+		}
+
+		public override void BeEnabled()
+		{
+			
+		}
+
+		public override void OnDisabling(float interpFactor)
+		{
+			
+		}
+
+		public override void OnRender(CommandBuffer cmd, BXMainCameraRenderBase render)
+		{
+			throw new NotImplementedException();
+		}
+
 		// TODO:NEED IMPLEMENT
 		public override void OverrideData(BXVolumeComponment component, float interpFactor)
         {

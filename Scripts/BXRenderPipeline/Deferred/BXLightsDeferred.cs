@@ -74,7 +74,7 @@ namespace BXRenderPipelineDeferred
             }
         }
 
-        public void Setup(BXMainCameraRenderBase mainCameraRender, List<BXRenderFeature> onDirShadowsRenderFeatures)
+        public void Setup(BXMainCameraRenderBase mainCameraRender)
         {
             this.camera = mainCameraRender.camera;
             this.context = mainCameraRender.context;
@@ -90,7 +90,7 @@ namespace BXRenderPipelineDeferred
             if(needCluster)
                 clusterCull.Setup(camera, this, width, height);
             SetupLights();
-            shadows.Render(onDirShadowsRenderFeatures);
+            shadows.Render();
             if (needCluster)
             {
                 clusterCull.Upload(commandBuffer);

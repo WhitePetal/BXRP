@@ -200,7 +200,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)inc;$(ProjectDir);%WINDIR%\System32;%WindowsSdkDir\Include%WindowsSDKVersion%\\um;$(ProjectDir)external\DirectX-Headers-main\include\directx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)inc;$(ProjectDir)inc\Raster;$(ProjectDir)inc\Raytracing;$(ProjectDir)inc\DescriptorAllocator;$(ProjectDir);%WINDIR%\System32;%WindowsSdkDir\Include%WindowsSDKVersion%\\um;$(ProjectDir)external\DirectX-Headers-main\include\directx;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

@@ -82,7 +82,24 @@ namespace BXRenderPipeline
     [Serializable]
     public abstract class BXVolumeComponment : ScriptableObject
     {
+        public bool enable;
+        [HideInInspector]
+        public bool enableRuntime;
+
+        public abstract RenderFeatureStep RenderFeatureStep
+		{
+            get;
+		}
+
         public abstract void OverrideData(BXVolumeComponment component, float interpFactor);
+
+        public abstract void OnRender(CommandBuffer cmd, BXMainCameraRenderBase render);
+
+        public abstract void OnDisabling(float interpFactor);
+
+        public abstract void BeEnabled();
+
+        public abstract void BeDisabled();
 
         public abstract void RefreshData();
     }
