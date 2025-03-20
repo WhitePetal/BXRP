@@ -8,14 +8,24 @@ using BXRenderPipelineDeferred;
 
 namespace BXRenderPipeline
 {
+	/// <summary>
+    /// BXRP渲染管线实例类
+    /// 即渲染的入口
+    /// </summary>
     public class BXRenderPipeline : RenderPipeline
     {
+		/// <summary>
+        /// 前向渲染所支持的所有LightMode
+        /// </summary>
 		public static ShaderTagId[] forwardShaderTagIds = new ShaderTagId[]
 		{
 			new ShaderTagId("SRPDefaultUnlit"),
 			new ShaderTagId("BXForwardBase"),
 			new ShaderTagId("BXForwardBaseAlphaTest")
 		};
+		/// <summary>
+        /// 延迟渲染所支持的所有LightMode
+        /// </summary>
 		public static ShaderTagId[] deferredShaderTagIds = new ShaderTagId[]
 		{
 			new ShaderTagId("SRPDefaultUnlit"),
@@ -24,7 +34,9 @@ namespace BXRenderPipeline
 			new ShaderTagId("BXDeferredBaseAlpha"),
 			new ShaderTagId("BXDeferredAddAlpha")
 		};
-
+		/// <summary>
+        /// Unity自带的，但是BXRP已经不支持的LightMode
+        /// </summary>
 		public static ShaderTagId[] legacyShaderTagIds = new ShaderTagId[]
 		{
 			new ShaderTagId("Always"),
@@ -35,20 +47,84 @@ namespace BXRenderPipeline
 			new ShaderTagId("VertexLM")
 		};
 
-		private bool useDynamicBatching, useGPUInstancing;
+		/// <summary>
+        /// 是否使用动态和批
+        /// </summary>
+		private bool useDynamicBatching;
+		/// <summary>
+        /// 是否使用 GPU Instancing
+        /// </summary>
+		private bool useGPUInstancing;
+
+		/// <summary>
+        /// 主相机渲染器
+        /// 这里默认使用延迟渲染方式
+        /// 如果要使用前向渲染可以把这里改为 BXMainCameraRender <see cref="BXRenderPipelineForward.BXMainCameraRender"/>
+        /// </summary>
 		private BXMainCameraRenderDeferred mainCameraRender = new BXMainCameraRenderDeferred();
 		// for reflection probe bake、preview window each other render
+		/// <summary>
+		/// 其它相机渲染器
+        /// 主要用于 reflection probe bake、preview window 和 所有除MainCamera外其他场景内的相机
+		/// 这里默认使用延迟渲染方式
+		/// 如果要使用前向渲染可以把这里改为 BXMainCameraRender <see cref="BXRenderPipelineForward.BXOtherCameraRender"/>
+		/// </summary>
 		private BXOtherCameraRenderDeferred otherCameraRender = new BXOtherCameraRenderDeferred();
+		/// <summary>
+        /// 管线基础设置
+        /// </summary>
 		public BXRenderCommonSettings commonSettings;
 
+		/// <summary>
+		/// 在所有渲染之前执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> beforeRenderFeatures;
+		/// <summary>
+		/// 在方向光阴影渲染之前执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> onDirShadowRenderFeatures;
+		/// <summary>
+		/// 在不透明物体渲染之前执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> beforeOpaqueRenderFeatures;
+		/// <summary>
+		/// 在不透明物体渲染之后执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> afterOpaqueRenderFeatures;
+		/// <summary>
+		/// 在透明物体渲染之前执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> beforeTransparentFeatures;
+		/// <summary>
+		/// 在透明物体渲染之后执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> afterTransparentFeatures;
+		/// <summary>
+		/// 在后处理之前执行的RenderFeatures
+		/// <see cref="BXRenderFeature"/>
+		/// </summary>
 		private List<BXRenderFeature> onPostProcessRenderFeatures;
 
+		/// <summary>
+        /// 构建BXRP实例
+        /// </summary>
+        /// <param name="useDynamicBatching"></param>
+        /// <param name="useGPUInstancing"></param>
+        /// <param name="useSRPBatching"></param>
+        /// <param name="commonSettings"></param>
+        /// <param name="beforeRenderFeatures"></param>
+        /// <param name="onDirShadowRenderFeatures"></param>
+        /// <param name="beforeOpaqueRenderFeatures"></param>
+        /// <param name="afterOpaqueRenderFeatures"></param>
+        /// <param name="beforeTransparentFeatures"></param>
+        /// <param name="afterTransparentFeatures"></param>
+        /// <param name="onPostProcessRenderFeatures"></param>
         public BXRenderPipeline(bool useDynamicBatching, bool useGPUInstancing, bool useSRPBatching, BXRenderCommonSettings commonSettings,
 			List<BXRenderFeature> beforeRenderFeatures, List<BXRenderFeature> onDirShadowRenderFeatures, 
 			List<BXRenderFeature> beforeOpaqueRenderFeatures, List<BXRenderFeature> afterOpaqueRenderFeatures,
@@ -91,6 +167,12 @@ namespace BXRenderPipeline
 			BXHiZManager.instance.Initialize();
 		}
 
+		/// <summary>
+        /// BXRP管线渲染执行入口
+        /// 每个渲染帧调用一次
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="cameras"></param>
 		protected override void Render(ScriptableRenderContext context, Camera[] cameras)
 		{
 			for(int i = 0; i < cameras.Length; ++i)
@@ -116,6 +198,10 @@ namespace BXRenderPipeline
 			}
 		}
 
+		/// <summary>
+        /// BXRP管线实例销毁方法
+        /// </summary>
+        /// <param name="disposing"></param>
 		protected override void Dispose(bool disposing)
 		{
 			BXHiZManager.instance.Dispose();
@@ -137,6 +223,11 @@ namespace BXRenderPipeline
 			BXVolumeManager.instance.Deinitialize();
 		}
 
+		/// <summary>
+        /// 初始化所有RenderFeautre
+        /// <see cref="BXRenderFeature"/>
+        /// </summary>
+        /// <param name="renderFeatures"></param>
 		private void InitRenderFeatures(List<BXRenderFeature> renderFeatures)
 		{
 			if (renderFeatures == null || renderFeatures.Count == 0) return;
@@ -146,6 +237,11 @@ namespace BXRenderPipeline
 			}
 		}
 
+		/// <summary>
+        /// 销毁所有RenderFeature
+        /// <see cref="BXRenderFeature"/>
+        /// </summary>
+        /// <param name="renderFeatures"></param>
 		private void DisposeRenderFeatures(ref List<BXRenderFeature> renderFeatures)
 		{
 			if (renderFeatures == null) return;
@@ -167,6 +263,11 @@ namespace BXRenderPipeline
 			renderFeatures = null;
 		}
 
+		/// <summary>
+        /// 向BXRP管线实例添加(注册)RenderFeature
+        /// </summary>
+        /// <param name="renderFeature"></param>
+        /// <param name="step"></param>
 		public void AddRenderFeature(BXRenderFeature renderFeature, RenderFeatureStep step)
 		{
 			switch (step)
@@ -198,6 +299,10 @@ namespace BXRenderPipeline
 			renderFeature.Init(commonSettings);
 		}
 
+		/// <summary>
+        /// 从BXRP管线实例移除(销毁)RenderFeature
+        /// </summary>
+        /// <param name="renderFeature"></param>
 		public void RemoveRenderFeature(BXRenderFeature renderFeature)
 		{
 			switch (renderFeature.step)
@@ -227,6 +332,11 @@ namespace BXRenderPipeline
 			renderFeature.Dispose();
 		}
 
+		/// <summary>
+        /// 访问指定渲染阶段执行的所有RenderFeature
+        /// </summary>
+        /// <param name="step"></param>
+        /// <returns></returns>
 		public List<BXRenderFeature> GetRenderFeatures(RenderFeatureStep step)
 		{
 			switch (step)
@@ -249,6 +359,11 @@ namespace BXRenderPipeline
 			return null;
 		}
 
+		/// <summary>
+        /// 外部快速访问管线基础设置的方法
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <returns></returns>
 		public static bool TryGetRenderCommonSettings(out BXRenderCommonSettings settings)
 		{
 			settings = null;
