@@ -22,6 +22,10 @@ DescriptorAllocatorPage::DescriptorAllocatorPage(D3D12_DESCRIPTOR_HEAP_TYPE type
 	AddNewBlock(0, m_NumFreeHandles);
 }
 
+DescriptorAllocatorPage::~DescriptorAllocatorPage()
+{
+}
+
 D3D12_DESCRIPTOR_HEAP_TYPE DescriptorAllocatorPage::GetHeapType() const
 {
 	return m_HeapType;

@@ -2,7 +2,7 @@
 
 #include <Application.h>
 #include <Helpers.h>
-#include <Math.h>
+#include <BXMath.h>
 
 #include <d3dx12.h>
 
@@ -69,10 +69,13 @@ UploadBuffer::Page::Page(size_t sizeInBytes)
 {
 	auto device = Application::Get().GetDevice();
 
+	CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_PageSize);
+
 	ThrowIfFaild(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(m_PageSize),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&m_Resource)
@@ -91,8 +94,8 @@ UploadBuffer::Page::~Page()
 
 bool UploadBuffer::Page::HasSpace(size_t sizeInBytes, size_t alignment, size_t* alignedSize, size_t* alignedOffset) const
 {
-	*alignedSize = Math::AlignUp(sizeInBytes, alignment);
-	*alignedOffset = Math::AlignUp(m_Offset, alignment);
+	*alignedSize = BXMath::AlignUp(sizeInBytes, alignment);
+	*alignedOffset = BXMath::AlignUp(m_Offset, alignment);
 
 	return *alignedOffset + *alignedSize <= m_PageSize;
 }

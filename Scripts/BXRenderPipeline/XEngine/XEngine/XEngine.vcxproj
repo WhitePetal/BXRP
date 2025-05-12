@@ -60,7 +60,7 @@
     <ClInclude Include="inc\HighResolutionClock.h" />
     <ClInclude Include="inc\KeyCodes.h" />
     <ClInclude Include="inc\LogQueue.h" />
-    <ClInclude Include="inc\Math.h" />
+    <ClInclude Include="inc\BXMath.h" />
     <ClInclude Include="inc\Raster\RasterPipeline.h" />
     <ClInclude Include="inc\Raytracing\RaytracingPipeline.h" />
     <ClInclude Include="inc\SampleScene.h" />

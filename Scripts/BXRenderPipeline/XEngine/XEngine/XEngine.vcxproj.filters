@@ -164,7 +164,7 @@
     <ClInclude Include="inc\UploadBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Math.h">
+    <ClInclude Include="inc\BXMath.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="inc\Raster\RasterPipeline.h">

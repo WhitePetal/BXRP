@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include <DescriptorAllocator.h>
 #include <DescriptorAllocatorPage.h>
 
@@ -6,6 +7,10 @@ DescriptorAllocator::DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32
 	, m_NumDescriptorsPerHeap(numDescriptorsPerHeap)
 {
 
+}
+
+DescriptorAllocator::~DescriptorAllocator()
+{
 }
 
 std::shared_ptr<DescriptorAllocatorPage> DescriptorAllocator::CreateAllocatorPage()

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Math
+namespace BXMath
 {
 	constexpr float PI = 3.1415926535897932384626433832795f;
 	constexpr float _2PI = 2.0f * PI;
